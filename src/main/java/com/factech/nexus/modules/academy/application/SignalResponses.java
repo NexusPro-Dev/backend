@@ -33,8 +33,8 @@ public final class SignalResponses {
           List<SignalMembershipRef> memberships,
       @Schema(
               description =
-                  "Hasta cuándo se muestra: la próxima vez que llega signalTime después de"
-                      + " crearse.")
+                  "Hasta cuándo se muestra: la medianoche de Bogotá que cierra el día en que se"
+                      + " creó, aunque signalTime ya haya pasado.")
           OffsetDateTime visibleUntil,
       @Schema(description = "Si se muestra ahora: sin retirar y antes de visibleUntil.")
           boolean visible,

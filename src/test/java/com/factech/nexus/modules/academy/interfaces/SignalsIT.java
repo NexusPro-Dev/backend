@@ -17,7 +17,6 @@ import com.factech.nexus.IntegrationTestBase;
 import com.factech.nexus.modules.academy.domain.models.Signal;
 import com.jayway.jsonpath.JsonPath;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
@@ -98,8 +97,8 @@ class SignalsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-AC-341` — registrar una: 201, par en mayúsculas, HH:mm, visibleUntil la próxima vez que"
-          + " llega la hora en Bogotá, audita CREATE; PERSONALIZED con sus membresías")
+      "`CA-AC-341`, `CA-AC-350` — registrar una: 201, par en mayúsculas, HH:mm, visibleUntil la"
+          + " medianoche de Bogotá de su día, audita CREATE; PERSONALIZED con sus membresías")
   void registraUna() throws Exception {
     String cuerpo =
         registrar(senal(" eur/usd ", "10:30", 1, "free", null))
@@ -117,9 +116,7 @@ class SignalsIT extends IntegrationTestBase {
     OffsetDateTime creada = OffsetDateTime.parse(JsonPath.read(cuerpo, "$.createdAt"));
     OffsetDateTime hasta = OffsetDateTime.parse(JsonPath.read(cuerpo, "$.visibleUntil"));
     assertThat(hasta.toInstant())
-        .isEqualTo(
-            Signal.visibleUntil(LocalTime.of(10, 30), creada, ZoneId.of("America/Bogota"))
-                .toInstant());
+        .isEqualTo(Signal.visibleUntil(creada, ZoneId.of("America/Bogota")).toInstant());
     UUID id = UUID.fromString(JsonPath.read(cuerpo, "$.id"));
     assertThat(
             jdbc.queryForObject(
@@ -312,7 +309,8 @@ class SignalsIT extends IntegrationTestBase {
       "`CA-AC-346` — las vigentes: BECA ve las FREE; VIP también las PREMIUM y las PERSONALIZED"
           + " de VIP; ni vencidas ni retiradas; sin membresía vigente, ninguna")
   void vigentes() throws Exception {
-    UUID free = idDe(registrar(senal("EUR/USD", "10:00", 1, "FREE", null)));
+    // `CA-AC-350`: a las 00:00 su hora ya pasó siempre, y se ve igual porque se creó hoy.
+    UUID free = idDe(registrar(senal("EUR/USD", "00:00", 1, "FREE", null)));
     UUID premium = idDe(registrar(senal("GBP/USD", "10:00", 1, "PREMIUM", null)));
     UUID paraVip =
         idDe(registrar(senal("XAU/USD", "10:00", 1, "PERSONALIZED", "[\"" + VIP + "\"]")));
@@ -327,7 +325,7 @@ class SignalsIT extends IntegrationTestBase {
     vigentesDe(alumno)
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[*].id", containsInAnyOrder(free.toString(), paraBeca.toString())))
-        .andExpect(jsonPath("$[0].signalTime").value("10:00"))
+        .andExpect(jsonPath("$[*].signalTime", containsInAnyOrder("00:00", "10:00")))
         .andExpect(jsonPath("$[0].direction").value("UP"))
         .andExpect(jsonPath("$[0].memberships").doesNotExist());
 

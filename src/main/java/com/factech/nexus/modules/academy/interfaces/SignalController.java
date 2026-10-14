@@ -51,9 +51,9 @@ public class SignalController {
       `DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,
       `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
       lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
-      membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
-      vez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta
-      mañana a las 10:00—. No se corrige. Se audita cada una.
+      membresía que no existe, `422` `EX-002`. **Se muestra el día en que se crea**, hasta
+      `visibleUntil` —la medianoche de Bogotá—, aunque su `signalTime` ya haya pasado: creada
+      a las 11:00 con hora 10:00, hasta las 00:00 de mañana. No se corrige. Se audita cada una.
       """;
 
   private final SignalService senales;

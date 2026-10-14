@@ -4,7 +4,7 @@
 |---|---|
 | Requerimientos | `RF-AC-067`, `RF-AC-068`, `RF-AC-069`, `RF-AC-070`, `RF-AC-071`, `RF-AC-072` |
 | Módulo | `AC` — Academia |
-| Versión | 1.1.0 |
+| Versión | 1.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -141,7 +141,7 @@ Con varios errores, el código de la respuesta es el del primero y `errors` los 
 | ID | Criterio |
 |---|---|
 | `CA-AC-339` | **`V108`**: los seis permisos existen; los cinco de administración, solo `SUPERADMIN` y `ADMIN`; `signals:view` en todo rol con `live-sessions:learn`; catálogo de **250** |
-| `CA-AC-340` | **`visibleUntil`** es la próxima vez que llega `signalTime` en Bogotá, estrictamente después de crearse: creada a las 11:00 con hora 10:00, mañana a las 10:00; a las 09:00 con hora 10:30, hoy a las 10:30; justo a su hora, mañana |
+| `CA-AC-340` | ~~La próxima vez que llega `signalTime`~~ — **reemplazado por `CA-AC-350`** (`ac.md` §5.2.23) |
 | `CA-AC-341` | **Registrar una** responde `201` con el par en mayúsculas, `HH:mm`, `visibleUntil`, `visible` y las membresías de una `PERSONALIZED`, y audita `CREATE`; los campos inválidos, `400` con todos los errores (`VAL-001` a `VAL-006`); una membresía inexistente, `422` `EX-002`; no registra nada si falla |
 | `CA-AC-342` | **Registrar varias** responde `201` con todas en orden; con una inválida, `400` con `[i].campo` de cada error y **ninguna** registrada; membresía inexistente, `422` en su posición; vacío, `VAL-007`; más de 500, `VAL-008` |
 | `CA-AC-343` | **Importar** un CSV con punto y coma o comas, BOM, cabecera en cualquier orden y `memberships` por código registra todas; con errores, `400` con `lines[n].columna` y **ninguna**; código inexistente, `422`; sin columnas, `VAL-010`; sin archivo o vacío, `VAL-009`; sin filas, `VAL-007`; más de 500, `VAL-008` |
@@ -150,6 +150,7 @@ Con varios errores, el código de la respuesta es el del primero y `errors` los 
 | `CA-AC-346` | **Las vigentes**: con BECA, las `FREE` y las `PERSONALIZED` de BECA; con VIP, además las `PREMIUM` y las `PERSONALIZED` de VIP, no las de BECA; nunca las vencidas ni las retiradas; con la membresía vencida, ninguna |
 | `CA-AC-347` | **Cada ruta exige su permiso**: con el de otra, `403` |
 | `CA-AC-348` | **La dirección** (§5.2.22): registrar una, varias o un CSV exige `direction`; `UP`, `down`, `Sube`, `BAJA`, `call`, `PUT`, `buy` y `sell` se guardan como `UP` o `DOWN` y así salen en la respuesta, el listado y las vigentes; sin ella o con otro valor, `400` `VAL-011` con su posición; un CSV sin la columna, `VAL-010` |
+| `CA-AC-350` | **`visibleUntil`** es la medianoche de Bogotá que cierra el día de creación, sea cual sea `signalTime`: creada a las 11:00 con hora 10:00 o con hora 23:00, hasta las 00:00 de mañana; creada a las 22:00 de Bogotá —03:00 UTC del día siguiente—, hasta la medianoche de **su** día en Bogotá. Las vigentes traen una señal de hora ya pasada creada hoy, y no la de ayer |
 | `CA-AC-349` | **`V109`** retira —`deleted_at`— las señales vivas que no tienen dirección; la base rechaza una señal sin dirección que no esté retirada (`ck_signals_direction`) |
 
 ## 13. Casos límite
@@ -171,3 +172,4 @@ Ninguna. Las decisiones tomadas sin preguntar están en `ac.md` §5.2.21 y §5.2
 |---|---|---|---|
 | 1.0.0 | 14-10-2026 | Nace con las señales de trading (`ac.md` v0.30.0 §5.2.21, `RN-AC-035`). | Responsable técnico |
 | 1.1.0 | 14-10-2026 | **La dirección** (`ac.md` v0.31.0 §5.2.22, a petición del responsable del proyecto): `direction` `UP` o `DOWN` en la entrada, el CSV y las dos salidas; `VAL-011`; `CA-AC-348` y `CA-AC-349`. Aprobada por el responsable del proyecto con sus dos respuestas. | Responsable técnico |
+| 1.2.0 | 14-10-2026 | **La señal se ve el día en que se crea** (`ac.md` v0.32.0 §5.2.23, corrección del responsable del proyecto): `CA-AC-350` reemplaza a `CA-AC-340`. | Responsable técnico |

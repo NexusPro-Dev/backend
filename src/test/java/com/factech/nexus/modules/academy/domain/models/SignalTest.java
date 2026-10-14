@@ -12,7 +12,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** `CA-AC-340`: hasta cuándo se muestra una señal, y las comprobaciones de sus campos. */
+/** `CA-AC-350`: hasta cuándo se muestra una señal, y las comprobaciones de sus campos. */
 class SignalTest {
 
   private static final ZoneId BOGOTA = ZoneId.of("America/Bogota");
@@ -23,33 +23,36 @@ class SignalTest {
   }
 
   @Test
-  @DisplayName("`CA-AC-340` — creada a las 11:00 con hora 10:00, hasta mañana a las 10:00")
-  void horaYaPasada() {
-    assertThat(Signal.visibleUntil(LocalTime.of(10, 0), bogota(14, 11, 0), BOGOTA))
-        .isEqualTo(bogota(15, 10, 0));
+  @DisplayName("`CA-AC-350` — creada a las 11:00, hasta la medianoche de su día")
+  void hastaLaMedianoche() {
+    assertThat(Signal.visibleUntil(bogota(14, 11, 0), BOGOTA)).isEqualTo(bogota(15, 0, 0));
+    assertThat(Signal.visibleUntil(bogota(14, 0, 0), BOGOTA)).isEqualTo(bogota(15, 0, 0));
+    assertThat(Signal.visibleUntil(bogota(14, 23, 59), BOGOTA)).isEqualTo(bogota(15, 0, 0));
   }
 
   @Test
-  @DisplayName("`CA-AC-340` — creada a las 09:00 con hora 10:30, hasta hoy a las 10:30")
-  void horaPorLlegar() {
-    assertThat(Signal.visibleUntil(LocalTime.of(10, 30), bogota(14, 9, 0), BOGOTA))
-        .isEqualTo(bogota(14, 10, 30));
+  @DisplayName("`CA-AC-350` — la hora de la señal no cuenta, aunque ya haya pasado")
+  void laHoraNoCuenta() {
+    Signal pasada =
+        Signal.create(
+            java.util.UUID.randomUUID(),
+            "EUR/USD",
+            LocalTime.of(10, 0),
+            1,
+            SignalDirection.UP,
+            SubscriptionType.FREE,
+            null,
+            bogota(14, 11, 0),
+            BOGOTA);
+    assertThat(pasada.getVisibleUntil()).isEqualTo(bogota(15, 0, 0));
   }
 
   @Test
-  @DisplayName("`CA-AC-340` — creada justo a su hora, hasta mañana a esa hora")
-  void justoASuHora() {
-    assertThat(Signal.visibleUntil(LocalTime.of(10, 0), bogota(14, 10, 0), BOGOTA))
-        .isEqualTo(bogota(15, 10, 0));
-  }
-
-  @Test
-  @DisplayName("`CA-AC-340` — la hora es de Bogotá aunque el instante llegue en UTC")
-  void horaDeBogotaDesdeUtc() {
-    // 03:00 UTC del 15 son las 22:00 del 14 en Bogotá: las 23:00 aún no han llegado.
+  @DisplayName("`CA-AC-350` — el día es el de Bogotá aunque el instante llegue en UTC")
+  void diaDeBogotaDesdeUtc() {
+    // 03:00 UTC del 15 son las 22:00 del 14 en Bogotá: se ve hasta las 00:00 del 15 en Bogotá.
     OffsetDateTime enUtc = OffsetDateTime.of(2026, 10, 15, 3, 0, 0, 0, ZoneOffset.UTC);
-    assertThat(Signal.visibleUntil(LocalTime.of(23, 0), enUtc, BOGOTA))
-        .isEqualTo(bogota(14, 23, 0));
+    assertThat(Signal.visibleUntil(enUtc, BOGOTA)).isEqualTo(bogota(15, 0, 0));
   }
 
   @Test

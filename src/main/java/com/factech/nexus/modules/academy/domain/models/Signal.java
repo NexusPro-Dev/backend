@@ -25,9 +25,9 @@ import java.util.regex.Pattern;
  * suscripción.
  *
  * <p><b>No se corrige</b>: nace, se muestra hasta {@code visibleUntil} y se retira. {@code
- * visibleUntil} es la próxima vez que llega {@code signalTime} en la zona del negocio después de
- * crearse —creada a las 11:00 con hora 10:00, hasta mañana a las 10:00—, y como la señal no cambia,
- * se calcula una vez y se guarda.
+ * visibleUntil} es la medianoche de la zona del negocio que cierra el día en que se crea, aunque
+ * {@code signalTime} ya haya pasado (`ac.md` §5.2.23) —creada a las 11:00 con hora 10:00, hasta las
+ * 00:00 de mañana—, y como la señal no cambia, se calcula una vez y se guarda.
  *
  * <p>Las comprobaciones de cada campo son estáticas y <b>acumulan</b> en una lista en lugar de
  * lanzar: registrar varias a la vez devuelve todos los errores de todas las filas de una vez.
@@ -98,19 +98,18 @@ public class Signal {
     senal.subscriptionType = subscriptionType;
     senal.createdBy = createdBy;
     senal.createdAt = ahora;
-    senal.visibleUntil = visibleUntil(signalTime, ahora, zona);
+    senal.visibleUntil = visibleUntil(ahora, zona);
     return senal;
   }
 
   /**
-   * La próxima vez que llega {@code hora} en {@code zona}, <b>estrictamente</b> después de {@code
-   * creada}: hoy si aún no ha llegado, mañana si ya pasó o es justo ahora.
+   * La medianoche de {@code zona} que cierra el día de {@code creada} (`RN-AC-035`, `ac.md`
+   * §5.2.23): la señal se ve el día en que se crea, sea cual sea su hora.
    */
-  public static OffsetDateTime visibleUntil(LocalTime hora, OffsetDateTime creada, ZoneId zona) {
-    ZonedDateTime local = creada.atZoneSameInstant(zona);
-    ZonedDateTime hoy = local.toLocalDate().atTime(hora).atZone(zona);
-    ZonedDateTime hasta = hoy.isAfter(local) ? hoy : hoy.plusDays(1);
-    return hasta.toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
+  public static OffsetDateTime visibleUntil(OffsetDateTime creada, ZoneId zona) {
+    ZonedDateTime manana =
+        creada.atZoneSameInstant(zona).toLocalDate().plusDays(1).atStartOfDay(zona);
+    return manana.toOffsetDateTime().withOffsetSameInstant(ZoneOffset.UTC);
   }
 
   /** Retira la señal; devuelve si hubo cambio. */

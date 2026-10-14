@@ -28,6 +28,8 @@
 3. Seis permisos (`…7020` a `…7025`, cola `000051` a `000056`): cinco a `SUPERADMIN` y `ADMIN`, `signals:view` donde está `live-sessions:learn`.
 4. Guardas: catálogo de 250; los cinco de administración solo en los dos roles.
 
+`V110` (enmienda del 14-10-2026, `ac.md` §5.2.23): recalcula `visible_until` de todas las señales como la medianoche de Bogotá que sigue a `created_at`. `Signal.visibleUntil` deja de mirar la hora.
+
 `V109` (enmienda del 14-10-2026, `ac.md` §5.2.22): `signals.direction varchar(4)`; **retira** con `deleted_at = now()` las vivas que existían, porque no tienen dirección; y `ck_signals_direction` —`UP` o `DOWN`, o vacía **solo** si `deleted_at` no es nulo—. Sin permisos: el catálogo sigue en 250.
 
 ## 3. Componentes afectados
@@ -85,4 +87,4 @@ Una transacción por petición: varias o un CSV escriben todo o nada. El instant
 
 ## 10. Estrategia de prueba
 
-Unitarias: `SignalTest` (`CA-AC-340` y las comprobaciones) y `SignalCsvTest` (`CA-AC-343`, la forma del archivo). Integración de API: `SignalsIT` (`CA-AC-339`, `CA-AC-341` a `CA-AC-347`); las del catálogo, con la cifra nueva; `EndpointPermissionsIT`, con las seis rutas. La dirección: `SignalTest` (los sinónimos), `SignalCsvTest` (la columna y el ejemplo) y `SignalsIT` (`CA-AC-348`, `CA-AC-349`).
+Unitarias: `SignalTest` (`CA-AC-350` y las comprobaciones) y `SignalCsvTest` (`CA-AC-343`, la forma del archivo). Integración de API: `SignalsIT` (`CA-AC-339`, `CA-AC-341` a `CA-AC-347`); las del catálogo, con la cifra nueva; `EndpointPermissionsIT`, con las seis rutas. La dirección: `SignalTest` (los sinónimos), `SignalCsvTest` (la columna y el ejemplo) y `SignalsIT` (`CA-AC-348`, `CA-AC-349`).
