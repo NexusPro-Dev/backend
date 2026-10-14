@@ -2,9 +2,15 @@ package com.factech.nexus.modules.academy.domain.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.factech.nexus.modules.academy.domain.models.Signal;
+import com.factech.nexus.modules.academy.domain.models.SubscriptionType;
+import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.ValidationException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -77,5 +83,25 @@ class SignalCsvTest {
       largo.append("EUR/USD;10:00;1;FREE\n");
     }
     assertThat(codigo(() -> SignalCsv.read(utf8(largo.toString())))).isEqualTo("VAL-008");
+  }
+
+  @Test
+  @DisplayName("El CSV de ejemplo de la tripleta se lee entero y cada campo es válido")
+  void ejemploDeLaTripleta() throws java.io.IOException {
+    byte[] ejemplo =
+        Files.readAllBytes(Path.of("docs/specs/ac/064-senales-de-trading/ejemplo-senales.csv"));
+    List<SignalCsv.Row> filas = SignalCsv.read(ejemplo);
+    assertThat(filas).hasSize(8);
+    List<FieldError> errores = new ArrayList<>();
+    for (SignalCsv.Row fila : filas) {
+      Signal.par(fila.currencyPair(), "currency_pair", errores);
+      Signal.hora(fila.signalTime(), "signal_time", errores);
+      Signal.tipo(fila.signalType(), "signal_type", errores);
+      SubscriptionType tipo =
+          Signal.suscripcion(fila.subscriptionType(), "subscription_type", errores);
+      Signal.membresias(tipo, fila.memberships().size(), "memberships", errores);
+      assertThat(fila.memberships()).isSubsetOf("BECA", "VIP", "PLATINO", "ORO");
+    }
+    assertThat(errores).isEmpty();
   }
 }
