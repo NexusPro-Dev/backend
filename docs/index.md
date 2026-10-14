@@ -78,7 +78,7 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     ---
 
-    Cómo se lleva el backend a un entorno que no es la máquina de nadie: la topología en Railway, las variables de cada entorno, el primer arranque, la verificación y la operación.
+    Cómo se lleva el backend a un entorno que no es la máquina de nadie: el servidor con Dokploy, la configuración del servicio, las variables de cada entorno, el primer arranque, la verificación y la operación.
 
     [:octicons-arrow-right-24: Ver el despliegue](deployment.md)
 
@@ -86,7 +86,7 @@ Esta documentación es parte del repositorio y se versiona junto al código (Art
 
     ---
 
-    El paso a paso, con Railway abierto delante: los comandos exactos, el bloque de variables listo para pegar y qué hacer cuando algo falla.
+    El paso a paso, con el panel de Dokploy abierto delante: del servidor vacío al despliegue automático, con los comandos exactos, el bloque de variables listo para pegar y qué hacer cuando algo falla.
 
     [:octicons-arrow-right-24: Abrir el manual](manual-de-despliegue.md)
 
@@ -196,11 +196,11 @@ Son las que sus `tasks.md` declaran `Pendiente`, verificadas contra el código u
 
 **Cerradas:** PostgreSQL como único motor · claves `uuid` v7 · Java 21 LTS con Spring Boot 3 y Maven · migraciones Flyway · auditoría separada en cuatro registros —cambios, eliminación, error y seguridad— más `request_log`, todos con IP de origen · motivo obligatorio en toda eliminación, en **texto libre y sin catálogo de códigos** (D-20) · umbrales p95 de rendimiento · repositorios separados con contrato OpenAPI · autenticación JWT con refresh revocable · contención de privilegios entre roles · permisos `recurso:acción` · Argon2id.
 
-**Pendientes:** **modelo de alcance de datos** (D-22), del que dependen la red comercial, las comisiones y toda consulta con alcance por persona · retención por registro (D-10) · política de idempotencia (D-11) · **la IP de la auditoría** (D-21), que el 27-08-2026 dejó de ser «qué proxies declarar» para ser «el resolvedor necesita admitir rangos»: en Railway no hay ninguna IP de borde que poner, de modo que el Art. V.15 no se cumple en un entorno desplegado · identidad para procesos automáticos (D-19).
+**Pendientes:** **modelo de alcance de datos** (D-22), del que dependen la red comercial, las comisiones y toda consulta con alcance por persona · retención por registro (D-10) · política de idempotencia (D-11) · **la IP de la auditoría** (D-21): el resolvedor admite rangos desde el 27-08-2026 y, con Dokploy, el rango ya existe —la subred de `dokploy-network`, [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md)—; falta comprobarlo sobre el despliegue real · identidad para procesos automáticos (D-19).
 
 Y dos cosas que ya **no** son decisiones pendientes y siguen sin hacerse, que no es lo mismo: el **canal compartido** para el corte de tokens —condición previa a una segunda instancia, y el motivo de que el despliegue corra con una sola réplica— y el **raspado de métricas con alertas**, que D-09 se cerró sin resolver.
 
-Cerradas desde la última revisión de esta portada: **la infraestructura de despliegue** (D-09), resuelta el 27-08-2026 con [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) —**Railway**, un servicio por entorno construido desde el mismo `Dockerfile`, con PostgreSQL gestionado y despliegue por integración de rama—; llevaba abierta desde el 19-08-2026 y se había convertido en el aparcadero de cinco pendientes distintos · **cómo consume un módulo los datos de otro** (D-25), resuelta el 26-08-2026 con interfaces de aplicación de solo lectura publicadas por el dueño del dato · el **mecanismo del canal de envío** (D-23), resuelto el 26-08-2026 con **Resend por su API HTTP y no por SMTP**, que era lo último que le faltaba al módulo para tener sus cuarenta y dos endpoints · el **catálogo inicial de permisos** · los **parámetros concretos de seguridad** · el **restablecimiento de contraseña** · y —a medias, por [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md)— la **publicación del contrato OpenAPI** (D-24), que ya se versiona como archivo aunque falte llevarlo al frontend de forma automática.
+Cerradas desde la última revisión de esta portada: **la infraestructura de despliegue** (D-09), resuelta el 27-08-2026 con [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) —**Railway**— y llevada el 14-10-2026 a un **VPS propio con Dokploy** por [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), con la imagen construida en CI después del pipeline en verde; llevaba abierta desde el 19-08-2026 y se había convertido en el aparcadero de cinco pendientes distintos · **cómo consume un módulo los datos de otro** (D-25), resuelta el 26-08-2026 con interfaces de aplicación de solo lectura publicadas por el dueño del dato · el **mecanismo del canal de envío** (D-23), resuelto el 26-08-2026 con **Resend por su API HTTP y no por SMTP**, que era lo último que le faltaba al módulo para tener sus cuarenta y dos endpoints · el **catálogo inicial de permisos** · los **parámetros concretos de seguridad** · el **restablecimiento de contraseña** · y —a medias, por [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md)— la **publicación del contrato OpenAPI** (D-24), que ya se versiona como archivo aunque falte llevarlo al frontend de forma automática.
 
 El detalle de cada decisión, con su responsable y qué bloquea, está en [`architecture.md` §15 y §16](architecture.md#16-decisiones-pendientes) y en [`security.md` §12](security.md#12-decisiones-y-pendientes), que son su autoridad.
 

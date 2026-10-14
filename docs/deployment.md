@@ -5,28 +5,28 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.25.0 |
+| Versión | 0.26.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 13-10-2026 |
+| Última actualización | 14-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
-| Documentos relacionados | `architecture.md` v0.21.0 · `security.md` v0.35.0 · [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) |
-| Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.2.0 — el paso a paso |
+| Documentos relacionados | `architecture.md` v0.51.0 · `security.md` v0.138.0 · [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md) |
+| Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.3.0 — el paso a paso |
 
 ---
 
 ## 1. Propósito y alcance
 
-Este documento responde una pregunta concreta: **cómo se lleva este backend a un entorno en ejecución que no es la máquina de nadie**. Es el procedimiento operativo del despliegue, no la justificación de la plataforma: por qué Railway y no otra cosa está en [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md), que cierra la decisión **D-09**.
+Este documento responde una pregunta concreta: **cómo se lleva este backend a un entorno en ejecución que no es la máquina de nadie**. Es el procedimiento operativo del despliegue, no la justificación de la plataforma: por qué un VPS propio con Dokploy está en [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), que sustituye el 14-10-2026 a [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md) —Railway—.
 
-**Dentro del alcance:** los dos entornos desplegados que exige el Art. IX.4 —`testing` y `production`—, sobre Railway; el mapa completo de variables de entorno con el valor exacto que va en cada una; los tres detalles de la plataforma que rompen el arranque si nadie los mira; la verificación posterior; y la operación del día a día —logs, redespliegue, reversión, acceso a la base—.
+**Dentro del alcance:** los dos entornos desplegados que exige el Art. IX.4 —`testing` y `production`—, sobre Dokploy; el servidor y lo que hay que endurecer en él; la configuración del servicio que Dokploy guarda fuera del repositorio; el mapa completo de variables de entorno con el valor exacto que va en cada una; los detalles de la plataforma que rompen el arranque o el relevo si nadie los mira; la publicación de la imagen desde CI; la verificación posterior; y la operación del día a día —logs, redespliegue, reversión, copias, acceso a la base—.
 
 **Fuera del alcance:** el entorno local, que vive en [`development-guide.md` §2](development-guide.md#2-puesta-en-marcha-del-entorno-local) y en el `docker-compose.yml`; el despliegue del frontend, que es otro repositorio; y la publicación del sitio de documentación, que la hace GitHub Pages desde `.github/workflows/docs.yml` y no tiene nada que ver con esto.
 
 !!! tip "¿Vas a desplegar ahora mismo? Usa el [manual](manual-de-despliegue.md)"
 
-    Este documento es la **referencia**: qué es cada cosa y por qué. Para hacerlo, con Railway abierto delante, el [**manual de despliegue**](manual-de-despliegue.md) lleva los once pasos en orden, con los comandos exactos y el bloque de variables listo para pegar.
+    Este documento es la **referencia**: qué es cada cosa y por qué. Para hacerlo, con el panel de Dokploy abierto delante, el [**manual de despliegue**](manual-de-despliegue.md) lleva los pasos en orden, con los comandos exactos y el bloque de variables listo para pegar.
 
     Si los dos se contradicen, manda este.
 
@@ -40,27 +40,31 @@ Este documento responde una pregunta concreta: **cómo se lleva este backend a u
 
 ## 2. Qué se despliega
 
-Dos servicios dentro de un mismo proyecto de Railway, y nada más:
+Un servidor con Dokploy, y en él un proyecto, `nexus`, con un entorno de Dokploy por cada entorno del sistema. En cada uno, dos servicios de este repositorio —la aplicación y su base— y el frontend, que es del otro:
 
 ```mermaid
 graph LR
-    N["Navegador / Frontend"] -->|HTTPS| E["Borde de Railway<br/>TLS y dominio"]
-    E -->|"HTTP :8080"| A["Servicio <b>backend</b><br/>imagen del Dockerfile<br/><b>1 réplica</b>"]
-    A -->|"JDBC · red privada<br/>(IPv6)"| P[("Servicio <b>Postgres</b><br/>PostgreSQL 17<br/>volumen gestionado")]
-    G["GitHub<br/>NexusPro-Dev/backend"] -.->|"push a la rama vigilada"| A
+    N["Navegador / Frontend"] -->|HTTPS| T["<b>Traefik</b><br/>TLS de Let's Encrypt<br/>contenedor de Dokploy"]
+    T -->|"HTTP :8080<br/>red dokploy-network"| A["Servicio <b>backend</b><br/>imagen de GHCR<br/><b>1 réplica</b>"]
+    A -->|"JDBC · red interna"| P[("Base <b>postgres</b><br/>PostgreSQL 17<br/>volumen del servidor")]
+    P -.->|"copia programada"| S[("Almacenamiento S3<br/>fuera del servidor")]
+    G["GitHub Actions<br/>CI en verde"] -->|"publica la imagen"| R["GHCR<br/>ghcr.io/nexuspro-dev/backend"]
+    G -.->|"API de Dokploy:<br/>desplegar"| A
+    R -.->|"descarga"| A
 ```
 
 | Pieza | Qué es | De dónde sale |
 |---|---|---|
-| Servicio **backend** | La aplicación. Railway construye la imagen con el `Dockerfile` del raíz —construcción en dos etapas, JRE 21 y usuario sin privilegios— y la ejecuta | `Dockerfile` + `railway.json` |
-| Servicio **Postgres** | PostgreSQL 17 gestionado por Railway, con su propio volumen y sus copias de seguridad | Plantilla oficial de Railway |
-| Borde | TLS, certificado y dominio. No hay nada que configurar en la aplicación para esto | Railway |
+| Servicio **backend** | La aplicación: una *Application* de Dokploy con proveedor **Docker**, que ejecuta la imagen ya construida como servicio de Swarm. **Dokploy no compila nada** | La imagen la construye y publica el CI (§10) con el `Dockerfile` del raíz —dos etapas, JRE 21, usuario sin privilegios, sonda de salud incluida— |
+| Base **postgres** | PostgreSQL 17 como servicio de base de datos de Dokploy, con su volumen en el servidor y copias programadas a un almacenamiento S3 (§12) | El catálogo de bases de datos de Dokploy, con la imagen `postgres:17` |
+| **Traefik** | El borde: TLS, certificado y dominio. No hay nada que configurar en la aplicación para esto | Lo instala Dokploy |
+| **GHCR** | El registro de las imágenes, con una etiqueta por rama y otra por commit | GitHub, en la organización `NexusPro-Dev` |
 
-**No hay un tercer servicio.** Adminer es exclusivamente local; el `docker-compose.yml` **no interviene en ningún despliegue** y sus valores no deben copiarse a Railway: son credenciales de desarrollo escritas en un archivo versionado, que es justo lo que el Art. IV.3 prohíbe fuera de local.
+**No hay un tercer servicio del backend.** Adminer es exclusivamente local; el `docker-compose.yml` **no interviene en ningún despliegue** y sus valores no deben copiarse a Dokploy: son credenciales de desarrollo escritas en un archivo versionado, que es justo lo que el Art. IV.3 prohíbe fuera de local.
 
 ### 2.1 Una sola réplica, y no es un ajuste de coste
 
-El servicio backend corre con **`numReplicas: 1`**, declarado en `railway.json`. Subirlo rompe tres comportamientos que hoy son correctos, y ninguno de los tres falla de forma visible:
+El servicio backend corre con **una réplica**, fijada en la configuración del servicio en Dokploy (§5.3). Swarm deja subirla con cambiar un número en el panel, y por eso mismo hay que tenerlo presente: subirla rompe tres comportamientos que hoy son correctos, y ninguno de los tres falla de forma visible:
 
 | Componente | Qué guarda en memoria del proceso | Qué pasa con dos réplicas |
 |---|---|---|
@@ -76,11 +80,13 @@ Escalar exige, antes, sustituir el registro en memoria por un canal compartido d
 
 ## 3. Precondiciones
 
-Antes de crear nada en Railway:
+Antes de crear nada en Dokploy:
 
-- [ ] La rama que se va a desplegar tiene **CI en verde** (`.github/workflows/ci.yml`). El Art. XI.2 exige que `main` esté siempre desplegable; desplegar una rama roja lo contradice sin discusión.
-- [ ] `mvn verify` pasa en local. Si falla aquí, falla en Railway igual y se descubre diez minutos más tarde y pagando la construcción.
-- [ ] Existe una cuenta de Railway con acceso al repositorio `NexusPro-Dev/backend`.
+- [ ] La rama que se va a desplegar tiene **CI en verde** (`.github/workflows/ci.yml`). Con esta plataforma ya no es solo una regla: **sin CI en verde no se publica la imagen** (§10), de modo que no hay nada que desplegar.
+- [ ] `mvn verify` pasa en local. Si falla aquí, falla en el CI igual y se descubre diez minutos más tarde.
+- [ ] Existe el **servidor**, con Dokploy instalado y endurecido (§5.1).
+- [ ] Existe un **almacenamiento compatible con S3** para las copias de la base —Cloudflare R2, Backblaze B2, el del propio proveedor del VPS—, **fuera del servidor**.
+- [ ] Hay un **dominio** con acceso a su DNS: uno para el panel de Dokploy y uno por entorno para la API.
 - [ ] Están generados los **dos secretos** de §4. Sin ellos el despliegue no arranca, y es intencionado (Art. IX.5).
 - [ ] Está decidido **qué dominio** consumirá la API desde el navegador, porque de él depende `CORS_ALLOWED_ORIGINS` (§9). Si todavía no hay frontend desplegado, la variable va **vacía**: eso deja la API perfectamente utilizable de servidor a servidor y cerrada al navegador, que es el valor seguro.
 
@@ -143,11 +149,11 @@ Los cinco números son los de `application.yml` —`salt-length`, `hash-length`,
 
 Borrar `cp.txt` al terminar, y **no dejar la contraseña en el historial de la terminal**.
 
-!!! danger "En Railway los `$` van tal cual — NO se duplican"
+!!! danger "En Dokploy los `$` van tal cual — NO se duplican"
 
     El `.env.example` avisa de que en un archivo `.env` los `$` del hash deben ir **duplicados**, porque Docker Compose interpola el archivo y convierte el resumen en un resto irreconocible. **Ese problema es exclusivo de Docker Compose.**
 
-    En una variable de Railway el valor llega al proceso sin interpolar nada: el hash va **exactamente como lo imprimió `jshell`**, empezando por `$argon2id$v=19$m=16384,t=2,p=1$`.
+    Dokploy lee sus variables con el analizador de `dotenv`, que **no expande `$`**, y solo sustituye su propia sintaxis de referencias, `${{…}}`, que un hash Argon2 no contiene. El valor llega al servicio tal cual: el hash va **exactamente como lo imprimió `jshell`**, empezando por `$argon2id$v=19$m=16384,t=2,p=1$`. Comprobado en el código de Dokploy (`prepareEnvironmentVariables`), no supuesto.
 
     Duplicarlos aquí produce el fallo simétrico y silencioso: la migración termina con éxito y el superadministrador **no puede entrar nunca**, con un mensaje genérico de credenciales inválidas. La guarda de `V9` detecta el caso contrario —los `$` comidos—, no este.
 
@@ -155,82 +161,112 @@ Borrar `cp.txt` al terminar, y **no dejar la contraseña en el historial de la t
 
 ---
 
-## 5. Crear el proyecto en Railway
+## 5. El servidor y los servicios en Dokploy
 
-Se hace una vez por entorno. El orden importa: la base de datos primero, porque el backend referencia sus variables.
+El servidor se prepara una vez. Los servicios se crean una vez **por entorno**, y el orden importa: la base primero, porque el backend necesita su dirección interna.
 
-### 5.1 El servicio de base de datos
+### 5.1 El servidor
 
-1. **New Project** → *Deploy PostgreSQL*.
-2. Renombrar el servicio a **`Postgres`**. El nombre es literal: las referencias `${{Postgres.PGUSER}}` de §6 lo usan, y si el servicio se llama de otro modo hay que cambiarlas todas.
-3. Comprobar en *Settings* que la versión es **PostgreSQL 17**. El Art. V.1 y V.2 admiten un solo motor y el SQL usa características propias del motor; desplegar sobre una línea distinta de la que se prueba en local y en CI con Testcontainers no es una diferencia de detalle.
+| Qué | Valor | Por qué |
+|---|---|---|
+| Sistema | **Ubuntu 24.04 LTS** | Es la primera de la lista de sistemas probados por Dokploy y tiene soporte hasta 2029 |
+| Tamaño mínimo | **4 vCPU · 8 GB de RAM · 80 GB NVMe** | Dos entornos con sus límites de §5.4 y el propio Dokploy suman cerca de 6 GB. Dokploy pide 2 GB y 30 GB para sí mismo |
+| Región | La más cercana a los usuarios que ofrezca el proveedor | La latencia hasta la API la paga cada petición del navegador |
+| Instalación | `curl -sSL https://dokploy.com/install.sh \| sh`, como `root` | Instala Docker si falta, inicia Swarm, crea la red `dokploy-network` y levanta el panel, su base y Traefik |
 
-No hay que crear la base ni las tablas: la base la crea Railway y el esquema lo aplica **Flyway al arrancar la aplicación** (§8).
+**Endurecerlo no es opcional**, porque ahora el sistema operativo es nuestro ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md)):
 
-### 5.2 El servicio de aplicación
+- **Firewall del proveedor** delante del servidor, abriendo solo `22`, `80` y `443` —y `3000` mientras el panel no tenga dominio—. **Tiene que ser el del proveedor y no UFW**: Docker publica puertos escribiendo sus propias reglas de `iptables`, que pasan por delante de las de UFW, de modo que un `ufw deny` no cierra lo que Docker abre.
+- **SSH solo con llave**, sin contraseña y sin `root` por contraseña.
+- **Actualizaciones de seguridad automáticas**: `unattended-upgrades`.
+- **El panel con dominio propio y HTTPS** (*Settings → Server* en Dokploy), **doble factor** en la cuenta de administración, y el puerto `3000` cerrado en el firewall en cuanto el dominio responda. El panel guarda todos los secretos de los dos entornos.
 
-1. **New** → *GitHub Repo* → `NexusPro-Dev/backend`.
-2. Renombrar el servicio a **`backend`**.
-3. *Settings → Source* → fijar la **rama** que se despliega (§10).
-4. Railway detecta el `Dockerfile` del raíz y lo usa como constructor. **No hay `startCommand`**: el `ENTRYPOINT` de la imagen ya es `java -jar /app/app.jar`.
-5. Cargar las variables de §6 **antes del primer despliegue**. Si arranca sin ellas fallará —correctamente— y habrá que redesplegar.
+### 5.2 Los servicios de cada entorno
 
-### 5.3 `railway.json`
+Un proyecto, **`nexus`**, con dos entornos de Dokploy, **`testing`** y **`production`**. En cada uno:
 
-El repositorio versiona la configuración del servicio, para que no viva solo en la interfaz de nadie (Art. X.3, X.4):
+| Servicio | Tipo en Dokploy | Origen |
+|---|---|---|
+| **`postgres`** | *Database* → PostgreSQL | Imagen **`postgres:17`**. Dokploy genera usuario y contraseña; el nombre de la base es `nexus` |
+| **`backend`** | *Application*, proveedor **Docker** | Imagen `ghcr.io/nexuspro-dev/backend:develop` en `testing`, `…:main` en `production`. Registro `ghcr.io` con un token de GitHub de solo lectura de paquetes (`read:packages`), porque el paquete es privado |
+| **`frontend`** | *Application*, proveedor **Docker** | Imagen `ghcr.io/nexuspro-dev/frontend:<rama>`. Se configura según el `deployment.md` del frontend |
 
-```json
-{
-  "$schema": "https://railway.com/railway.schema.json",
-  "build": { "builder": "DOCKERFILE", "dockerfilePath": "Dockerfile" },
-  "deploy": {
-    "numReplicas": 1,
-    "healthcheckPath": "/actuator/health/readiness",
-    "healthcheckTimeout": 300,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
+**PostgreSQL 17 exactamente**, no la última: el Art. V.1 y V.2 admiten un solo motor y el SQL usa características propias de él; desplegar sobre una línea distinta de la que se prueba en local y en CI con Testcontainers no es una diferencia de detalle.
 
-Cada valor tiene su motivo, y están en §2.1 —la réplica única— y §7 —la sonda y el plazo—.
+No hay que crear tablas: el esquema lo aplica **Flyway al arrancar la aplicación** (§8). **No hay `Command`** en el servicio: el `ENTRYPOINT` de la imagen ya es `java -jar /app/app.jar`.
 
-**Lo que este archivo no lleva son las variables**, y no es un olvido: son secretos, y el Art. IV.3 los mantiene fuera del repositorio en toda forma.
+### 5.3 La configuración del servicio `backend`
+
+Railway la leía de `railway.json`. **Dokploy la guarda en su propia base y no la lee de ningún archivo del repositorio**, de modo que este apartado es la única copia versionada (Art. X.3, X.4). Un valor cambiado en el panel y no aquí es un defecto de este documento.
+
+| Dónde, en Dokploy | Qué | Valor | Por qué |
+|---|---|---|---|
+| *Advanced → Cluster Settings* | Réplicas | **`1`** | §2.1. Swarm no lo impide; lo impide el diseño |
+| *Swarm Settings → Update Config* | `Order` | **`start-first`** | Levanta la versión nueva y espera a que su sonda responda **antes** de parar la vieja. Es el relevo que §7.3 describe. Con `stop-first`, que es el valor de Swarm por defecto, cada despliegue deja la API caída durante todo el arranque |
+| | `FailureAction` | **`rollback`** | Si la versión nueva no llega a estar sana, Swarm vuelve a la anterior por su cuenta |
+| | `Parallelism` · `Monitor` | `1` · `30s` | Una tarea cada vez; y treinta segundos vigilando la nueva antes de dar el relevo por bueno |
+| *Swarm Settings* | **Stop Grace Period** | **`35s`** | **Swarm manda `SIGKILL` a los diez segundos por defecto**, y el apagado ordenado de la aplicación tiene treinta (§7.3). Sin esto, el relevo corta las peticiones en curso, que es justo lo que `server.shutdown: graceful` existe para impedir |
+| *Swarm Settings → Health Check* | — | **Vacío** | La sonda viaja en el `HEALTHCHECK` del `Dockerfile` —`/actuator/health/readiness`, cada diez segundos, con trescientos de gracia para el primer arranque— y Swarm la obedece sin más. Declararla aquí la sustituiría por una copia que nadie revisa en un diff |
+| *Advanced → Resources* | Límite de memoria | **2 GB** en `production` · **1 GB** en `testing` | Lo que separa un entorno del otro en el mismo servidor (§5.4) |
+| *Domains* | Dominio · puerto · HTTPS | El de la API del entorno · **`8080`** · Let's Encrypt | §9 |
+| *Advanced → Ports* | — | **Ninguno** | El tráfico entra por Traefik. Publicar el `8080` en el anfitrión saltaría el TLS |
+
+Los formularios de *Swarm Settings* escriben la estructura del API de Docker (`UpdateConfig`, `HealthCheck`…), y los plazos que se teclean como JSON van **en nanosegundos**: treinta y cinco segundos son `35000000000`.
+
+**Lo que esta configuración no lleva son las variables**, y no es un olvido: son secretos, y el Art. IV.3 los mantiene fuera del repositorio en toda forma. Van en *Environment* (§6).
+
+### 5.4 La memoria, en un servidor compartido
+
+Los dos entornos comparten servidor, de modo que **los límites son lo único que impide que `testing` deje a `production` sin memoria**.
+
+| Servicio | `production` | `testing` |
+|---|---|---|
+| `backend` | 2 GB | 1 GB |
+| `postgres` | 1 GB | 512 MB |
+| `frontend` | 128 MB | 128 MB |
+
+Con los límites puestos, **la JVM tiene que saber cuánto le toca**. Java 21 lee el límite del contenedor, pero por defecto solo dedica al montón **una cuarta parte**: con 2 GB, medio gigabyte. Por eso `JAVA_TOOL_OPTIONS` lleva `-XX:MaxRAMPercentage=60` (§6.4), que deja el resto para el metaespacio, los hilos y la memoria nativa.
+
+Lo que más memoria pide en un pico es **el inicio de sesión**: Argon2id con `memory-kb` 16384 reserva **16 MB por cada verificación en curso**. Cincuenta inicios de sesión simultáneos son unos 800 MB de montón durante un instante. Si la carga real se acerca a eso, el límite de 2 GB es lo primero que se revisa.
 
 ---
 
 ## 6. Variables de entorno
 
-Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es literal: lo de `${{…}}` es la sintaxis de referencia entre servicios de la plataforma y se escribe tal cual, no se sustituye a mano.
+Se cargan en *Environment* del servicio **`backend`**, en el formato de un archivo `.env`: una `CLAVE=valor` por línea. Al guardarlas, Dokploy no reinicia nada; **hay que desplegar** para que el servicio las tome.
 
 ### 6.1 Base de datos
 
-| Variable | Valor en Railway |
+| Variable | Valor |
 |---|---|
-| `DATABASE_URL` | `jdbc:postgresql://${{Postgres.RAILWAY_PRIVATE_DOMAIN}}:5432/${{Postgres.PGDATABASE}}` |
-| `DATABASE_USER` | `${{Postgres.PGUSER}}` |
-| `DATABASE_PASSWORD` | `${{Postgres.PGPASSWORD}}` |
+| `DATABASE_URL` | `jdbc:postgresql://<Internal Host>:5432/nexus` |
+| `DATABASE_USER` | El *User* del servicio `postgres` |
+| `DATABASE_PASSWORD` | Su *Password* |
 
-!!! danger "`DATABASE_URL` significa dos cosas distintas, y ahí es donde falla todo el mundo"
+El *Internal Host* es el nombre con el que el servicio `postgres` se alcanza dentro de la red de Swarm, y Dokploy lo muestra en *Internal Credentials* del propio servicio —un nombre del estilo `nexus-postgres-a1b2c3`—. **Es distinto en cada entorno**, igual que el usuario y la contraseña.
 
-    El servicio Postgres de Railway **publica una variable llamada `DATABASE_URL`** con la forma `postgresql://usuario:clave@host:puerto/base`. Es una URI de conexión, no una URL de JDBC.
+!!! danger "Dokploy enseña dos direcciones de la base, y la que va aquí es la de JDBC construida a mano"
 
-    Esta aplicación tiene **su propia variable, también llamada `DATABASE_URL`**, y espera la forma **`jdbc:postgresql://host:puerto/base`, sin credenciales dentro**, porque el usuario y la contraseña van por separado (`application.yml`).
+    *Internal Credentials* ofrece una **Internal Connection URL** con la forma `postgresql://usuario:clave@host:5432/base`. Es una URI de conexión, no una URL de JDBC.
 
-    Referenciar `${{Postgres.DATABASE_URL}}` directamente **no funciona**: Spring no reconoce el esquema `postgresql://` y el arranque muere con un error de driver que no menciona nada de esto. Hay que construir la cadena como muestra la tabla.
+    Esta aplicación espera en `DATABASE_URL` la forma **`jdbc:postgresql://host:puerto/base`, sin credenciales dentro**, porque el usuario y la contraseña van por separado (`application.yml`).
+
+    Pegar la URI de Dokploy **no funciona**: Spring no reconoce el esquema `postgresql://` y el arranque muere con un error de driver que no menciona nada de esto. Hay que construir la cadena como muestra la tabla, con el *Internal Host*.
+
+    Y **nunca la *External* URL**: exige publicar el puerto de la base en el anfitrión, que este despliegue no hace (§12).
 
 ### 6.2 Red, puerto y entorno
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
-| `PORT` | **No declararla** | La inyecta Railway y la aplicación la obedece (§7.1). Declararla a mano solo tiene sentido para forzar un puerto concreto |
+| `PORT` | **No declararla** | Sin ella la aplicación escucha en `8080`, que es el puerto que el dominio de §5.3 apunta (§7.1) |
 | `ENVIRONMENT` | `production` o `testing` | **Obligatoria de verdad desde el 31-08-2026: sin ella el servicio NO ARRANCA.** Decide si se siembran datos de prueba. Ver §6.6 |
 | `DEV_SEED_ENABLED` | **No declararla** | La semilla no se aplica en `production` lo diga esta lo que diga. En `testing`, ponerla en `false` es lo que la desactiva |
 | `API_URL` | La URL pública del servicio, sin barra final | Art. IX.1. Declarada y todavía sin lector, ver §6.6 |
 
 ### 6.3 Seguridad
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `JWT_SECRET` | El secreto de §4.1 | Obligatoria y sin valor por defecto |
 | `MFA_ENCRYPTION_KEY` | La llave de §4.1.1 | Obligatoria y sin valor por defecto. **No se cambia**: cambiarla deja ilegibles los segundos factores |
@@ -238,7 +274,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 | `SUPERADMIN_PASSWORD_HASH` | El resumen de §4.2, con los `$` **sin duplicar** | Ídem |
 | `CORS_ALLOWED_ORIGINS` | El dominio del frontend, o **vacío** | Ver §9. El comodín `*` tumba el arranque |
 | `EXPOSE_API_DOCS` | **`false`** en los dos entornos | Ver el aviso de abajo |
-| `TRUSTED_PROXIES` | **Vacío** | Ver §11.2. El resolvedor ya admite rangos; falta **decidir cuál** declarar (D-21) |
+| `TRUSTED_PROXIES` | La subred de `dokploy-network`, p. ej. `10.0.1.0/24` | La que dé `docker network inspect` en el servidor, **no una más ancha**. Ver §11.2 (D-21) |
 | `RATE_LIMIT_ENABLED` | `true`, o no declararla | Su valor por defecto ya es `true`. **Solo la suite la apaga** |
 
 !!! warning "`EXPOSE_API_DOCS` va en `false`, y el contrato publicado no es razón para cambiarlo"
@@ -247,9 +283,10 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 ### 6.4 Operación
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `LOG_LEVEL` | `INFO` | Subirlo a `DEBUG` en un entorno desplegado emite contenido que el enmascaramiento de `security.md` §7.3 no cubre |
+| `JAVA_TOOL_OPTIONS` | `-XX:MaxRAMPercentage=60` | Sin ella la JVM solo usa para el montón una cuarta parte del límite de memoria del servicio (§5.4). La JVM imprime al arrancar `Picked up JAVA_TOOL_OPTIONS…`: es la confirmación de que la leyó, no un error |
 | `TOKEN_PURGE_ENABLED` | `true`, o no declararla | Sin ella `refresh_tokens` crece de forma monótona |
 | `TOKEN_PURGE_CRON` | No declararla | El valor por defecto —`0 30 3 * * *`, **en UTC**— sirve |
 | `TOKEN_PURGE_RETENTION` | No declararla | `P30D`. Acortarlo apaga la detección de robo por reutilización de `RF-SP-035` |
@@ -257,7 +294,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 ### 6.5 Envío saliente
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `NOTIFICATION_ENABLED` | `true` en los entornos donde deba funcionar la recuperación de contraseña | Con `false`, `RF-SP-040` emite permisos **que nadie recibe** |
 | `RESEND_API_KEY` | La clave `re_…` de Resend | Sin ella el envío queda apagado y se avisa **al arrancar** |
@@ -270,7 +307,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 ### 6.5.1 La pasarela de la tarjeta (Stripe)
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `STRIPE_SECRET_KEY` | Una **clave restringida** de Stripe (`rk_test_…` en pruebas, `rk_live_…` en producción), con permiso de escritura solo sobre los cobros (*PaymentIntents*) | Sin ella la pasarela queda **apagada** y se avisa al arrancar: la tarjeta nace pendiente y la confirma una persona. **Restringida y no la secreta completa**: si se filtra, no abre la cuenta entera |
 | `STRIPE_WEBHOOK_SECRET` | El `whsec_…` del endpoint registrado en el panel de Stripe —**uno por entorno**— | Verifica la firma de cada notificación. Sin él la ruta responde `503` y no procesa nada |
@@ -281,7 +318,7 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 ### 6.5.2 La pasarela local (PayRetailers)
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `PAYRETAILERS_SUBSCRIPTION_KEY` | La *Subscription Key* de la API (`Ocp-Apim-Subscription-Key`), de la cuenta | Va en cada petición. **Sin ella, o sin una llave de cifrado válida, la pasarela queda apagada** y se avisa al arrancar |
 | `PAYRETAILERS_ENCRYPTION_KEY` | 32 bytes en Base64, generados una vez por entorno: `openssl rand -base64 32` | Cifra las claves secretas de las tiendas en la base. Secreto: nunca en el repositorio ni en el chat. **No se cambia**: cambiarla deja ilegibles las claves guardadas y hay que volver a fijarlas |
@@ -300,9 +337,9 @@ Se cargan en el servicio **`backend`**. La columna «Valor en Railway» es liter
 
 Lo que avisa cada broker se guarda tal como llega y **no se interpreta todavía** (`RF-SP-078`, `RN-SP-066`): esto es para ver qué mandan antes de escribir `RF-SP-054`.
 
-**La dirección es UNA para todos los brokers** (`RN-SP-069`), sin el nombre del broker, y con **un solo secreto**. La dirección por nombre y sus tres secretos (`BROKER_TOKEN_*`) **se retiraron el 13-10-2026**: si quedan en Railway, se pueden borrar.
+**La dirección es UNA para todos los brokers** (`RN-SP-069`), sin el nombre del broker, y con **un solo secreto**. La dirección por nombre y sus tres secretos (`BROKER_TOKEN_*`) **se retiraron el 13-10-2026**: si quedan en las variables de algún entorno, se pueden borrar.
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `BROKER_NOTIFICATION_TOKEN` | Un secreto aleatorio, **distinto por entorno**: `openssl rand -hex 24` | Autentica la dirección común. **Sin él, responde `503`** y no guarda nada |
 
@@ -328,7 +365,7 @@ De cada aviso se leen `trader_id` —el número de la cuenta—, `afftrack` —e
 
 **Detrás del `token` se añaden los marcadores que ofrezca el panel**, con los nombres que el panel diga —por ejemplo `&event={event}&trader_id={trader_id}`—: todo lo que llegue se guarda. Vale `GET` y `POST`, con cualquier tipo de contenido.
 
-**Ver lo que llegó**, desde la base (Railway → servicio Postgres → *Data*, o `psql`):
+**Ver lo que llegó**, desde la base (`psql`, como dice §12):
 
 ```sql
 SELECT b.name, n.advertiser, n.received_at, n.method, n.query_params, n.headers, n.body,
@@ -356,7 +393,7 @@ Las clases en vivo de la academia se programan en Zoom con una **app Server-to-S
 
 **Crear la app**: en [marketplace.zoom.us](https://marketplace.zoom.us), con un usuario **Owner o Admin** (o con el permiso *Server-to-Server OAuth app* en su rol), *Develop › Build App › Server-to-Server OAuth App*. En *Scopes*: `meeting:write:meeting:admin`, `meeting:update:meeting:admin`, `meeting:delete:meeting:admin`, `meeting:read:meeting:admin` y `meeting:write:registrant:admin`. **Sin pulsar *Activate your app*, el token se rechaza.**
 
-| Variable | Valor en Railway | Por qué |
+| Variable | Valor | Por qué |
 |---|---|---|
 | `ZOOM_ACCOUNT_ID` | El *Account ID* de *App Credentials* | Pide el token (`grant_type=account_credentials`) |
 | `ZOOM_CLIENT_ID` | El *Client ID* | Igual |
@@ -379,7 +416,7 @@ Hasta esa fecha esta sección decía que ninguna clase la consultaba y que cambi
 
 !!! danger "Un despliegue sin `ENVIRONMENT` declarada deja de arrancar"
 
-    Es un cambio de comportamiento, no un matiz. Antes la variable se ignoraba y el servicio levantaba igual; ahora su ausencia es un fallo de arranque (Art. IX.5). **Compruebe que está declarada en cada entorno de Railway antes de desplegar esto.**
+    Es un cambio de comportamiento, no un matiz. Antes la variable se ignoraba y el servicio levantaba igual; ahora su ausencia es un fallo de arranque (Art. IX.5). **Compruebe que está declarada en cada entorno antes de desplegar esto.**
 
     La alternativa —asumir un valor por defecto— es lo que ese artículo prohíbe, y aquí el precio de acertar mal es concreto: `Production`, `prod` o el vacío contarían todos como «no es producción» y sembrarían diecinueve cuentas en el sistema real.
 
@@ -393,42 +430,40 @@ Hasta esa fecha esta sección decía que ninguna clase la consultaba y que cambi
 
 ---
 
-## 7. Los tres detalles de la plataforma que rompen el arranque
+## 7. Los tres detalles de la plataforma que rompen el arranque o el relevo
 
 Ninguno de los tres es un error de la aplicación, y los tres producen síntomas que apuntan al sitio equivocado.
 
 ### 7.1 El puerto
 
-Railway inyecta una variable `PORT` y encamina el tráfico al puerto que cree que la aplicación escucha. **La aplicación la obedece**: `application.yml` declara `server.port: ${PORT:8080}`, de modo que en un entorno desplegado manda la plataforma y en local siguen valiendo los 8080 de siempre —los que declara el `Dockerfile` y espera el `docker-compose.yml`—.
+**Dokploy no inyecta `PORT`.** El puerto lo decide el **dominio**: al declararlo en el servicio se indica a qué puerto del contenedor manda Traefik el tráfico, y ese puerto tiene que ser el que la aplicación escucha. `application.yml` declara `server.port: ${PORT:8080}`; sin la variable, escucha en `8080`, que es lo que el dominio de §5.3 apunta y lo que la sonda del `Dockerfile` consulta.
 
-**No hay que declarar `PORT` en Railway** (§6.2). Hacerlo solo tiene sentido para forzar un puerto concreto, y no hace falta.
+**No hay que declarar `PORT`** (§6.2). Si alguna vez se declara, hay que cambiar también el puerto del dominio: la sonda lo sigue sola —usa la misma variable—, Traefik no.
 
-Lo que había antes, por si alguien se lo encuentra en una rama vieja: `server.port` era el literal `8080` y obligaba a fijar `PORT=8080` a mano para que los dos lados coincidieran. El día que dejaran de coincidir, el síntoma era **una sonda de salud en rojo sobre un arranque impecable en los logs** — es decir, el puerto es lo último que uno mira.
+El síntoma de que no coincidan es el de siempre: **un `502` o `404` de Traefik sobre un arranque impecable en los logs**, con el servicio sano para Swarm — es decir, el puerto es lo último que uno mira.
 
-### 7.2 La red privada es solo IPv6
+### 7.2 La base puede no estar lista cuando arranca la aplicación
 
-Los servicios de un proyecto de Railway se ven entre sí por `*.railway.internal`, un nombre que **solo resuelve a AAAA**. No hay dirección IPv4.
+Cuando los dos servicios arrancan a la vez —la primera vez, o tras reiniciar el servidor—, la aplicación abre la conexión enseguida, porque Flyway corre al inicio, y puede encontrarse a PostgreSQL todavía levantando. El proceso muere.
 
-Dos consecuencias:
+**Es lo previsto, y lo resuelve Swarm**: su política de reinicio por defecto vuelve a arrancar la tarea, y el siguiente intento encuentra la base en pie. Uno o dos reinicios en el primer arranque no son un fallo; un bucle sí, y entonces el error de conexión del log dice cuál de los tres valores de §6.1 está mal.
 
-- **La JVM debe estar dispuesta a usarla.** Si la conexión a la base falla con un error de red y el nombre resuelve bien, añadir la variable `JAVA_TOOL_OPTIONS` con valor `-Djava.net.preferIPv6Addresses=true` y volver a desplegar.
-- **La red privada tarda unos segundos en estar lista** tras arrancar el contenedor. La aplicación abre la conexión enseguida, porque Flyway corre al inicio; si el primer intento cae en esa ventana, el proceso muere. La política `ON_FAILURE` con diez reintentos de `railway.json` cubre exactamente ese caso: el segundo intento encuentra la red en pie.
-
-**Salida de emergencia**, no la vía normal: el servicio Postgres publica además un acceso público (`RAILWAY_TCP_PROXY_DOMAIN` y `RAILWAY_TCP_PROXY_PORT`). Sirve para desatascar, cuesta tráfico de salida y expone la base fuera de la red del proyecto. Volver a la red privada en cuanto se pueda.
+La base se alcanza por su *Internal Host* en la red interna de Swarm, **en IPv4**. La advertencia que había aquí sobre la red solo IPv6 de Railway —y su `-Djava.net.preferIPv6Addresses=true`— **no aplica a esta plataforma**.
 
 ### 7.3 Durante un redespliegue conviven dos instancias
 
-Railway levanta la nueva versión y espera a que su sonda responda antes de retirar la anterior. Durante ese relevo hay **dos procesos vivos**, aunque `numReplicas` sea 1.
+Con `Order: start-first` (§5.3), Swarm levanta la versión nueva, espera a que su sonda responda y solo entonces para la anterior. Durante ese relevo hay **dos procesos vivos**, aunque las réplicas sean una.
 
 Qué implica, dicho sin adornos:
 
 - **El esquema está a salvo.** Flyway toma un cerrojo en el motor: si las dos instancias intentan migrar, una espera y la otra aplica.
 - **El estado en memoria se pierde.** Los cortes de acceso, las cuentas de límite de tasa y los fallos por identificador **empiezan de cero** en la instancia nueva. Los cortes sí se resiembran al arrancar; las otras dos cuentas, no. Es aceptable —la ventana es de segundos— y conviene saberlo antes de investigar por qué un contador se reinició solo.
 - **Una migración incompatible hacia atrás rompe la instancia vieja** mientras siga sirviendo. Toda migración debe poder convivir con la versión anterior del código durante el relevo: añadir columnas anulables antes de usarlas, y separar en dos despliegues el «dejar de escribir» del «eliminar».
+- **Si la versión nueva no llega a estar sana**, la vieja nunca se para: con `FailureAction: rollback`, Swarm retira la nueva y deja la anterior sirviendo. Un despliegue roto no tumba el entorno; se queda en el historial de Dokploy como fallido.
 
 **El apagado ordenado sí está habilitado**, y es lo que hace tolerable el relevo: `server.shutdown: graceful` con treinta segundos de plazo (`spring.lifecycle.timeout-per-shutdown-phase`). Al recibir la orden de parar, la instancia vieja deja de aceptar peticiones nuevas y termina las que tiene, en lugar de cortarlas en seco — que para quien estaba escribiendo es una conexión caída, indistinguible de que el sistema esté roto.
 
-Treinta segundos sobran para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo— y quedan por debajo del plazo con el que la plataforma mata el proceso a la fuerza.
+**Pero solo si Swarm le da esos treinta segundos, y por defecto le da diez.** Pasado ese plazo manda `SIGKILL`, y el apagado ordenado queda a medias sin que ningún log lo diga. Por eso el *Stop Grace Period* del servicio es **35 segundos** (§5.3): los treinta de la aplicación y un margen. Treinta segundos sobran para cualquier operación de este sistema —los umbrales del Art. XV.9 son de menos de un segundo—.
 
 ---
 
@@ -440,7 +475,7 @@ Flyway corre **dentro del proceso, al arrancar**, contra `classpath:db/migration
 
 De ahí se siguen tres cosas:
 
-- Una base **vacía** es el estado correcto de partida. Railway la entrega así.
+- Una base **vacía** es el estado correcto de partida. Dokploy la entrega así.
 - Una base **con tablas y sin historial de Flyway** falla a propósito. No se «arregla» activando `baseline-on-migrate`: eso asume que lo que hay coincide con lo esperado, que es justo lo que nadie ha comprobado.
 - Hibernate corre con `ddl-auto: validate`. Si el esquema no coincide con el mapeo, el arranque muere con el detalle exacto de la discrepancia — y eso es una funcionalidad, no un obstáculo.
 
@@ -459,7 +494,9 @@ El primer arranque **tarda**: aplica todas las migraciones antes de que el puert
 
 ## 9. Dominio, HTTPS y CORS
 
-**HTTPS lo pone la plataforma.** Railway asigna un dominio `*.up.railway.app` con certificado, y admite dominio propio por CNAME. La aplicación no termina TLS ni lo sabe: recibe HTTP en su puerto, detrás del borde. Con eso se satisface el Art. IV.6 y `security.md` §7.2.
+**HTTPS lo pone Traefik.** Al declarar el dominio del servicio en Dokploy (§5.3) con el certificado de **Let's Encrypt**, Traefik lo pide y lo renueva solo. Para eso el DNS tiene que llevar, **antes**, un registro `A` del dominio hacia la IP del servidor: Let's Encrypt comprueba el dominio contra el puerto `80`, y si el registro no existe todavía, el certificado no se emite y Traefik sirve uno autofirmado. La aplicación no termina TLS ni lo sabe: recibe HTTP en su puerto, detrás del borde. Con eso se satisface el Art. IV.6 y `security.md` §7.2.
+
+**Sin un proxy de CDN delante**, o con el de Cloudflare en modo *DNS only*. Con el proxy activado, Traefik ve las IP de Cloudflare y no las de quien llama, y lo que §11.2 consigue se pierde sin ningún síntoma.
 
 **CORS lo pone la aplicación**, y es el paso que se olvida:
 
@@ -474,22 +511,34 @@ Un `production` cuyo frontend viva en `https://app.nexus.co` lleva exactamente e
 
 ## 10. Ramas, entornos y promoción
 
-| Entorno de Railway | `ENVIRONMENT` | Rama vigilada | Para qué |
-|---|---|---|---|
-| `testing` | `testing` | `develop` | Verificar lo integrado antes de que llegue a `main` |
-| `production` | `production` | `main` | El sistema real |
+| Entorno de Dokploy | `ENVIRONMENT` | Rama | Imagen | Entorno de GitHub |
+|---|---|---|---|---|
+| `testing` | `testing` | `develop` | `ghcr.io/nexuspro-dev/backend:develop` | `testing` |
+| `production` | `production` | `main` | `ghcr.io/nexuspro-dev/backend:main` | `production` |
 
-!!! danger "Esta tabla describe el destino, y a 27-08-2026 todavía no es cierta"
-
-    Todo el trabajo vive en `feature/esqueleto-del-proyecto`, sin fusionar: `develop` y `main` van **veintitrés commits por detrás** y **no llevan ni `railway.json` ni el `server.port: ${PORT:8080}`**. Desplegar cualquiera de las dos produce «Application failed to respond» con un arranque impecable en los logs, por lo que dice §7.1.
-
-    Hasta que se fusione, el servicio apunta a la rama de trabajo. **La comprobación de una línea:** una rama es desplegable si contiene `railway.json`.
-
-    Es la misma advertencia que la portada de la documentación lleva desde el principio —«el trabajo vive en ramas `feature/…` sin fusionar»— vista desde el despliegue, que es donde muerde.
-
-Cada entorno tiene **su propio servicio Postgres y su propio juego completo de variables**. No se comparte la base, ni el `JWT_SECRET`, ni la clave de Resend.
+Cada entorno tiene **su propia base y su propio juego completo de variables**. No se comparte la base, ni el `JWT_SECRET`, ni la clave de Resend.
 
 El flujo es el del Art. XI.1 y `development-guide.md` §12, sin nada añadido: `feature/*` → `develop` → `main`. **Desplegar es integrar**; no hay una acción de despliegue separada que alguien pueda olvidar o disparar por su cuenta.
+
+### 10.1 Cómo llega un commit a un entorno
+
+Lo hace el job **`publicar-y-desplegar`** de `.github/workflows/ci.yml`, y solo en un `push` a `develop` o a `main`:
+
+1. **Espera a `verificar`.** Si la compilación, el formato, las pruebas o el contrato están en rojo, no se publica nada. En Railway no era así: la plataforma construía al recibir el commit, con el pipeline como estuviera.
+2. **Construye la imagen una sola vez** con el `Dockerfile` y la publica en GHCR con dos etiquetas: **la de la rama**, que es la que el servicio de Dokploy despliega, y **`sha-<commit>`**, que es la que permite volver a un despliegue concreto (§12).
+3. **Llama a la API de Dokploy** —`POST /api/application.deploy`, con la clave en `x-api-key`— y Dokploy descarga la imagen y hace el relevo de §7.3.
+
+Los commits que **solo** tocan documentación no disparan el CI (`paths-ignore`) y, por tanto, **no despliegan**: no hay nada nuevo en la imagen.
+
+**El job está apagado hasta que se enciende a propósito.** Corre solo si la **variable de repositorio** `DOKPLOY_DEPLOY` vale `true`; sin ella, se salta y el pipeline queda en verde. Así un repositorio sin servidor configurado no está en rojo. Lo que necesita, en cada **entorno de GitHub** (*Settings → Environments*):
+
+| Secreto | Valor |
+|---|---|
+| `DOKPLOY_URL` | La dirección del panel, `https://…`, **sin barra final** |
+| `DOKPLOY_API_KEY` | Una clave generada en Dokploy, *Settings → Profile → API/CLI* |
+| `DOKPLOY_APPLICATION_ID` | El identificador del servicio `backend` **de ese entorno**. Aparece en la dirección del servicio en el panel |
+
+Separarlos por entorno de GitHub y no ponerlos en el repositorio es lo que permite, el día que haga falta, **exigir una aprobación** antes de desplegar `production` (*Required reviewers* del entorno) sin tocar el workflow.
 
 `main` debe mantenerse siempre desplegable (Art. XI.2), y con auto-despliegue esa regla deja de ser una convención: lo que entra en `main` está en producción en minutos.
 
@@ -526,17 +575,38 @@ curl -s -o /dev/null -w '%{http_code}\n' $BASE/api/v1/roles
 - [ ] Un error provocado a propósito devuelve el formato RFC 9457 **sin traza ni mensaje interno** (Art. VI.5).
 - [ ] La respuesta de salud **no lleva detalle**: `{"status":"UP"}` y nada más. Si aparecen componentes o versiones, `show-details` está mal.
 
-### 11.2 Lo que la verificación NO puede comprobar hoy
+**Y la configuración del servicio, que vive fuera del repositorio** (§5.3). En el servidor:
 
-**La IP que queda en la auditoría es la del borde de Railway, no la de quien llamó — mientras `TRUSTED_PROXIES` siga vacía.**
+```bash
+docker service inspect <nombre-del-servicio-backend> --format \
+  'réplicas={{.Spec.Mode.Replicated.Replicas}} orden={{.Spec.UpdateConfig.Order}} fallo={{.Spec.UpdateConfig.FailureAction}} gracia={{.Spec.TaskTemplate.ContainerSpec.StopGracePeriod}}'
+```
 
-`ClientIpResolver` solo confía en `X-Forwarded-For` si la IP del par inmediato figura en `TRUSTED_PROXIES`. Desde el 27-08-2026 esa lista **admite rangos CIDR** además de direcciones sueltas, que es lo que faltaba: la dirección con la que el borde de Railway habla con el contenedor no es fija ni publicada, pero **la red de la que sale sí se puede declarar**.
+- [ ] Responde `réplicas=1 orden=start-first fallo=rollback gracia=35000000000`. Cualquier otra cosa es un valor cambiado en el panel y no en §5.3, y uno de los dos está mal.
+- [ ] **Ningún servicio de los entornos publica puertos**: en `docker service ls`, la columna `PORTS` va vacía en el backend, en el frontend y, sobre todo, en `postgres`. El único que publica es el panel de Dokploy (`3000`), y Traefik no aparece en esa lista porque no es un servicio de Swarm.
 
-Lo que queda es **elegir ese rango**, y no es un trámite. Confiar en un bloque es confiar en todo lo que salga de él: quien pueda emitir peticiones desde dentro escribe en la auditoría la IP que quiera. La declaración debe ser la más estrecha que la plataforma permita, y hasta que se decida cuál es, la variable va **vacía** (§6.3).
+### 11.2 La IP de la auditoría
 
-Con ella vacía la consecuencia está acotada y hay que conocerla: los cinco registros que viven en PostgreSQL apuntan a la dirección del proxy —un dato incompleto pero **cierto**— en lugar de a una que el atacante elige escribiendo una cabecera. Es exactamente el comportamiento que ese componente busca cuando no hay lista.
+**En Dokploy, `TRUSTED_PROXIES` lleva la subred de la red `dokploy-network`**, y con ella la auditoría registra la IP de quien llamó. El porqué está en [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), y se resume en tres hechos que hay que poder volver a comprobar:
 
-De modo que el Art. V.15 sigue sin responderse en Railway **hoy**, pero ya no por falta de mecanismo: **D-21 vuelve a ser una decisión de configuración**, registrada en §13 y en `security.md` §12.
+1. Traefik corre como **contenedor normal**, no como servicio de Swarm, con los puertos `80` y `443` publicados en el anfitrión: la conexión le llega con su origen intacto.
+2. Traefik **no confía en el `X-Forwarded-For` que llega de fuera** —Dokploy no le declara IP de confianza— y escribe el suyo.
+3. El backend ve a Traefik con una dirección de `dokploy-network`, que cambia si el contenedor se recrea. **La subred no cambia.**
+
+La subred se lee en el servidor:
+
+```bash
+docker network inspect dokploy-network --format '{{(index .IPAM.Config 0).Subnet}}'
+```
+
+Y es ese valor —un bloque del estilo `10.0.1.0/24`— el que va en `TRUSTED_PROXIES` de los dos entornos (§6.3). **No un rango más ancho por si acaso**: confiar en un bloque es confiar en todo lo que salga de él, y quien pudiera emitir peticiones desde dentro escribiría en la auditoría la IP que quisiera. En esa red están Traefik, Dokploy y los servicios de los dos entornos; es la declaración más estrecha que esta plataforma permite.
+
+**Lo que hay que comprobar sobre el despliegue real**, porque los tres hechos de arriba son de la plataforma y no de este código:
+
+- [ ] Una petición desde una IP conocida —la de quien despliega, por ejemplo— queda **con esa IP** en `request_log`.
+- [ ] Una petición con `X-Forwarded-For: 1.2.3.4` inventado **no** queda con `1.2.3.4`.
+
+Si la primera falla —en `request_log` aparece una dirección de `dokploy-network` o la puerta de enlace de Docker—, la IP se está perdiendo antes de Traefik: un proxy de CDN delante (§9), o clientes que llegan por IPv6 a un Docker sin IPv6 activado, en cuyo caso el reenvío lo hace el proxy de espacio de usuario de Docker y el origen se sustituye. Mientras se resuelve, **dejar `TRUSTED_PROXIES` vacía** devuelve el comportamiento conocido: la auditoría apunta al proxy, un dato incompleto pero **cierto**.
 
 ---
 
@@ -544,12 +614,15 @@ De modo que el Art. V.15 sigue sin responderse en Railway **hoy**, pero ya no po
 
 | Necesidad | Cómo |
 |---|---|
-| **Ver los logs** | Pestaña *Deployments* del servicio, o `railway logs`. Es la salida estándar del proceso: el log de aplicación de `architecture.md` §9, ya enmascarado |
-| **Redesplegar sin cambios** | *Deployments* → *Redeploy*. Reconstruye desde el mismo commit |
-| **Revertir** | *Deployments* → seleccionar un despliegue anterior → *Redeploy*. **Revierte el código, nunca el esquema**: lo que Flyway aplicó, aplicado queda |
-| **Cambiar una variable** | *Variables* → editar. Railway **reinicia el servicio**: es un corte breve, y el estado en memoria de §7.3 se pierde |
-| **Entrar a la base** | *Postgres → Data*, o `psql` por el proxy TCP. Toda consulta contra datos reales tiene delante el Art. IV y `security.md`: se lee lo que hace falta y no se escribe a mano |
-| **Copias de seguridad** | Las gestiona Railway en el servicio Postgres. **Verificar que están activas y que una restauración funciona** antes de que haya datos reales. Una copia que nadie ha restaurado nunca no es una copia |
+| **Ver los logs** | Pestaña *Logs* del servicio en Dokploy, o `docker service logs -f <servicio>` en el servidor. Es la salida estándar del proceso: el log de aplicación de `architecture.md` §9, ya enmascarado. *Deployments* guarda en cambio el log de **cada despliegue** —la descarga de la imagen y el relevo—, que es donde se mira un despliegue fallido |
+| **Ver el consumo** | Pestaña *Monitoring* del servicio: CPU y memoria contra su límite (§5.4). Es lo primero que se mira si un entorno va lento |
+| **Redesplegar sin cambios** | *Deploy* en el servicio. Vuelve a descargar la imagen de la etiqueta configurada y hace el relevo |
+| **Revertir** | En *General*, cambiar la imagen de `…:main` a **`…:sha-<commit>`** del despliegue bueno y pulsar *Deploy*. Las etiquetas de cada commit están en el paquete de GHCR. **Devolverla a `…:main` en cuanto el arreglo esté integrado**: mientras apunte a un `sha-`, los despliegues del CI siguen ocurriendo y **no cambian nada**. Revierte el código, **nunca el esquema**: lo que Flyway aplicó, aplicado queda |
+| **Cambiar una variable** | *Environment* → editar → guardar → **Deploy**. Sin desplegar, el servicio sigue con los valores viejos. El relevo es el de §7.3: el estado en memoria se pierde |
+| **Entrar a la base** | **Desde el servidor, por SSH; nunca publicando el puerto.** Allí, `docker ps` da el contenedor de `postgres` del entorno y `docker exec -it <contenedor> psql -U <usuario> -d nexus` abre la consola. Toda consulta contra datos reales tiene delante el Art. IV y `security.md`: se lee lo que hace falta y no se escribe a mano |
+| **Copias de seguridad** | *Backups* del servicio `postgres`: destino S3 (*Settings → Destinations*), programación diaria —`0 4 * * *`— y un prefijo por entorno. El botón *Test* comprueba el destino, **no la restauración**. Restaurar una copia en un servicio de pruebas **antes de que haya datos reales** es una obligación con nombre ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md) §Seguimiento): una copia que nadie ha restaurado nunca no es una copia |
+| **Los secretos de §4** | `JWT_SECRET`, `MFA_ENCRYPTION_KEY` y `PAYRETAILERS_ENCRYPTION_KEY` **no están en las copias de la base** y sin las dos últimas los datos cifrados de la copia son ilegibles. Van en el gestor de contraseñas, junto a la credencial del destino S3 |
+| **Actualizar Dokploy** | Desde su panel, *Settings*. Leer antes las notas de la versión: Dokploy actualiza Traefik por su cuenta, y Traefik es el borde de los dos entornos |
 | **Métricas** | `/actuator/metrics`, autenticado y **a mano** (§13) |
 
 !!! warning "Revertir un despliegue no revierte una migración"
@@ -604,11 +677,12 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | # | Pendiente | Consecuencia hoy | Dónde se corrige |
 |---|---|---|---|
 | 1 | **Una sola réplica** | No hay escalado horizontal ni tolerancia a la caída del único proceso | Canal compartido detrás de `AccessRevocationPublisher` (§2.1) |
-| 2 | **La IP de auditoría es la del proxy** | El Art. V.15 no se cumple en Railway **mientras `TRUSTED_PROXIES` siga vacía** | El resolvedor ya admite rangos (27-08-2026). Falta **decidir qué rango** declarar: **D-21** |
-| 3 | **Nadie raspa las métricas** | `/actuator/metrics` exige un JWT y un raspador no lo porta. Se consultan a mano | Permiso propio o red de administración |
-| 4 | **Nadie alerta** | En particular, sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería. Una métrica que nadie mira es una métrica que no existe | — |
-| 5 | **`request_log` crece sin techo** | La tabla existe desde `V35` y **ningún proceso la purga**, aunque la variable exista | **D-10** |
-| 6 | **El contrato no llega solo al frontend** | Sigue siendo un archivo que alguien copia | Pendiente n.º 1 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) |
+| 2 | **Un solo servidor** | Si el VPS cae, caen los dos entornos y los dos repositorios a la vez. No hay alta disponibilidad | Condiciones de revisión de [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md) |
+| 3 | **La IP de auditoría depende de la plataforma** | Con la subred de §11.2 se registra la de quien llamó; está **sin comprobar** sobre el despliegue real | La comprobación de §11.2 |
+| 4 | **Nadie raspa las métricas** | `/actuator/metrics` exige un JWT y un raspador no lo porta. Se consultan a mano | Permiso propio o red de administración. La salida C de [`ADR-004`](architecture/ADR-004-raspado-de-metricas-y-alertas.md) pasa a ser comprobable: en Swarm, un puerto que no se publica ni se enruta solo se alcanza desde la red interna |
+| 5 | **Nadie alerta** | En particular, sigue sin vigilarse la **ausencia de eventos de auditoría**, que `RF-SP-001` §10 declara que debería. Una métrica que nadie mira es una métrica que no existe | — |
+| 6 | **`request_log` crece sin techo** | La tabla existe desde `V35` y **ningún proceso la purga**, aunque la variable exista | **D-10** |
+| 7 | **El contrato no llega solo al frontend** | Sigue siendo un archivo que alguien copia | Pendiente n.º 1 de [`ADR-001`](architecture/ADR-001-publicacion-del-contrato-openapi.md) |
 
 ---
 
@@ -641,3 +715,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.23.0 | 10-10-2026 | §6.5.3: **`BROKER_DEPOSIT_EVENT`, `BROKER_OPERATION_EVENT`** y `BROKER_FIELD_EVENT_ID`: el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`). | Responsable técnico |
 | 0.24.0 | 13-10-2026 | **Nueva §6.5.4: las clases en vivo (Zoom)**: la app Server-to-Server OAuth, sus scopes y las cuatro variables `ZOOM_*`. | Responsable técnico |
 | 0.25.0 | 13-10-2026 | §6.5.3: **la dirección común es la única** y **guarda todo aviso con el secreto**: el que no se reconoce queda sin broker y se asocia al arrancar cuando una migración cargue su `advertiser` (`RN-SP-076`). Se retiran la dirección por nombre y `BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA` y `BROKER_TOKEN_EXOPTION`; la consulta de lo que llegó gana `advertiser` y la de los avisos sin broker. | Responsable técnico |
+| 0.26.0 | 14-10-2026 | **La plataforma pasa de Railway a un VPS propio con Dokploy** ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), que sustituye a [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md)), por decisión del responsable del proyecto. §2 dibuja la topología nueva: Traefik como borde, el backend como servicio de Swarm que ejecuta una imagen de GHCR y PostgreSQL 17 con copias a S3. §5 se reescribe entera: **el servidor y su endurecimiento** —con el aviso de que **Docker se salta UFW** y el firewall tiene que ser el del proveedor—, los servicios de cada entorno, y **la configuración del servicio transcrita valor por valor**, porque Dokploy no la lee de ningún archivo del repositorio y `railway.json` deja de valer. Ahí aparece el único defecto que esta plataforma traía de serie: **Swarm mata el proceso a los diez segundos** y el apagado ordenado tiene treinta, de modo que el *Stop Grace Period* va a 35. Nueva §5.4 con los **límites de memoria** que separan los dos entornos en el mismo servidor y `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=60`, sin la cual la JVM solo usa para el montón una cuarta parte del límite. §6.1 construye `DATABASE_URL` con el *Internal Host* y avisa de la URI de Dokploy, que no es de JDBC. §7 cambia sus tres detalles: el puerto lo decide el dominio y no una variable inyectada, desaparece la red solo IPv6 de Railway, y el relevo es `start-first` con vuelta atrás automática. Nueva §10.1: **la imagen la construye y publica el CI después de `verificar`** y despliega por la API de Dokploy, de modo que una rama en rojo ya no llega a ningún entorno; el job está apagado hasta declarar `DOKPLOY_DEPLOY=true`. **§11.2 deja de decir que la auditoría no puede registrar la IP real**: con Traefik como contenedor fuera de la malla de Swarm, `TRUSTED_PROXIES` lleva la subred de `dokploy-network` (**D-21**), con dos comprobaciones sobre el despliegue real. §11.1 gana la verificación de la configuración del servicio, y §12 la reversión por etiqueta `sha-`, el acceso a la base por SSH, las copias y los secretos que no viajan en ellas. Se elimina el aviso de §10 sobre `feature/esqueleto-del-proyecto`, que llevaba semanas sin ser cierto. | Responsable técnico |

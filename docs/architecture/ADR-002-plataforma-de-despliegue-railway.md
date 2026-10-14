@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | **Aceptada** |
+| Estado | **Sustituida** el 14-10-2026 por [`ADR-007`](ADR-007-plataforma-de-despliegue-dokploy.md) — VPS propio con Dokploy |
 | Fecha | 27-08-2026 |
 | Decide | Responsable del proyecto |
 | Redacta | Bonilla Diaz William Steven |
@@ -10,6 +10,10 @@
 | Documentos afectados | `architecture.md` §12 y §16 · `security.md` §12 · nuevo `deployment.md` |
 
 ---
+
+!!! warning "Sustituida por [`ADR-007`](ADR-007-plataforma-de-despliegue-dokploy.md)"
+
+    Desde el 14-10-2026 los entornos desplegados corren en un VPS propio con Dokploy. Este ADR se conserva como registro de por qué se eligió Railway y de las condiciones con las que se dejó escrito que se reabriría; **lo que dice sobre la plataforma ya no describe el despliegue**. La réplica única, las migraciones que llegan con el artefacto y lo que la decisión **no** autoriza siguen vigentes: `ADR-007` los hereda.
 
 ## Contexto
 

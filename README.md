@@ -16,8 +16,8 @@ Toda la documentación técnica vive en [`docs/`](docs/) y se publica como sitio
 | [`docs/architecture.md`](docs/architecture.md) | Estructura del código, esquema, contrato de API, auditoría |
 | [`docs/development-guide.md`](docs/development-guide.md) | Cómo se escribe código aquí, día a día |
 | [`docs/security.md`](docs/security.md) | Roles, permisos, autenticación |
-| [`docs/deployment.md`](docs/deployment.md) | Cómo se despliega, en Railway, y qué variable va en cada entorno |
-| [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md) | El paso a paso para hacerlo, con Railway abierto delante |
+| [`docs/deployment.md`](docs/deployment.md) | Cómo se despliega, en un VPS con Dokploy, y qué variable va en cada entorno |
+| [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md) | El paso a paso para hacerlo, con el panel de Dokploy abierto delante |
 
 ## Puesta en marcha
 
@@ -57,11 +57,11 @@ Si `mvn verify` falla en tu máquina, **no** abras el Pull Request esperando que
 
 ## Despliegue
 
-Los entornos `testing` y `production` corren en **Railway**, uno por rama (`develop` y `main`), construidos desde este mismo `Dockerfile`. **Desplegar es integrar**: no hay una acción manual aparte.
+Los entornos `testing` y `production` corren en un **VPS propio con Dokploy**, uno por rama (`develop` y `main`). La imagen la construye el CI con este mismo `Dockerfile` **solo cuando el pipeline queda en verde**, la publica en GHCR y pide a Dokploy que la despliegue. **Desplegar es integrar**: no hay una acción manual aparte.
 
-Para **hacerlo**, el paso a paso está en [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md): once pasos en orden, con los comandos exactos y el bloque de variables listo para pegar.
+Para **hacerlo**, el paso a paso está en [`docs/manual-de-despliegue.md`](docs/manual-de-despliegue.md): del servidor vacío al despliegue automático, con los comandos exactos y el bloque de variables listo para pegar.
 
-Para **entenderlo**, la referencia es [`docs/deployment.md`](docs/deployment.md) —qué es cada cosa y por qué—, y la decisión de plataforma, [`ADR-002`](docs/architecture/ADR-002-plataforma-de-despliegue-railway.md).
+Para **entenderlo**, la referencia es [`docs/deployment.md`](docs/deployment.md) —qué es cada cosa y por qué—, y la decisión de plataforma, [`ADR-007`](docs/architecture/ADR-007-plataforma-de-despliegue-dokploy.md).
 
 Nada del `docker-compose.yml` viaja a un entorno desplegado: sus valores son de desarrollo y están versionados.
 

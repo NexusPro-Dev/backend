@@ -42,7 +42,7 @@ Autenticación básica en `/actuator/**`, con su propia credencial, fuera del mo
 
 ### C · Puerto de administración separado (recomendada)
 
-`management.server.port` distinto del de la aplicación, sin exponer al exterior. En Railway, la red privada del proyecto.
+`management.server.port` distinto del de la aplicación, sin exponer al exterior. En Railway, la red privada del proyecto; desde [`ADR-007`](ADR-007-plataforma-de-despliegue-dokploy.md), la red interna de Swarm en Dokploy, donde un puerto que no figura en *Ports* ni tiene dominio en Traefik no es alcanzable desde fuera.
 
 **Coste:** cero código. Es configuración, y es lo que Spring Boot ya ofrece para esto.
 

@@ -44,7 +44,7 @@
 | `T-21` | `receiveCommon` sin `EX-003`, con `advertiser` guardado; `classify`; `BrokerNotificationClassifier`; el repositorio; fuera la ruta por nombre, `findActiveByName`, `tokenOf`, `notification-tokens` y su ruta pública | `T-20` | | **Hecha** — 13-10-2026 |
 | `T-22` | `BrokerNotificationsIT`: `CA-SP-1009` a `CA-SP-1015`, las pruebas de la ruta por nombre retiradas o pasadas a la común; `IntegrationTestBase`; `EndpointPermissionsIT` | `T-21` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 13-10-2026 |
 | `T-23` | Contrato con la prosa; `api/index.md`, `deployment.md`, `.env.example`, `docker-compose.yml`, `modelo-datos.md` y `requirements.md` | `T-22` | | **Hecha** — 13-10-2026 |
-| `T-09` | Configurar el secreto común en Railway y la dirección común en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base, con su `advertiser` | `T-08` | Una fila por broker | Pendiente |
+| `T-09` | Configurar el secreto común en el entorno desplegado (Dokploy, `ADR-007`) y la dirección común en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base, con su `advertiser` | `T-08` | Una fila por broker | Pendiente |
 
 ---
 
