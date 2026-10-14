@@ -83,6 +83,9 @@ tags:
 - name: Auditoría
   description: "Los cuatro registros de auditoría del sistema. Solo lectura, y cada\
     \ uno con su permiso."
+- name: Categorías de clases en vivo
+  description: "Consultar, registrar, corregir y retirar las categorías de las clases\
+    \ en vivo, como Trading, Clases o Señales."
 - name: Aula en vivo
   description: "Las clases en vivo que vienen, y entrar a ellas."
 - name: Brokers
@@ -5415,6 +5418,7 @@ paths:
 
         **Todas las clases**, también las canceladas y las terminadas, por inicio
         descendente y paginadas. Filtros: `instructorId` —las de las que es instructor—,
+        `categoryId` —las de esa categoría (`RN-AC-034`)—,
         `status` (`PROGRAMADA` o
         `CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo
         de inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de
@@ -5444,6 +5448,14 @@ paths:
           type: string
           format: uuid
           description: Solo las clases de las que esa persona es instructor.
+      - name: categoryId
+        in: query
+        description: Solo las clases de esa categoría (RN-AC-034).
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: Solo las clases de esa categoría (RN-AC-034).
       - name: status
         in: query
         required: false
@@ -5506,7 +5518,9 @@ paths:
         de todos los alumnos con sesión**. **No cuelga de ningún curso** (`RN-AC-032`):
         `instructorIds` nombra a sus instructores —personas con `courses:teach`, sin
         repetir—, que la gobiernan bajo `/mine`; sin ninguno, solo administración. La
-        portada se pone aparte, con `PUT /{id}/cover`.
+        portada se pone aparte, con `PUT /{id}/cover`. **`categoryId` es obligatorio**: una
+        categoría viva de `GET /live-session-categories` (`RN-AC-034`); sin ella, `400`
+        `VAL-005`; inexistente o retirada, `422` `EX-002`, sin llamar a Zoom.
 
         **La reunión la crea la plataforma en Zoom**, con registro obligatorio: solo entra quien
         recibe su enlace personal al pulsar «Entrar» (`POST /live-sessions/available/{id}/registration`).
@@ -5534,14 +5548,15 @@ paths:
               schema:
                 $ref: "#/components/schemas/LiveSessionDetailResponse"
         "400":
-          description: "Campos ausentes o fuera de forma, horario inválido o listas\
-            \ repetidas (`VAL-001` a `VAL-004`)"
+          description: "Campos ausentes o fuera de forma, horario inválido, listas\
+            \ repetidas o sin categoría (`VAL-001` a `VAL-005`)"
           content:
             '*/*':
               schema:
                 $ref: "#/components/schemas/LiveSessionDetailResponse"
         "422":
-          description: "Instructor, membresía o producto que no valen (`EX-002`, `EX-003`)"
+          description: "Categoría, instructor, membresía o producto que no valen (`EX-002`,\
+            \ `EX-003`)"
           content:
             '*/*':
               schema:
@@ -5694,6 +5709,14 @@ paths:
           type: string
           format: uuid
           description: Solo las clases de las que esa persona es instructor.
+      - name: categoryId
+        in: query
+        description: Solo las clases de esa categoría (RN-AC-034).
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: Solo las clases de esa categoría (RN-AC-034).
       - name: status
         in: query
         required: false
@@ -5879,6 +5902,136 @@ paths:
               schema:
                 $ref: "#/components/schemas/JoinLiveSessionResponse"
       x-required-permission: live-sessions:join
+  /api/v1/live-session-categories:
+    get:
+      tags:
+      - Categorías de clases en vivo
+      summary: Consultar las categorías de las clases en vivo
+      description: |
+        **Permiso requerido:** `live-session-categories:list`. Sin él, `403` (`AUTH-002`).
+
+        **Las vivas**, sin paginar, por `displayOrder`, nombre e identificador: las que se
+        pueden asignar al programar una clase y por las que se filtran los listados y la
+        vitrina (`RN-AC-034`). Las retiradas no salen.
+
+        Exige `live-session-categories:list`.
+      operationId: listar_8
+      responses:
+        "200":
+          description: Las categorías.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LiveSessionCategoryResponse"
+      x-required-permission: live-session-categories:list
+    post:
+      tags:
+      - Categorías de clases en vivo
+      summary: Registrar una categoría de clases en vivo
+      description: |
+        **Permiso requerido:** `live-session-categories:create`. Sin él, `403` (`AUTH-002`).
+
+        Con `name` —de 1 a 100 caracteres, **único entre las vivas** sin distinguir acentos ni
+        mayúsculas; el de una retirada se admite— y `displayOrder`, entero mayor o igual que
+        cero y no único. Se audita.
+
+        Exige `live-session-categories:create`.
+      operationId: registrar_6
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterLiveSessionCategoryRequest"
+      responses:
+        "201":
+          description: La categoría registrada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "400":
+          description: Nombre (`VAL-001`) u orden (`VAL-002`) inválidos
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "409":
+          description: Ya hay una viva con ese nombre (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+      x-required-permission: live-session-categories:create
+  /api/v1/live-session-categories/{id}/deletion:
+    post:
+      tags:
+      - Categorías de clases en vivo
+      summary: Retirar una categoría de clases en vivo
+      description: |
+        **Permiso requerido:** `live-session-categories:delete`. Sin él, `403` (`AUTH-002`).
+
+        Baja lógica con `reason` (`RN-AC-018`). **No toca las clases que la tienen**: la
+        conservan y la siguen mostrando, pero ya no se asigna a ninguna y deja de salir en el
+        listado. Libera el nombre. Se audita la eliminación.
+
+        Exige `live-session-categories:delete`.
+      operationId: retirar_4
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteLiveSessionCategoryRequest"
+      responses:
+        "204":
+          description: Retirada.
+        "400":
+          description: "Sin motivo, o motivo inválido (`VAL-002`, `VAL-003`)"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+        "404":
+          description: No existe (`EX-001`)
+        "409":
+          description: Ya está retirada (`EX-002`)
+      x-required-permission: live-session-categories:delete
   /api/v1/hotlinks/{username}/{code}/purchases:
     post:
       tags:
@@ -6003,7 +6156,7 @@ paths:
         `409` y **no registra nada**: el sistema **no** cierra ni recorta la
         tasa anterior, porque resolver el conflicto es una decisión de quien
         administra, no del servidor.
-      operationId: registrar_6
+      operationId: registrar_7
       requestBody:
         content:
           application/json:
@@ -6075,7 +6228,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `courses:read`;
         `course-categories:read` no habilita.
-      operationId: listar_8
+      operationId: listar_9
       parameters:
       - name: page
         in: query
@@ -6275,7 +6428,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo y el árbol marcado.
         Retirar uno ya retirado responde `409`, distinto del `404` del inexistente.
         Exige `courses:delete`.
-      operationId: retirar_4
+      operationId: retirar_5
       parameters:
       - name: id
         in: path
@@ -6588,7 +6741,7 @@ paths:
         lección activa deja el módulo `ACTIVO` y no ofrecible. Su título queda libre en
         el módulo. Retirar una ya retirada responde `409`, distinto del `404` de la
         inexistente o de otro módulo. Exige `courses:update`.
-      operationId: retirar_5
+      operationId: retirar_6
       parameters:
       - name: courseId
         in: path
@@ -6646,7 +6799,7 @@ paths:
         marcados; su título queda libre en el curso. Retirar uno ya retirado responde
         `409`, distinto del `404` del inexistente o del de otro curso. Exige
         `courses:update` — el módulo es parte del curso, y no hace falta `courses:delete`.
-      operationId: retirar_6
+      operationId: retirar_7
       parameters:
       - name: courseId
         in: path
@@ -6868,7 +7021,7 @@ paths:
         (descendente por omisión), con `,asc`/`,desc`. Los parámetros inválidos se
         devuelven **juntos** con `400`. Exige `course-categories:read`;
         `courses:read` no habilita.
-      operationId: listar_9
+      operationId: listar_10
       parameters:
       - name: page
         in: query
@@ -7013,7 +7166,7 @@ paths:
         `includeDeleted=true`, y su detalle trae el motivo. Retirar una ya retirada
         responde `409`, distinto del `404` de la inexistente: quien retira dos veces
         merece saber que la primera funcionó. Exige `course-categories:delete`.
-      operationId: retirar_7
+      operationId: retirar_8
       parameters:
       - name: id
         in: path
@@ -7094,7 +7247,7 @@ paths:
         alguna, pero **no puede coincidir** con otro ya registrado ignorando
         mayúsculas y acentos: el catálogo no se edita, y el duplicado sería
         permanente.
-      operationId: registrar_7
+      operationId: registrar_8
       requestBody:
         content:
           application/json:
@@ -7146,7 +7299,7 @@ paths:
         Las tasas **personalizadas** no salen en este listado: están en
         `GET /api/v1/user-commission-rates`. **No hay filtro por fecha**, porque
         las tasas de rol no tienen vigencia.
-      operationId: listar_10
+      operationId: listar_11
       parameters:
       - name: filtros
         in: query
@@ -7211,7 +7364,7 @@ paths:
         gratuito, solo fija (`EX-006`). **No cuenta en el tope** de `RN-CM-019`.
         Ausente o nula: sin directa, y su venta propia paga esta tasa. La
         respuesta la trae siempre, **presente y nula** si no hay.
-      operationId: registrar_8
+      operationId: registrar_9
       requestBody:
         content:
           application/json:
@@ -7272,7 +7425,7 @@ paths:
         sostenga, y esa condición queda solo para la personalizada.
 
         **No es idempotente**: retirar dos veces devuelve `409`.
-      operationId: retirar_8
+      operationId: retirar_9
       parameters:
       - name: id
         in: path
@@ -7392,7 +7545,7 @@ paths:
         **Retirar la última no borra el pendiente** (08-10-2026): se queda vacío, en cero y sin
         poder pagarse, hasta que se le devuelva algo o se borren los vacíos con
         `DELETE /commission-batches/empty` (`RN-CM-052`, `RF-CM-027`).
-      operationId: retirar_9
+      operationId: retirar_10
       parameters:
       - name: id
         in: path
@@ -7793,7 +7946,7 @@ paths:
         dicen** cuál de las dos identidades —nombre de usuario o correo— está
         en uso, y que la cuenta de broker ya está declarada por otra persona:
         los dos los necesita quien se registra para poder corregir.
-      operationId: registrar_9
+      operationId: registrar_10
       requestBody:
         content:
           application/json:
@@ -8277,7 +8430,7 @@ paths:
         Qué escala rige para una persona concreta lo decide el cierre
         (`RN-CM-039`): la suya, si tiene escalones vigentes
         (`GET /api/v1/user-afftrack-rates`), y si no, la de su rol.
-      operationId: listar_11
+      operationId: listar_12
       parameters:
       - name: filtros
         in: query
@@ -8325,7 +8478,7 @@ paths:
         que ella (`VAL-005`). **El cero es válido**: alcanzar ese límite no paga,
         pero consume los FTD. Un producto que no es FTD se rechaza (`EX-005`), y
         el mismo límite vivo para el mismo rol y producto responde `409`.
-      operationId: registrar_10
+      operationId: registrar_11
       requestBody:
         content:
           application/json:
@@ -8379,7 +8532,7 @@ paths:
         siguiente cierre**. No se deshace. **Los FTD que cada persona haya
         reunido no se pierden**: siguen en su remanente, y el siguiente cierre
         los compara con lo que quede de la escala.
-      operationId: retirar_10
+      operationId: retirar_11
       parameters:
       - name: id
         in: path
@@ -10756,7 +10909,8 @@ paths:
         **Permiso requerido:** `live-sessions:update`. Sin él, `403` (`AUTH-002`).
 
         **Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista
-        vacía deja la clase de todos), **también `instructorIds`**. Lo que Zoom
+        vacía deja la clase de todos), **también `instructorIds`**. `categoryId`, si viene,
+        la cambia por otra viva (`422` `EX-002` si no lo está). Lo que Zoom
         conoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la
         lista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o
         terminada no se corrige** (`409`).
@@ -10886,6 +11040,71 @@ paths:
               schema:
                 $ref: "#/components/schemas/LiveSessionDetailResponse"
       x-required-permission: live-sessions:update-own
+  /api/v1/live-session-categories/{id}:
+    patch:
+      tags:
+      - Categorías de clases en vivo
+      summary: Corregir una categoría de clases en vivo
+      description: |
+        **Permiso requerido:** `live-session-categories:update`. Sin él, `403` (`AUTH-002`).
+
+        Parcial: `name` y `displayOrder`, al menos uno y **ninguno se vacía**. Solo una
+        categoría viva. Las clases que la tienen muestran el nombre nuevo. Se audita lo que
+        cambió; los mismos valores no auditan nada.
+
+        Exige `live-session-categories:update`.
+      operationId: corregir_6
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLiveSessionCategoryRequest"
+      responses:
+        "200":
+          description: La categoría corregida.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "400":
+          description: "Nombre (`VAL-001`) u orden (`VAL-002`) inválidos, o nada que\
+            \ corregir (`VAL-003`)"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "404":
+          description: No existe o está retirada (`EX-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+        "409":
+          description: Ya hay otra viva con ese nombre (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LiveSessionCategoryResponse"
+      x-required-permission: live-session-categories:update
   /api/v1/currencies/{id}/status:
     patch:
       tags:
@@ -11035,7 +11254,7 @@ paths:
         El título nuevo no puede ser el de **otro** curso vivo. Un retirado no se
         corrige (`404`). Un cuerpo sin cambios de valor responde `200` sin avanzar
         `updatedAt` ni auditar. Exige `courses:update`.
-      operationId: corregir_6
+      operationId: corregir_7
       parameters:
       - name: id
         in: path
@@ -11185,7 +11404,7 @@ paths:
         módulo no cambia de curso**: `courseId` en el cuerpo es `400`, y un módulo de
         otro curso responde `404`, como el retirado. Un cuerpo sin cambios de valor
         responde `200` sin auditar. Exige `courses:update`.
-      operationId: corregir_7
+      operationId: corregir_8
       parameters:
       - name: courseId
         in: path
@@ -11411,7 +11630,7 @@ paths:
         **El contenido se
         audita como longitud y no como texto.** La lección no cambia de módulo: `moduleId`,
         `courseId` y `status` en el cuerpo son `400`. Exige `courses:update`.
-      operationId: corregir_8
+      operationId: corregir_9
       parameters:
       - name: courseId
         in: path
@@ -11651,7 +11870,7 @@ paths:
 
         Un cuerpo sin cambios de valor responde `200` sin avanzar `updatedAt` ni
         auditar. La respuesta es la forma del detalle. Exige `course-categories:update`.
-      operationId: corregir_9
+      operationId: corregir_10
       parameters:
       - name: id
         in: path
@@ -11791,7 +12010,7 @@ paths:
         alta: último eslabón `422` (`EX-009`), decimales `VAL-014`, fija por
         encima del precio `409` (`EX-010`) y porcentaje sobre un gratuito `409`
         (`EX-008`). Vaciarla se admite siempre.
-      operationId: corregir_10
+      operationId: corregir_11
       parameters:
       - name: id
         in: path
@@ -11942,7 +12161,7 @@ paths:
         **Lo ya pagado no cambia**: cada comisión afftrack copió el límite y el
         valor que pagó. El siguiente cierre usa lo nuevo. Un límite que ya tiene
         otro escalón vivo del mismo rol y producto responde `409`.
-      operationId: corregir_11
+      operationId: corregir_12
       parameters:
       - name: id
         in: path
@@ -14259,8 +14478,9 @@ paths:
         vigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**
         si ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las
         membresías y servicios que la
-        abren**, que es la invitación; y **sus instructores y su portada**. `onlyAccessible=true`
-        deja solo las suyas. **Nada de Zoom**: el enlace se pide al entrar.
+        abren**, que es la invitación; y **sus instructores, su portada y su categoría**.
+        `onlyAccessible=true` deja solo las suyas, y `categoryId` solo las de esa categoría
+        (`RN-AC-034`). **Nada de Zoom**: el enlace se pide al entrar.
 
         Exige `live-sessions:learn`.
       operationId: clases
@@ -14270,6 +14490,14 @@ paths:
         required: false
         schema:
           type: boolean
+      - name: categoryId
+        in: query
+        description: Solo las clases de esa categoría (RN-AC-034).
+        required: false
+        schema:
+          type: string
+          format: uuid
+          description: Solo las clases de esa categoría (RN-AC-034).
       responses:
         "200":
           description: Las clases.
@@ -15109,7 +15337,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos, y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_12
+      operationId: listar_13
       parameters:
       - name: includeInactive
         in: query
@@ -15658,7 +15886,7 @@ paths:
 
         Filtros: `origin` (`PROGRAMADO`, `MANUAL`) y `from`/`to` sobre el inicio. Los errores
         de los filtros salen **todos juntos**.
-      operationId: listar_13
+      operationId: listar_14
       parameters:
       - name: filtros
         in: query
@@ -15753,7 +15981,7 @@ paths:
 
         **Alcance global**: quien porta el permiso ve todos los lotes. Ver solo los de la red
         depende de **D-22**; los propios son `GET /commission-batches/mine`.
-      operationId: listar_14
+      operationId: listar_15
       parameters:
       - name: filtros
         in: query
@@ -16039,7 +16267,7 @@ paths:
         Una línea **sin desenlace todavía** no aparece: la recogerá el barrido del siguiente
         cierre. Filtros `outcome`, `movementId`, `productId`, y `from`/`to` sobre el último
         intento, con los errores todos juntos.
-      operationId: listar_15
+      operationId: listar_16
       parameters:
       - name: filtros
         in: query
@@ -16103,7 +16331,7 @@ paths:
 
         **No se pagina**: son unos pocos elementos y partirlos obligaría a dos
         llamadas para pintar un desplegable.
-      operationId: listar_16
+      operationId: listar_17
       parameters:
       - name: includeInactive
         in: query
@@ -16227,7 +16455,7 @@ paths:
 
         **Esta ruta no sustituye a `GET /api/v1/users/{id}/broker-accounts`**,
         que existe para **el superior comercial sin permiso**.
-      operationId: listar_17
+      operationId: listar_18
       parameters:
       - name: page
         in: query
@@ -16809,7 +17037,7 @@ paths:
         `closingId`, `from`/`to` sobre el instante del cierre y `paid`
         (`true`: solo las que pagaron). **Filtrando por persona y producto, la
         primera fila es su remanente vigente.**
-      operationId: listar_18
+      operationId: listar_19
       parameters:
       - name: filtros
         in: query
@@ -17427,6 +17655,14 @@ components:
           type: string
         name:
           type: string
+    LiveSessionCategoryRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
     LiveSessionDetailResponse:
       type: object
       properties:
@@ -17440,6 +17676,9 @@ components:
         coverImageUrl:
           type: string
           description: "La portada, pública; nula si no tiene."
+        category:
+          $ref: "#/components/schemas/LiveSessionCategoryRef"
+          description: Su categoría (RN-AC-034); también si se retiró después.
         instructors:
           type: array
           description: Los instructores de la clase; vacía si no tiene (RN-AC-032).
@@ -20104,6 +20343,10 @@ components:
           type: string
         description:
           type: string
+        categoryId:
+          type: string
+          format: uuid
+          description: "La categoría de la clase, obligatoria y viva (RN-AC-034)."
         instructorIds:
           type: array
           description: "Los instructores de la clase: personas con courses:teach,\
@@ -20168,6 +20411,38 @@ components:
         registeredAt:
           type: string
           format: date-time
+    RegisterLiveSessionCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: De 1 a 100 caracteres; único entre las vivas.
+        displayOrder:
+          type: integer
+          format: int32
+          description: Entero mayor o igual que cero; no único.
+    LiveSessionCategoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    DeleteLiveSessionCategoryRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     HotlinkPurchaseRequest:
       type: object
       properties:
@@ -21522,6 +21797,10 @@ components:
           type: string
         description:
           type: string
+        categoryId:
+          type: string
+          format: uuid
+          description: "Si viene, cambia la categoría por otra viva (RN-AC-034)."
         instructorIds:
           type: array
           description: "Si viene, reemplaza la lista de instructores; por /mine, tiene\
@@ -21549,6 +21828,14 @@ components:
           items:
             type: string
             format: uuid
+    UpdateLiveSessionCategoryRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        displayOrder:
+          type: integer
+          format: int32
     ChangeCurrencyStatusRequest:
       type: object
       properties:
@@ -23265,6 +23552,9 @@ components:
         coverImageUrl:
           type: string
           description: "La portada, pública; nula si no tiene."
+        category:
+          $ref: "#/components/schemas/LiveSessionCategoryRef"
+          description: Su categoría (RN-AC-034).
         instructors:
           type: array
           description: Los instructores de la clase; vacía si no tiene (RN-AC-032).
@@ -23341,6 +23631,9 @@ components:
         coverImageUrl:
           type: string
           description: "La portada, pública; nula si no tiene."
+        category:
+          $ref: "#/components/schemas/LiveSessionCategoryRef"
+          description: Su categoría (RN-AC-034).
         instructors:
           type: array
           description: Los instructores de la clase; vacía si no tiene (RN-AC-032).

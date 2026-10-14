@@ -18,6 +18,8 @@ public final class LiveSessionRequests {
   public record Schedule(
       String title,
       String description,
+      @Schema(description = "La categoría de la clase, obligatoria y viva (RN-AC-034).")
+          UUID categoryId,
       @Schema(
               description =
                   "Los instructores de la clase: personas con courses:teach, sin repetir. Por"
@@ -51,6 +53,8 @@ public final class LiveSessionRequests {
   public record Update(
       String title,
       String description,
+      @Schema(description = "Si viene, cambia la categoría por otra viva (RN-AC-034).")
+          UUID categoryId,
       @Schema(
               description =
                   "Si viene, reemplaza la lista de instructores; por /mine, tiene que incluir a"
@@ -75,13 +79,16 @@ public final class LiveSessionRequests {
       Integer size,
       @Schema(description = "Solo las clases de las que esa persona es instructor.")
           UUID instructorId,
+      @Schema(description = "Solo las clases de esa categoría (RN-AC-034).") UUID categoryId,
       String status,
       Boolean ended,
       OffsetDateTime from,
       OffsetDateTime to) {}
 
   /** Los filtros de la vitrina del alumno (`RF-AC-053`). */
-  public record AvailableFilter(Boolean onlyAccessible) {
+  public record AvailableFilter(
+      Boolean onlyAccessible,
+      @Schema(description = "Solo las clases de esa categoría (RN-AC-034).") UUID categoryId) {
 
     public boolean soloAccesibles() {
       return Boolean.TRUE.equals(onlyAccessible);

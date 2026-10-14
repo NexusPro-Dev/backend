@@ -78,6 +78,7 @@ public class ListLiveSessionsService {
         new LiveSessionFilter(
             // Lo propio manda sobre el filtro: el instructor ve solo lo suyo (`RN-AC-028`).
             instructor != null ? instructor : filtros.instructorId(),
+            filtros.categoryId(),
             estado,
             filtros.ended(),
             filtros.from(),

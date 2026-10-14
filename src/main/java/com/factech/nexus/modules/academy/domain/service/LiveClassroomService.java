@@ -89,6 +89,12 @@ public class LiveClassroomService {
                         java.util.LinkedHashMap::new)));
     List<Available> lista = new ArrayList<>();
     for (UpcomingRow clase : clases) {
+      // `RN-AC-034`: el filtro por categoría, en memoria como el de accesibles.
+      if (filtros != null
+          && filtros.categoryId() != null
+          && !filtros.categoryId().equals(clase.categoryId())) {
+        continue;
+      }
       boolean accesible =
           alumno.opens(
               clase.memberships().stream().map(MembershipRef::id).toList(),

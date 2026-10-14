@@ -103,6 +103,7 @@ public class LiveSessionController {
           """
           **Todas las clases**, también las canceladas y las terminadas, por inicio
           descendente y paginadas. Filtros: `instructorId` —las de las que es instructor—,
+          `categoryId` —las de esa categoría (`RN-AC-034`)—,
           `status` (`PROGRAMADA` o
           `CANCELADA`), `ended` —calculado con la hora de fin de la última fecha— y el periodo
           de inicio `from`/`to` (semiabierto); **una clase que se repite** entra si alguna de
@@ -161,7 +162,9 @@ public class LiveSessionController {
           de todos los alumnos con sesión**. **No cuelga de ningún curso** (`RN-AC-032`):
           `instructorIds` nombra a sus instructores —personas con `courses:teach`, sin
           repetir—, que la gobiernan bajo `/mine`; sin ninguno, solo administración. La
-          portada se pone aparte, con `PUT /{id}/cover`.
+          portada se pone aparte, con `PUT /{id}/cover`. **`categoryId` es obligatorio**: una
+          categoría viva de `GET /live-session-categories` (`RN-AC-034`); sin ella, `400`
+          `VAL-005`; inexistente o retirada, `422` `EX-002`, sin llamar a Zoom.
           """
               + ZOOM
               + """
@@ -173,10 +176,11 @@ public class LiveSessionController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "Campos ausentes o fuera de forma, horario inválido o listas repetidas (`VAL-001` a `VAL-004`)"),
+            "Campos ausentes o fuera de forma, horario inválido, listas repetidas o sin categoría (`VAL-001` a `VAL-005`)"),
     @ApiResponse(
         responseCode = "422",
-        description = "Instructor, membresía o producto que no valen (`EX-002`, `EX-003`)"),
+        description =
+            "Categoría, instructor, membresía o producto que no valen (`EX-002`, `EX-003`)"),
     @ApiResponse(responseCode = "503", description = "Zoom no disponible (`EX-003`)")
   })
   public LiveSessionDetailResponse programar(@RequestBody(required = false) Schedule peticion) {
@@ -190,7 +194,8 @@ public class LiveSessionController {
       description =
           """
           **Solo lo que viene.** Las listas, si vienen, **reemplazan enteras** (una lista
-          vacía deja la clase de todos), **también `instructorIds`**. Lo que Zoom
+          vacía deja la clase de todos), **también `instructorIds`**. `categoryId`, si viene,
+          la cambia por otra viva (`422` `EX-002` si no lo está). Lo que Zoom
           conoce —título, inicio y fin— **se corrige allí primero**. Quitar a alguien de la
           lista no lo des-registra en Zoom: no recibe un enlace nuevo. **Una clase cancelada o
           terminada no se corrige** (`409`).

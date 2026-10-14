@@ -2,11 +2,11 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.120.0 |
+| Versión | 0.121.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
-| Última actualización | 13-10-2026 |
+| Última actualización | 14-10-2026 |
 
 !!! info "Desde el 05-10-2026, los importes en centésimas: [`ADR-006`](architecture/ADR-006-importes-en-unidades-minimas.md)"
 
@@ -818,6 +818,7 @@ erDiagram
     live_sessions ||--o{ live_session_instructors : "sus instructores (13-10-2026) · sin curso"
     users ||--o{ live_session_instructors : "DICTA · porta courses:teach al asignarse"
     academy_images |o--o| live_sessions : "PORTADA opcional (13-10-2026)"
+    live_session_categories ||--o{ live_sessions : "CLASIFICA · una por clase, obligatoria (14-10-2026)"
     memberships }o--o{ live_sessions : "ABRE · live_session_memberships · lista propia"
     products }o--o{ live_sessions : "ABRE por servicio · live_session_products"
     live_sessions ||--o{ live_session_registrations : "se entra registrandose en Zoom"
@@ -1272,3 +1273,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.118.0 | 13-10-2026 | **Los avisos de los brokers no se pierden** ([`requirements/sp.md`](requirements/sp.md) v1.123.0 §10.25, `RN-SP-076`, `V103`): `broker_notifications.broker_id` admite nulo —el aviso cuyo `advertiser` no se reconoce—, nace `advertiser`, rellenada en los avisos ya guardados, y el índice parcial `ix_broker_notifications_sin_broker`. Al arrancar se asocian e interpretan los que ya son de un broker. | Responsable técnico |
 | 0.119.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`, `V105`): `live_sessions` pierde `course_id` y gana `cover_image_id` hacia `academy_images`, único; nace **`live_session_instructors`** (`live_session_id`, `user_id`), rellenada con el instructor del curso de cada clase que colgaba de uno. | Responsable técnico |
 | 0.120.0 | 13-10-2026 | **Varios instructores por curso** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`, `V106`): nace **`course_instructors`** (`course_id`, `user_id`, `created_at`), clave compuesta, rellenada con `courses.instructor_id`, y **`courses` pierde `instructor_id`** con `fk_courses_instructor` e `ix_courses_instructor`. | Responsable técnico |
+| 0.121.0 | 14-10-2026 | **Las categorías de las clases en vivo** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`, `V107`): nace **`live_session_categories`** (`id`, `name`, `display_order`, fechas y `deleted_at`), con nombre único entre las vivas, sembrada con «Trading», «Clases» y «Señales»; `live_sessions` gana **`category_id`**, obligatoria, rellenada con «Clases». | Responsable técnico |

@@ -50,6 +50,8 @@ public interface LiveSessionQueryRepository {
       LocalDate repeatUntil,
       OffsetDateTime seriesEndsAt,
       UUID coverImageId,
+      UUID categoryId,
+      String categoryName,
       long zoomMeetingId,
       String status,
       OffsetDateTime cancelledAt,
@@ -91,6 +93,8 @@ public interface LiveSessionQueryRepository {
       LocalDate repeatUntil,
       OffsetDateTime seriesEndsAt,
       UUID coverImageId,
+      UUID categoryId,
+      String categoryName,
       String status,
       long membershipCount,
       long productCount,
@@ -111,6 +115,8 @@ public interface LiveSessionQueryRepository {
       String recurrence,
       LocalDate repeatUntil,
       UUID coverImageId,
+      UUID categoryId,
+      String categoryName,
       List<UUID> instructorIds,
       List<MembershipRef> memberships,
       List<ProductRef> products) {
@@ -123,10 +129,11 @@ public interface LiveSessionQueryRepository {
   /**
    * El predicado del listado. {@code instructorId} no nulo deja solo las clases de las que esa
    * persona es instructor —el filtro de administración y el alcance de `RF-AC-048`—; {@code ended}
-   * se compara con {@code ahora}.
+   * se compara con {@code ahora}; {@code categoryId}, las de esa categoría (`RN-AC-034`).
    */
   record LiveSessionFilter(
       UUID instructorId,
+      UUID categoryId,
       String status,
       Boolean ended,
       OffsetDateTime from,

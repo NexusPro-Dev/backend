@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.354.0 |
+| Versión | 0.355.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
-| Última actualización | 13-10-2026 |
+| Última actualización | 14-10-2026 |
 | Documento superior | `constitution.md` v0.8.0 |
 | Documentos relacionados | `modules.md` v0.21.0 |
 
@@ -348,6 +348,10 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-AC-060` | Poner la portada de una clase en vivo mía | `AC` | [`specs/ac/058-portada-de-clase-en-vivo/`](specs/ac/058-portada-de-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`), con la separación de las clases en vivo de los cursos: `PUT /api/v1/live-sessions/mine/{id}/cover` con `live-sessions:set-cover-own` (`V105`). **Construido el mismo día** | **En desarrollo** |
 | `RF-AC-061` | Quitar la portada de una clase en vivo mía | `AC` | [`specs/ac/058-portada-de-clase-en-vivo/`](specs/ac/058-portada-de-clase-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`), con la separación de las clases en vivo de los cursos: `DELETE /api/v1/live-sessions/mine/{id}/cover` con `live-sessions:remove-cover-own` (`V105`). **Construido el mismo día** | **En desarrollo** |
 | `RF-AC-062` | Varios instructores por curso | `AC` | [`specs/ac/062-varios-instructores-por-curso/`](specs/ac/062-varios-instructores-por-curso/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 13-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`): sin ruta propia, el curso declara **uno o más instructores** (`instructorIds`, `instructors`), en `course_instructors` (`V106`). **Construido el mismo día** | **En desarrollo** |
+| `RF-AC-063` | Consultar las categorías de las clases en vivo | `AC` | [`specs/ac/063-categorias-de-clases-en-vivo/`](specs/ac/063-categorias-de-clases-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 14-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`). **Construido el mismo día** | **En desarrollo** |
+| `RF-AC-064` | Registrar una categoría de clases en vivo | `AC` | [`specs/ac/063-categorias-de-clases-en-vivo/`](specs/ac/063-categorias-de-clases-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 14-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`). **Construido el mismo día** | **En desarrollo** |
+| `RF-AC-065` | Corregir una categoría de clases en vivo | `AC` | [`specs/ac/063-categorias-de-clases-en-vivo/`](specs/ac/063-categorias-de-clases-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 14-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`). **Construido el mismo día** | **En desarrollo** |
+| `RF-AC-066` | Retirar una categoría de clases en vivo | `AC` | [`specs/ac/063-categorias-de-clases-en-vivo/`](specs/ac/063-categorias-de-clases-en-vivo/tasks.md) | Pendiente de crear | `develop` | **Nace con tripleta el 14-10-2026** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`). **Construido el mismo día** | **En desarrollo** |
 | `RF-IN-001` | Consultar el resumen de ventas | `IN` | [`specs/in/001-resumen-de-ventas/`](specs/in/001-resumen-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suite completa en verde (06-10-2026): 540 unitarias y 2459 de integración. `SalesSummaryIT` (12), `SalesPeriodResolverTest` (6), `SalesScopeResolverTest` (3), `LayerRulesTest` con la regla de `IN`. **Construido**: `V74` (catálogo 189), `SalesFigures` en `MV`, `GET /indicators/sales/summary` **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado, lo pendiente y lo anulado de un periodo, por moneda y acotado al alcance de quien mira (`RN-IN-002`, `RN-IN-003`). **Estrena la interfaz agregada que `MV` todavía no publica** | **En desarrollo** |
 | `RF-IN-002` | Consultar la evolución de las ventas | `IN` | [`specs/in/002-evolucion-de-ventas/`](specs/in/002-evolucion-de-ventas/tasks.md) | Pendiente de crear | `develop` | Suites del módulo en verde (06-10-2026): `SalesSeriesIT` (8), `SalesCalendarTest` (4). **Construido**: `GET /indicators/sales/series`, `SalesFigures.confirmedByBucket`. **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por día, semana o mes de Bogotá, sin huecos (`RN-IN-007`) | **En desarrollo** |
 | `RF-IN-003` | Consultar las ventas por producto | `IN` | [`specs/in/003-ventas-por-producto/`](specs/in/003-ventas-por-producto/tasks.md) | Pendiente de crear | — | Sin código. Tripleta del 06-10-2026 (`spec.md` y `plan.md` aprobados). **Nace el 06-10-2026** con el módulo ([`requirements/in.md`](requirements/in.md) v0.1.0): lo confirmado por producto de la línea, con su nombre congelado | **Tasks aprobadas** |
@@ -380,12 +384,12 @@ Un requerimiento solo pasa a `Implementado` cuando cumple **todas** las condicio
 
 | Indicador | Valor |
 |---|---|
-| Requerimientos registrados | 263 |
-| Requerimientos con `spec.md` redactada | 259 |
-| Requerimientos con `spec.md` aprobada | 199 |
-| Requerimientos con `plan.md` aprobado | 258 |
+| Requerimientos registrados | 267 |
+| Requerimientos con `spec.md` redactada | 263 |
+| Requerimientos con `spec.md` aprobada | 203 |
+| Requerimientos con `plan.md` aprobado | 262 |
 | Requerimientos con **tripleta completa** —`tasks.md` aprobadas— | 111 |
-| Requerimientos con endpoint funcionando | 220 |
+| Requerimientos con endpoint funcionando | 224 |
 | Requerimientos implementados | 0 |
 
 La vista **por módulo** de estos mismos indicadores está en la [portada](index.md#indicadores), que los cruza con el inventario de [`modules.md` §4](modules.md#4-inventario-de-modulos). Aquí se cuenta por compuerta; allí se cuenta por módulo.
@@ -822,3 +826,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.352.0 | 13-10-2026 | **Nacen `RF-AC-056` y `RF-AC-057`, las dos lecturas del instructor, con tripleta, y se construyen** ([`requirements/ac.md`](requirements/ac.md) v0.26.0 §5.2.17; [`security.md`](security.md) v0.136.0): el detalle de una clase de mis cursos y los cursos que dicto, con dos permisos (`V104`, catálogo 237). Registrados 256 → **258**; `spec.md` redactadas 252 → **254** y aprobadas 192 → **194**; `plan.md` aprobados 251 → **253**; endpoints 215 → **217**. | Responsable técnico |
 | 0.353.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** ([`requirements/ac.md`](requirements/ac.md) v0.27.0 §5.2.18, `RN-AC-032`; [`security.md`](security.md) v0.137.0; [`modelo-datos.md`](modelo-datos.md) v0.119.0): instructores propios y portada opcional. **Nacen `RF-AC-058` a `RF-AC-061`**, poner y quitar la portada, con una tripleta común; **se retira `RF-AC-057`**. Registrados 258 → **262**; `spec.md` redactadas 254 → **258** y aprobadas 194 → **198**; `plan.md` aprobados 253 → **257**; endpoints 217 → **220** (cuatro nacen, uno se retira). | Responsable técnico |
 | 0.354.0 | 13-10-2026 | **Nace `RF-AC-062`, varios instructores por curso, con tripleta, y se construye** ([`requirements/ac.md`](requirements/ac.md) v0.28.0 §5.2.19, `RN-AC-033`; [`modelo-datos.md`](modelo-datos.md) v0.120.0): sin ruta propia, `instructorIds` e `instructors` en lugar de `instructorId` e `instructor`, en `course_instructors` (`V106`). Registrados 262 → **263**; `spec.md` redactadas 258 → **259** y aprobadas 198 → **199**; `plan.md` aprobados 257 → **258**; endpoints sin cambio. | Responsable técnico |
+| 0.355.0 | 14-10-2026 | **Nacen `RF-AC-063` a `RF-AC-066`, las categorías de las clases en vivo, con tripleta, y se construyen** ([`requirements/ac.md`](requirements/ac.md) v0.29.0 §5.2.20, `RN-AC-034`; [`modelo-datos.md`](modelo-datos.md) v0.121.0): consultar, registrar, corregir y retirar, con cuatro permisos `live-session-categories:*` (`V107`, catálogo **244**); «Trading», «Clases» y «Señales» sembradas, y toda clase declara una. **267** registrados, **263** con spec, **203** aprobadas, **262** con plan, **224** con endpoint. | Responsable técnico |

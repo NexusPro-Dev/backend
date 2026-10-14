@@ -26,6 +26,8 @@ public record LiveSessionDetailResponse(
     String title,
     String description,
     @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+    @Schema(description = "Su categoría (RN-AC-034); también si se retiró después.")
+        LiveSessionCategoryRef category,
     @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
         List<LiveSessionInstructorRef> instructors,
     OffsetDateTime startsAt,
@@ -58,6 +60,11 @@ public record LiveSessionDetailResponse(
   @Schema(name = "LiveSessionInstructorRef")
   public record LiveSessionInstructorRef(UUID id, String username, String fullName) {}
 
+  /** La categoría de una clase, con su nombre actual (`RN-AC-034`). */
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  @Schema(name = "LiveSessionCategoryRef")
+  public record LiveSessionCategoryRef(UUID id, String name) {}
+
   /** Quién pidió entrar, y cuándo. Sin su enlace: es de esa persona. */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   @Schema(name = "LiveSessionRegistrationItem")
@@ -77,6 +84,7 @@ public record LiveSessionDetailResponse(
         fila.title(),
         fila.description(),
         AcademyImageUrls.de(fila.coverImageId()),
+        new LiveSessionCategoryRef(fila.categoryId(), fila.categoryName()),
         instructores,
         fila.startsAt(),
         fila.endsAt(),

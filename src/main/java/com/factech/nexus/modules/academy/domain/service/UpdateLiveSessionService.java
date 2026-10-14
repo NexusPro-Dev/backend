@@ -79,7 +79,7 @@ public class UpdateLiveSessionService {
     apoyo.exigirModificable(antes, "EX-003");
     Update cambios =
         peticion == null
-            ? new Update(null, null, null, null, null, null, null, null, null)
+            ? new Update(null, null, null, null, null, null, null, null, null, null)
             : peticion;
 
     List<FieldError> problemas = new ArrayList<>();
@@ -134,6 +134,10 @@ public class UpdateLiveSessionService {
     }
     LiveSessionSupport.lanzarSiHay(problemas);
 
+    // `RN-AC-034`: la categoría, si viene, viva; antes que Zoom, como las demás referencias.
+    UUID categoria =
+        cambios.categoryId() == null ? antes.categoryId() : apoyo.categoria(cambios.categoryId());
+
     // `RN-AC-032`: la lista de instructores, si viene, reemplaza entera; por `/mine`, quien
     // corrige no se quita (`RN-AC-028`).
     List<UUID> instructores = null;
@@ -184,7 +188,8 @@ public class UpdateLiveSessionService {
         fin,
         frecuencia == null ? null : frecuencia.name(),
         hasta,
-        serie.finDeLaSerie(apoyo.zoom().zona()));
+        serie.finDeLaSerie(apoyo.zoom().zona()),
+        categoria);
     if (cambios.membershipIds() != null) {
       escrituras.replaceMemberships(id, membresias);
     }

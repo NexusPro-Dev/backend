@@ -48,8 +48,9 @@ public class LiveClassroomController {
           vigentes está en la lista, o porque la clase no declara ninguno—, **`registered`**
           si ya pidió entrar, `inProgress` si alguna de sus fechas está en curso, y **las
           membresías y servicios que la
-          abren**, que es la invitación; y **sus instructores y su portada**. `onlyAccessible=true`
-          deja solo las suyas. **Nada de Zoom**: el enlace se pide al entrar.
+          abren**, que es la invitación; y **sus instructores, su portada y su categoría**.
+          `onlyAccessible=true` deja solo las suyas, y `categoryId` solo las de esa categoría
+          (`RN-AC-034`). **Nada de Zoom**: el enlace se pide al entrar.
 
           Exige `live-sessions:learn`.
           """)

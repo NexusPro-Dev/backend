@@ -88,6 +88,11 @@ public class ScheduleLiveSessionService {
         LiveSessionSchedule.leer(
             peticion == null ? null : peticion.endsAt(), "endsAt", apoyo.zoom().zona(), problemas);
     LiveSessionSchedule.comprobar(inicio, fin, apoyo.ahora(), problemas);
+    // `RN-AC-034`: toda clase declara su categoría.
+    if (peticion == null || peticion.categoryId() == null) {
+      problemas.add(
+          new FieldError("categoryId", "VAL-005", "La categoría de la clase es obligatoria."));
+    }
     int antesDeLaFrecuencia = problemas.size();
     Recurrence frecuencia =
         LiveSessionSeries.leerFrecuencia(
@@ -119,6 +124,7 @@ public class ScheduleLiveSessionService {
           .filter(i -> instructor == null || !instructor.equals(i))
           .forEach(nombrados::add);
     }
+    UUID categoria = apoyo.categoria(peticion.categoryId());
     List<UUID> instructores = apoyo.instructores(nombrados);
     Set<UUID> membresias = apoyo.membresias(peticion.membershipIds());
     Set<UUID> servicios = apoyo.servicios(peticion.productIds());
@@ -144,6 +150,7 @@ public class ScheduleLiveSessionService {
                     frecuencia == null ? null : hasta,
                     serie.finDeLaSerie(apoyo.zoom().zona()),
                     reunion,
+                    categoria,
                     autor));
             escrituras.replaceMemberships(id, membresias);
             escrituras.replaceProducts(id, servicios);

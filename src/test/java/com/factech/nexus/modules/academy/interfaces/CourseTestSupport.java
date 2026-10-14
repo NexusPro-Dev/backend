@@ -33,6 +33,21 @@ final class CourseTestSupport {
     jdbc.update("DELETE FROM live_session_products");
     jdbc.update("DELETE FROM live_session_instructors");
     jdbc.update("DELETE FROM live_sessions");
+    // Las categorías de las clases: fuera las creadas por las suites, y las tres de `V107`
+    // como nacieron (`RN-AC-034`).
+    jdbc.update(
+        "DELETE FROM live_session_categories WHERE id NOT IN (?, ?, ?)",
+        LiveSessionTestSupport.TRADING,
+        LiveSessionTestSupport.CLASES,
+        LiveSessionTestSupport.SENALES);
+    jdbc.update(
+        "UPDATE live_session_categories SET deleted_at = NULL, name = CASE id WHEN ? THEN"
+            + " 'Trading' WHEN ? THEN 'Clases' ELSE 'Señales' END, display_order = CASE id"
+            + " WHEN ? THEN 0 WHEN ? THEN 1 ELSE 2 END",
+        LiveSessionTestSupport.TRADING,
+        LiveSessionTestSupport.CLASES,
+        LiveSessionTestSupport.TRADING,
+        LiveSessionTestSupport.CLASES);
     jdbc.update("DELETE FROM course_memberships");
     jdbc.update("DELETE FROM course_products");
     jdbc.update("DELETE FROM course_category_items");
@@ -53,11 +68,11 @@ final class CourseTestSupport {
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"
-            + " 'course_modules', 'lessons', 'live_sessions')");
+            + " 'course_modules', 'lessons', 'live_sessions', 'live_session_categories')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"
-            + " 'course_modules', 'lessons')");
+            + " 'course_modules', 'lessons', 'live_session_categories')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
     jdbc.update(

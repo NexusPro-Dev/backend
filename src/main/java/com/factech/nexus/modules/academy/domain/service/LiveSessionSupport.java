@@ -6,6 +6,7 @@ import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.L
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSchedule;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
+import com.factech.nexus.modules.academy.domain.repository.LiveSessionCategoryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionRow;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.RegistrationRow;
@@ -58,6 +59,7 @@ public class LiveSessionSupport {
   static final String NO_EXISTE = "No existe una clase en vivo con ese identificador.";
 
   private final LiveSessionQueryRepository consultas;
+  private final LiveSessionCategoryRepository categorias;
   private final InstructorVerifier instructores;
   private final MembershipCatalog membresias;
   private final ProductCatalog productos;
@@ -68,6 +70,7 @@ public class LiveSessionSupport {
 
   public LiveSessionSupport(
       LiveSessionQueryRepository consultas,
+      LiveSessionCategoryRepository categorias,
       InstructorVerifier instructores,
       MembershipCatalog membresias,
       ProductCatalog productos,
@@ -75,6 +78,7 @@ public class LiveSessionSupport {
       ZoomSettings zoom,
       CurrentActor actor) {
     this.consultas = consultas;
+    this.categorias = categorias;
     this.instructores = instructores;
     this.membresias = membresias;
     this.productos = productos;
@@ -129,6 +133,19 @@ public class LiveSessionSupport {
       instructores.verificar(id, "instructorIds");
     }
     return List.copyOf(unicos);
+  }
+
+  /** `RN-AC-034`: la categoría que se asigna existe y está viva; si no, `422` `EX-002`. */
+  UUID categoria(UUID id) {
+    return categorias
+        .findAliveById(id)
+        .map(c -> c.getId())
+        .orElseThrow(
+            () ->
+                referencia(
+                    "categoryId",
+                    "EX-002",
+                    "La categoría %s no existe o está retirada.".formatted(id)));
   }
 
   /** `RN-AC-028`: por `/mine`, quien corrige no se quita de la lista. */
@@ -275,6 +292,7 @@ public class LiveSessionSupport {
     estado.put(
         "instructorIds", clase.instructorIds().stream().map(UUID::toString).sorted().toList());
     estado.put("coverImageId", clase.coverImageId());
+    estado.put("categoryId", clase.categoryId());
     estado.put("startsAt", clase.startsAt());
     estado.put("endsAt", clase.endsAt());
     estado.put("recurrence", clase.recurrence());

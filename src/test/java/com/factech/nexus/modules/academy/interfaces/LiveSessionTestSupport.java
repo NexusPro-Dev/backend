@@ -13,6 +13,13 @@ final class LiveSessionTestSupport {
 
   private LiveSessionTestSupport() {}
 
+  /** Las tres categorías que siembra `V107` (`RN-AC-034`). */
+  static final UUID TRADING = UUID.fromString("01a11a5c-4000-7018-9c4f-ca7e00000001");
+
+  static final UUID CLASES = UUID.fromString("01a11a5c-4000-7019-9c4f-ca7e00000002");
+
+  static final UUID SENALES = UUID.fromString("01a11a5c-4000-701a-9c4f-ca7e00000003");
+
   /** Mañana a esa hora, en Bogotá, como texto sin zona. */
   static String manana(int hora) {
     return OffsetDateTime.now(ZoneOffset.ofHours(-5))
@@ -25,7 +32,10 @@ final class LiveSessionTestSupport {
         .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"));
   }
 
-  /** El cuerpo de programar; {@code instructor}, si no es nulo, va como único instructor. */
+  /**
+   * El cuerpo de programar, en «Clases»; {@code instructor}, si no es nulo, va como único
+   * instructor.
+   */
   static String cuerpo(
       String titulo,
       UUID instructor,
@@ -34,13 +44,15 @@ final class LiveSessionTestSupport {
       String membresias,
       String servicios) {
     return """
-        {"title":"%s","description":"Agenda de %s",%s"startsAt":"%s","endsAt":"%s",
+        {"title":"%s","description":"Agenda de %s",%s"categoryId":"%s",
+         "startsAt":"%s","endsAt":"%s",
          "membershipIds":[%s],"productIds":[%s]}
         """
         .formatted(
             titulo,
             titulo,
             instructor == null ? "" : "\"instructorIds\":[\"" + instructor + "\"],",
+            CLASES,
             inicio,
             fin,
             membresias,
@@ -70,15 +82,16 @@ final class LiveSessionTestSupport {
     UUID id = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO live_sessions (id, title, starts_at, ends_at, series_ends_at,"
-            + " zoom_meeting_id, created_by) VALUES (?, 'Directa',"
+            + " zoom_meeting_id, created_by, category_id) VALUES (?, 'Directa',"
             + " now() + make_interval(mins => ?), now() + make_interval(mins => ?),"
-            + " now() + make_interval(mins => ?), ?, ?)",
+            + " now() + make_interval(mins => ?), ?, ?, ?)",
         id,
         desdeMinutos,
         hastaMinutos,
         hastaMinutos,
         reunion,
-        autor);
+        autor,
+        CLASES);
     if (instructor != null) {
       jdbc.update(
           "INSERT INTO live_session_instructors (live_session_id, user_id) VALUES (?, ?)",
@@ -109,15 +122,16 @@ final class LiveSessionTestSupport {
     OffsetDateTime hoyFin = ahora.plusMinutes(hastaMinutos);
     jdbc.update(
         "INSERT INTO live_sessions (id, title, starts_at, ends_at, recurrence, repeat_until,"
-            + " series_ends_at, zoom_meeting_id, created_by)"
-            + " VALUES (?, 'Serie', ?, ?, 'DAILY', ?, ?, ?, ?)",
+            + " series_ends_at, zoom_meeting_id, created_by, category_id)"
+            + " VALUES (?, 'Serie', ?, ?, 'DAILY', ?, ?, ?, ?, ?)",
         id,
         hoyInicio.minusDays(diasAtras),
         hoyFin.minusDays(diasAtras),
         hoyInicio.plusDays(diasAdelante).toLocalDate(),
         hoyFin.plusDays(diasAdelante),
         reunion,
-        autor);
+        autor,
+        CLASES);
     return id;
   }
 

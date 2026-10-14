@@ -2,6 +2,7 @@ package com.factech.nexus.modules.academy.application;
 
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseMembershipRef;
 import com.factech.nexus.modules.academy.application.CourseDetailResponse.CourseProductRef;
+import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionCategoryRef;
 import com.factech.nexus.modules.academy.application.LiveSessionDetailResponse.LiveSessionInstructorRef;
 import com.factech.nexus.modules.academy.domain.models.LiveSessionSeries.Occurrence;
 import com.factech.nexus.modules.academy.domain.repository.LiveSessionQueryRepository.LiveSessionItemRow;
@@ -25,6 +26,7 @@ public final class LiveSessionResponses {
       UUID id,
       String title,
       @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+      @Schema(description = "Su categoría (RN-AC-034).") LiveSessionCategoryRef category,
       @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
           List<LiveSessionInstructorRef> instructors,
       OffsetDateTime startsAt,
@@ -56,6 +58,7 @@ public final class LiveSessionResponses {
           fila.id(),
           fila.title(),
           AcademyImageUrls.de(fila.coverImageId()),
+          new LiveSessionCategoryRef(fila.categoryId(), fila.categoryName()),
           instructores,
           fila.startsAt(),
           fila.endsAt(),
@@ -87,6 +90,7 @@ public final class LiveSessionResponses {
       String title,
       String description,
       @Schema(description = "La portada, pública; nula si no tiene.") String coverImageUrl,
+      @Schema(description = "Su categoría (RN-AC-034).") LiveSessionCategoryRef category,
       @Schema(description = "Los instructores de la clase; vacía si no tiene (RN-AC-032).")
           List<LiveSessionInstructorRef> instructors,
       OffsetDateTime startsAt,
@@ -121,6 +125,7 @@ public final class LiveSessionResponses {
           fila.title(),
           fila.description(),
           AcademyImageUrls.de(fila.coverImageId()),
+          new LiveSessionCategoryRef(fila.categoryId(), fila.categoryName()),
           instructores,
           fila.startsAt(),
           fila.endsAt(),

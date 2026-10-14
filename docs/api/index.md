@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.130.0 |
+| Versión | 1.131.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
-| Última actualización | 13-10-2026 |
+| Última actualización | 14-10-2026 |
 | Documento superior | `architecture.md` v0.14.0 |
 
 ---
@@ -235,3 +235,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.128.0 | 13-10-2026 | **Dos lecturas para el instructor** (`RF-AC-056`, `RF-AC-057`, [`requirements/ac.md`](../requirements/ac.md) v0.26.0 §5.2.17). **Nace `GET /api/v1/live-sessions/mine/{id}`** (`live-sessions:read-own`): el `LiveSessionDetailResponse` de una clase de los cursos que dicta, `404` si es ajena, suelta o no existe. **Nace `GET /api/v1/courses/mine`** (`courses:list-own`): `TaughtCourseItem[]` —`id`, `title`, `status`— de los cursos no retirados que dicta, sin paginar. Dos permisos (`V104`). | Responsable técnico |
 | 1.129.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** (`RN-AC-032`, [`requirements/ac.md`](../requirements/ac.md) v0.27.0 §5.2.18). **Cambio incompatible**: `courseId` y `removeCourse` salen de programar y corregir, `course` sale de `LiveSessionDetailResponse`, `LiveSessionItem` y `AvailableLiveSessionItem`, y el filtro `courseId` sale del listado y de la vitrina; desaparece el esquema `LiveSessionCourseRef`. **Entran** `instructorIds` (programar y corregir; por `/mine` quien programa entra siempre y no puede quitarse, `422`), `instructors` (`LiveSessionInstructorRef`: `id`, `username`, `fullName`), `coverImageUrl` y el filtro `instructorId`. **Nacen** `PUT`/`DELETE /api/v1/live-sessions/{id}/cover` (`live-sessions:set-cover`, `remove-cover`) y `/mine/{id}/cover` (`set-cover-own`, `remove-cover-own`), `multipart` con `file`. **Se retira `GET /api/v1/courses/mine`** (`RF-AC-057`) con `TaughtCourseItem`. | Responsable técnico |
 | 1.130.0 | 13-10-2026 | **Varios instructores por curso** (`RF-AC-062`, `RN-AC-033`, [`requirements/ac.md`](../requirements/ac.md) v0.28.0 §5.2.19). **Cambio incompatible**, sin rutas nuevas: `RegisterCourseRequest` y `UpdateCourseRequest` cambian `instructorId` por **`instructorIds`** —uno o más; al corregir, reemplaza la lista entera—, y `CourseDetailResponse`, `CourseItem`, `ClassroomCourseResponse` y la tarjeta del catálogo del alumno cambian `instructor` por **`instructors`**, `CourseInstructorRef[]` por nombre. El filtro `instructorId` de `GET /courses` deja los cursos en cuya lista está esa persona. | Responsable técnico |
+| 1.131.0 | 14-10-2026 | **Las categorías de las clases en vivo** (`RF-AC-063` a `RF-AC-066`, `RN-AC-034`, [`requirements/ac.md`](../requirements/ac.md) v0.29.0 §5.2.20). **Cuatro rutas nuevas** bajo `/api/v1/live-session-categories`, un permiso cada una: `GET` —las vivas, sin paginar, por orden y nombre— (`live-session-categories:list`), `POST` con `name` y `displayOrder` (`:create`, `409` si el nombre ya lo tiene otra viva), `PATCH /{id}` (`:update`) y `POST /{id}/deletion` con `reason` (`:delete`, baja lógica que no toca las clases). Nacen sembradas **Trading**, **Clases** y **Señales**. **Cambio incompatible** en `POST /live-sessions` y `/live-sessions/mine`: **`categoryId` es obligatorio** (`400` `VAL-005` sin él, `422` `EX-002` si no existe o está retirada). Compatible en lo demás: `PATCH` acepta `categoryId`; `LiveSessionDetailResponse`, `LiveSessionItem` y `AvailableLiveSessionItem` traen **`category`** (`LiveSessionCategoryRef`: `id`, `name`); los dos listados y la vitrina filtran por `categoryId`. | Responsable técnico |

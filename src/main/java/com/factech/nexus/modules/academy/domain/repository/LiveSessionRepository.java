@@ -23,7 +23,8 @@ public interface LiveSessionRepository {
       OffsetDateTime endsAt,
       String recurrence,
       LocalDate repeatUntil,
-      OffsetDateTime seriesEndsAt);
+      OffsetDateTime seriesEndsAt,
+      UUID categoryId);
 
   void cancel(UUID id, String reason, OffsetDateTime at);
 
@@ -58,5 +59,6 @@ public interface LiveSessionRepository {
       LocalDate repeatUntil,
       OffsetDateTime seriesEndsAt,
       long zoomMeetingId,
+      UUID categoryId,
       UUID createdBy) {}
 }

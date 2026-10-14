@@ -68,9 +68,10 @@ class LiveSessionRecurrenceIT extends IntegrationTestBase {
 
   private static String cuerpo(LocalDate dia, String repeticion) {
     return """
-        {"title":"Serie","startsAt":"%sT19:00:00","endsAt":"%sT20:00:00"%s}
+        {"title":"Serie","categoryId":"%s","startsAt":"%sT19:00:00","endsAt":"%sT20:00:00"%s}
         """
-        .formatted(dia, dia, repeticion.isEmpty() ? "" : "," + repeticion);
+        .formatted(
+            LiveSessionTestSupport.CLASES, dia, dia, repeticion.isEmpty() ? "" : "," + repeticion);
   }
 
   private ResultActions programar(String cuerpo) throws Exception {

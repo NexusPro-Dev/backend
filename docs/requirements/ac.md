@@ -4,12 +4,12 @@
 |---|---|
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
-| Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:` |
-| Versión | 0.28.0 |
+| Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:`, `live-session-categories:` |
+| Versión | 0.29.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
-| Última actualización | 13-10-2026 |
+| Última actualización | 14-10-2026 |
 
 !!! info "Qué va en este documento"
 
@@ -204,6 +204,7 @@ La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → 
 | `RN-AC-028` | **Administración gobierna todas las clases; el instructor, aquellas de las que es instructor** | Al listar, ver, programar, corregir, cancelar, iniciar y poner o quitar la portada | Con los permisos de administración se gobierna **cualquier clase**. Con los permisos **propios** (`-own`), **solo las clases en cuya lista de instructores está quien pregunta** (`RN-AC-032`; hasta el 13-10-2026, las de los cursos que dictaba): ver, corregir, cancelar, iniciar o tocar la portada de una ajena responde **`404`**, como si no existiera. **Programar una propia lo pone en la lista**, con los demás instructores que nombre; **al corregir una propia no puede quitarse de la lista** (`422`). **Una clase sin instructores solo la gobierna administración** | Alta |
 | `RN-AC-032` | **La clase en vivo no cuelga de ningún curso: tiene sus instructores y su portada** | Al programar, corregir, poner y quitar la portada, y en toda lectura | Desde el 13-10-2026 la clase **es independiente de los cursos** de la academia: no declara curso ni lo hereda en nada. **Declara sus instructores**, una lista de **cero o más personas** que **existen, no están retiradas y portan `courses:teach`** (`RN-AC-006`), comprobado **al asignar y solo al asignar**, sin repetir. Sin instructores, **solo la gobierna administración**. Y tiene **una portada opcional**, un archivo de `academy_images` como la del curso (`RN-AC-004`): se pone y se quita aparte, en cualquier estado salvo cancelada o terminada (`RN-AC-029`), y sin ella `coverImageUrl` va nulo | Alta |
 | `RN-AC-033` | **El curso tiene uno o varios instructores** | Al registrar un curso, al corregir sus instructores y en toda lectura | Desde el 13-10-2026 el curso **declara una lista de instructores** de **una persona o más** —nunca vacía: el curso dice quién lo enseña (`RF-AC-008`)—, sin repetir, cada una comprobada como dice `RN-AC-006`. **Corregir la lista la reemplaza entera.** Las lecturas los traen todos en `instructors`, por nombre completo; el filtro `instructorId` deja los cursos **en cuya lista está** esa persona; y el progreso de los alumnos (`RN-AC-024`) se le abre a **cualquiera de ellos**. Hasta ese día el curso tenía un solo instructor, en `courses.instructor_id`; `V106` lo pasó a la lista | Alta |
+| `RN-AC-034` | **La clase en vivo pertenece a una categoría** | Al programar y corregir una clase, al gestionar las categorías y en toda lectura de clases | Desde el 14-10-2026 las clases en vivo tienen **su propio catálogo de categorías**, distinto del de cursos: cada una con **nombre** —de 1 a 100 caracteres, **único entre las vivas** sin distinguir acentos ni mayúsculas— y **orden** —entero mayor o igual que cero, no único (`RN-AC-002`)—. **Nacen tres: «Trading», «Clases» y «Señales»** (`V107`), que se corrigen y retiran como cualquier otra. **Toda clase declara exactamente una**, obligatoria al programar y que al corregir, si viene, se cambia; **solo se asigna una viva**. **Retirarla** —baja lógica con motivo (`RN-AC-018`)— **no toca las clases**: las que la tienen la conservan y la siguen mostrando, y deja de ofrecerse para asignar y de salir en el listado de categorías. Las clases que existían ese día quedaron en «Clases». Las lecturas de las clases traen `category` y se filtran por `categoryId` | Alta |
 | `RN-AC-029` | **Lo cancelado y lo terminado no se corrigen, y cancelar no borra** | Al corregir, cancelar e iniciar | Una clase está **`PROGRAMADA`** o **`CANCELADA`**, y además **ha terminado** si su hora de fin —la de su última fecha, si se repite (`RN-AC-031`)— ya pasó —se calcula, no se guarda—. **Solo una programada que no ha terminado se corrige, se cancela o se inicia**; lo demás es `409`. **Cancelar exige motivo**, borra la reunión en Zoom, **conserva la fila** con fecha y motivo, se audita y **no se deshace**: para repetirla se programa otra. **Se programa con día, hora de inicio y hora de fin** —por decisión del responsable del proyecto, el 09-10-2026—: el inicio **no en el pasado**, el fin **después del inicio**, y entre los dos **de 15 minutos a 10 horas**. Las horas llegan con su zona; sin zona, se entienden en `America/Bogota`, que es también la zona que se le da a Zoom | Alta |
 | `RN-AC-030` | **El anfitrión entra por la plataforma** | Al iniciar una clase (`RF-AC-047`, `RF-AC-052`) | La reunión pertenece al **usuario anfitrión de la cuenta** (`ZOOM_HOST_USER`), y quien la dicta **pide el enlace de anfitrión a la plataforma**, que se lo pide a Zoom en ese momento —**caduca a las pocas horas** y por eso no se guarda—. Lo pide administración para cualquier clase o el instructor para las suyas (`RN-AC-028`). **Se audita** cada entrega, porque ese enlace da el control de la reunión | Alta |
 | `RN-AC-031` | **Una clase puede repetirse cada día, cada semana o cada mes, hasta una fecha** | Al programar y corregir (`RF-AC-055`), y en toda lectura | Una clase **sin repetición** es una sola fecha, como hasta ahora. **Con repetición** —`DAILY`, `WEEKLY` o `MONTHLY`— es **una serie de fechas a la misma hora**, de inicio a fin como la primera: **cada día**, **cada semana el mismo día de la semana** que la primera, o **cada mes el mismo día del mes** que la primera, **hasta la fecha `repeatUntil` incluida**, en `America/Bogota`. La serie tiene **de 2 a 60 fechas** —el máximo es el de Zoom—, y **la mensual no empieza después del día 28**, para que todos los meses tengan su fecha. **Es una sola clase y una sola reunión de Zoom**, recurrente con hora fija: el alumno **se registra una vez** y su enlace personal le sirve para todas las fechas (`RN-AC-027`). **Ha terminado** cuando termina **su última fecha**; hasta entonces se corrige, se cancela, se inicia y se entra como una clase sola. **Cancelar cancela la serie entera**: no se cancela una fecha suelta. Corregir la repetición o la fecha final **corrige la reunión de Zoom**; quitar la repetición deja solo la primera fecha. Las lecturas dan además **la fecha en curso o la siguiente** (`nextStartsAt`, `nextEndsAt`) | Alta |
@@ -387,6 +388,19 @@ El responsable del proyecto preguntó el 13-10-2026 si las reuniones se podían 
 - **No se cancela ni se mueve una fecha suelta**: la serie es una clase, y cancelarla la cancela entera. Si hiciera falta, se corrige `repeatUntil` o se cancela y se programa otra.
 - **El filtro por fechas del listado** (`from`, `to`) trae una serie si **alguna de sus fechas puede caer en el rango**: empieza antes del final del rango y termina después de su principio. Una clase sola se filtra como hasta ahora, por su inicio.
 
+#### 5.2.20 Las categorías de las clases en vivo — 14-10-2026
+
+El responsable del proyecto lo pidió el 14-10-2026: «a sesiones en vivo quiero poder crearle categorías donde las principales son "Trading", "Clases" y "Señales", con la opción de poder crear, eliminar y actualizar». Nacen **`RN-AC-034`** y **`RF-AC-063`** a **`RF-AC-066`**: consultar, registrar, corregir y retirar.
+
+**Lo que se decidió aquí sin preguntar, y por qué** — abierto a revisión:
+
+- **Un catálogo propio, no el de cursos.** Las categorías de cursos llevan color, icono y portada, se clasifican de muchos a muchos y las administra quien organiza el catálogo del aula; las de las clases son un rótulo de la agenda, y mezclarlas haría que «Señales» apareciera como cajón de cursos.
+- **Una categoría por clase, obligatoria.** «Las principales son…» describe un reparto: toda clase cae en una. Obligatoria evita la pregunta de cómo vaciarla al corregir, y las clases existentes pasan a «Clases». **Cambio incompatible** al programar: sin `categoryId`, `400`.
+- **Nombre y orden, nada más.** No se pidieron color ni icono; se añaden el día que el frontend los necesite.
+- **Retirar no se rechaza por tener clases**, como la categoría de cursos (`RN-AC-018`): las clases la conservan y la muestran; no se asigna a ninguna más. Lo retirado no se corrige ni se reactiva, y libera el nombre.
+- **El listado no se pagina**: son unas pocas, y quien programa las quiere todas en un desplegable. Trae solo las vivas, por orden y nombre.
+- **Cuatro rutas, cuatro permisos** (`RN-SEG-014`, `RN-SEG-015`): `live-session-categories:list`, `:create`, `:update` y `:delete`. Las tres de escritura, a `SUPERADMIN` y `ADMIN`; el listado, además, **donde está `courses:teach`** —el instructor elige categoría al programar por `/mine`— y **donde está `live-sessions:learn`** —el alumno filtra la vitrina—.
+
 #### 5.2.19 Varios instructores por curso — 13-10-2026
 
 El responsable del proyecto lo pidió el 13-10-2026, después de §5.2.18: «y lo de los instructores ocurre lo mismo para los cursos, varios por curso». Nace **`RN-AC-033`** y, sin ruta propia, **`RF-AC-062`**, como `RF-AC-055`.
@@ -503,8 +517,12 @@ Al construir la pantalla del instructor, el frontend encontró **dos huecos** en
 | `RF-AC-060` | Poner la portada de una clase en vivo mía | En vivo | Media | `live-sessions:set-cover-own` | **En desarrollo** (13-10-2026) |
 | `RF-AC-061` | Quitar la portada de una clase en vivo mía | En vivo | Media | `live-sessions:remove-cover-own` | **En desarrollo** (13-10-2026) |
 | `RF-AC-062` | Varios instructores por curso | Cursos | Media | Los de registrar, editar y consultar cursos | **En desarrollo** (13-10-2026) |
+| `RF-AC-063` | Consultar las categorías de las clases en vivo | En vivo | Media | `live-session-categories:list` | **En desarrollo** (14-10-2026) |
+| `RF-AC-064` | Registrar una categoría de clases en vivo | En vivo | Media | `live-session-categories:create` | **En desarrollo** (14-10-2026) |
+| `RF-AC-065` | Corregir una categoría de clases en vivo | En vivo | Media | `live-session-categories:update` | **En desarrollo** (14-10-2026) |
+| `RF-AC-066` | Retirar una categoría de clases en vivo | En vivo | Media | `live-session-categories:delete` | **En desarrollo** (14-10-2026) |
 
-**Sesenta y dos requerimientos** —uno retirado, `RF-AC-057`; treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14), `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15) `RF-AC-055` del 13-10-2026 (§5.2.16) `RF-AC-056` y `RF-AC-057` del mismo día (§5.2.17) y `RF-AC-058` a `RF-AC-061` también (§5.2.18) y `RF-AC-062` (§5.2.19)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
+**Sesenta y seis requerimientos** —uno retirado, `RF-AC-057`; treinta y cinco del 17-09-2026, `RF-AC-036` del 18 (§5.2.7), `RF-AC-037` y `RF-AC-038` del 25 (§5.2.8), `RF-AC-039` a `RF-AC-041` del 09-10-2026 (§5.2.14), `RF-AC-042` a `RF-AC-054` del mismo día (§5.2.15) `RF-AC-055` del 13-10-2026 (§5.2.16) `RF-AC-056` y `RF-AC-057` del mismo día (§5.2.17) y `RF-AC-058` a `RF-AC-061` también (§5.2.18) y `RF-AC-062` (§5.2.19), y `RF-AC-063` a `RF-AC-066` del 14-10-2026 (§5.2.20)—, y la cifra merece una explicación: no es que el módulo sea grande, es que **cada entidad paga el mismo precio** —alta, corrección, estado, retiro— y **cada relación cobra dos** —dar y quitar—. Es la misma forma que `PM` con el producto y el paquete, y la razón de no juntar «asociar» y «desasociar» en un solo requerimiento es la de siempre: son dos operaciones con dos reglas distintas y dos auditorías distintas.
 
 **Los módulos, las lecciones y las cuatro relaciones se administran con `courses:update`** y no con un recurso propio (§7): son partes del curso, y quien puede corregir un curso puede armarlo.
 
@@ -1245,6 +1263,60 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 
 **Sin ruta propia**: registrar (`RF-AC-008`) pide **`instructorIds`** —uno o más, sin repetir— en lugar de `instructorId`, y editar (`RF-AC-011`) **reemplaza la lista entera** si viene; vacía, `400`. Cada uno pasa la comprobación de `RN-AC-006`. El listado y el detalle (`RF-AC-009`, `RF-AC-010`) y el aula (`RF-AC-033`, `RF-AC-034`) traen **`instructors`** —identificador, nombre de usuario y nombre completo de cada uno, por nombre— en lugar de `instructor`; el filtro `instructorId` del listado deja los cursos **en cuya lista está** esa persona; y el progreso (`RF-AC-040`, `RF-AC-041`) se le abre a **cualquiera de ellos**. **Cambio incompatible del contrato.**
 
+#### `RF-AC-063` — Consultar las categorías de las clases en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Saber qué categorías se pueden asignar o filtrar |
+| Actor | Administrador, instructor y alumno |
+| Permiso requerido | `live-session-categories:list` |
+| Reglas aplicables | `RN-AC-002`, `RN-AC-034` |
+| Tripleta | `docs/specs/ac/063-categorias-de-clases-en-vivo/` |
+| Estado | **En desarrollo** (14-10-2026) |
+
+`GET /live-session-categories`: **las vivas**, sin paginar, por `displayOrder`, nombre e identificador.
+
+#### `RF-AC-064` — Registrar una categoría de clases en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Añadir una categoría a la agenda |
+| Actor | Administrador |
+| Permiso requerido | `live-session-categories:create` |
+| Reglas aplicables | `RN-AC-002`, `RN-AC-034` |
+| Tripleta | `docs/specs/ac/063-categorias-de-clases-en-vivo/` |
+| Estado | **En desarrollo** (14-10-2026) |
+
+`POST /live-session-categories` con `name` y `displayOrder`; nombre repetido entre las vivas, `409`. Se audita.
+
+#### `RF-AC-065` — Corregir una categoría de clases en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Renombrar o reordenar una categoría |
+| Actor | Administrador |
+| Permiso requerido | `live-session-categories:update` |
+| Reglas aplicables | `RN-AC-002`, `RN-AC-034` |
+| Tripleta | `docs/specs/ac/063-categorias-de-clases-en-vivo/` |
+| Estado | **En desarrollo** (14-10-2026) |
+
+`PATCH /live-session-categories/{id}`, parcial: `name` y `displayOrder`, ninguno vaciable. Solo una viva; las clases que la tienen muestran el nombre nuevo. Se audita el cambio.
+
+#### `RF-AC-066` — Retirar una categoría de clases en vivo
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Dejar de ofrecer una categoría |
+| Actor | Administrador |
+| Permiso requerido | `live-session-categories:delete` |
+| Reglas aplicables | `RN-AC-018`, `RN-AC-034` |
+| Tripleta | `docs/specs/ac/063-categorias-de-clases-en-vivo/` |
+| Estado | **En desarrollo** (14-10-2026) |
+
+`POST /live-session-categories/{id}/deletion` con `reason`: baja lógica, **sin tocar las clases que la tienen**. Ya retirada, `409`. Se audita la eliminación.
+
+**Y las clases** (`RF-AC-042` a `RF-AC-054`): programar (`RF-AC-044`, `RF-AC-049`) exige `categoryId`; corregir (`RF-AC-045`, `RF-AC-050`) lo cambia si viene; los listados de administración y del instructor y la vitrina del alumno (`RF-AC-042`, `RF-AC-048`, `RF-AC-053`) filtran por `categoryId`; y el detalle, los listados y la vitrina traen `category` —identificador y nombre—.
+
 #### `RF-AC-057` — Consultar los cursos que dicto
 
 | Campo | Valor |
@@ -1332,6 +1404,10 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | `live-sessions:remove-cover-own` | `live-sessions` | `remove-cover-own` | Quitar la portada de una clase de la que es instructor (`RF-AC-061`, `V105`) |
 | `live-sessions:learn` | `live-sessions` | `learn` | Las clases que vienen, como alumno (`RF-AC-053`) |
 | `live-sessions:join` | `live-sessions` | `join` | Entrar a una clase: registrarse en Zoom y recibir el enlace personal (`RF-AC-054`) |
+| `live-session-categories:list` | `live-session-categories` | `list` | Las categorías vivas de las clases en vivo (`RF-AC-063`, 14-10-2026, `V107`) |
+| `live-session-categories:create` | `live-session-categories` | `create` | Registrar una categoría de clases en vivo (`RF-AC-064`, `V107`) |
+| `live-session-categories:update` | `live-session-categories` | `update` | Corregir una categoría de clases en vivo (`RF-AC-065`, `V107`) |
+| `live-session-categories:delete` | `live-session-categories` | `delete` | Retirar una categoría de clases en vivo (`RF-AC-066`, `V107`) |
 | `courses:read-progress` | `courses` | `read-progress` | **El progreso de un alumno en un curso**, lección a lección, dentro del alcance (`RF-AC-041`, `RN-AC-024`), desde el 09-10-2026 |
 
 **Las categorías tienen recurso propio y los módulos y lecciones no**, y la diferencia es la de `PM` entre `packages:` y la portada. Una categoría **existe sin cursos** y la administra quien organiza el catálogo, que puede no ser quien arma un curso; un módulo y una lección **no existen sin su curso**, y quien puede corregir el curso tiene que poder armarlo, o `courses:update` no serviría para nada. Separar «corregir el curso» de «armar el curso» tendría sentido el día que alguien deba poder lo uno sin lo otro — el instructor, cuando edite—, y ese día lo que se separa es la propiedad, no el permiso.
@@ -1493,6 +1569,7 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `recurrence` | `varchar(10)` | **Sí** | `RN-AC-031` (13-10-2026, `V102`): `DAILY` \| `WEEKLY` \| `MONTHLY`; nula, una sola fecha |
 | `repeat_until` | `date` | **Sí** | `RN-AC-031`: el último día de la serie, en `America/Bogota`; nula si y solo si `recurrence` lo es |
 | `series_ends_at` | `timestamptz` | No | `RN-AC-031`: el fin de la última fecha —igual a `ends_at` sin repetición—; con él se calcula si terminó |
+| `category_id` | `uuid` | No | `live_session_categories` — su categoría (`RN-AC-034`, 14-10-2026, `V107`) |
 | `created_by` | `uuid` | No | `users` — quién la programó |
 | `created_at`, `updated_at` | `timestamptz` | No | — |
 
@@ -1521,6 +1598,18 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `created_at` | `timestamptz` | No | — |
 
 **Clave primaria `(course_id, user_id)`**, como `live_session_instructors`: **corregir la lista borra y escribe filas**. Las claves foráneas **se declaran, sin `ON DELETE`**: el usuario no se borra físicamente nunca (`RF-SP-029`). **Que la lista no quede vacía no cabe en el esquema** y lo exige el dominio (`RN-AC-033`). `V106` la rellena con `courses.instructor_id` antes de quitar la columna.
+
+### 8.16 `live_session_categories` — 14-10-2026
+
+| Columna | Tipo | Nula | Referencia |
+|---|---|---|---|
+| `id` | `uuid` | No | — |
+| `name` | `varchar(100)` | No | `RN-AC-034`: único entre las vivas, sin acentos ni mayúsculas |
+| `display_order` | `integer` | No | `RN-AC-002`: mayor o igual que cero, no único |
+| `created_at`, `updated_at` | `timestamptz` | No | — |
+| `deleted_at` | `timestamptz` | **Sí** | Baja lógica (`RN-AC-018`); el motivo va en la auditoría |
+
+`V107` siembra **«Trading», «Clases» y «Señales»**, con orden 0, 1 y 2 e identificador literal (Art. V.11), y pone «Clases» a toda clase que existía.
 
 ### 8.13 `live_session_registrations` — 09-10-2026
 
@@ -1555,6 +1644,9 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `uq_course_categories_cover_image` | Único sobre `cover_image_id` | Una imagen es portada de una categoría como máximo (`RN-AC-004`) |
 | `fk_course_categories_cover_image` | `cover_image_id` → `academy_images(id)` | `RN-AC-004`. **Sin `ON DELETE`**: se suelta antes de borrar |
 | `uq_courses_title` | Índice único parcial sobre `f_unaccent(lower(title))`, `WHERE deleted_at IS NULL` | `RN-AC-001` |
+| `uq_live_session_categories_name` | Índice único parcial sobre `f_unaccent(lower(name))`, `WHERE deleted_at IS NULL` | `RN-AC-034`; una retirada libera el nombre |
+| `ck_live_session_categories_display_order` | `display_order >= 0` | `RN-AC-002` |
+| `fk_live_sessions_category` | `category_id` → `live_session_categories(id)`, sin `ON DELETE` | `RN-AC-034`. Que sea viva al asignarse **no cabe aquí**: vive en el dominio |
 | `pk_course_instructors`, `fk_course_instructors_course`, `fk_course_instructors_user` | `(course_id, user_id)`; hacia `courses` y `users`, sin `ON DELETE` | `RN-AC-006`, `RN-AC-033`. Que porte el permiso y que la lista no quede vacía **no caben aquí**: viven en el dominio. `fk_courses_instructor` se quitó con la columna el 13-10-2026 (`V106`) |
 | `ck_courses_difficulty` | `difficulty IN ('PRINCIPIANTE','INTERMEDIO','AVANZADO')` | `RN-AC-007` |
 | `ck_courses_status` | `status IN ('ACTIVO','INACTIVO')` | `RN-AC-008` |
@@ -1637,3 +1729,4 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | 0.26.0 | 13-10-2026 | **Las dos lecturas que le faltaban al instructor** (§5.2.17), aprobadas por el responsable del proyecto a raíz de la pantalla del frontend: **`RF-AC-056`**, el detalle de una clase de mis cursos (`GET /live-sessions/mine/{id}`, `live-sessions:read-own`, `404` si es ajena), y **`RF-AC-057`**, los cursos que dicto (`GET /courses/mine`, `courses:list-own`). Dos permisos, sembrados donde está `courses:teach` (`V104`). §6.2 corrige lo que decía del listado propio: trae cuentas, no el detalle. | Responsable técnico |
 | 0.27.0 | 13-10-2026 | **Las clases en vivo se separan de los cursos** (§5.2.18), a petición del responsable del proyecto: nace **`RN-AC-032`** —sin curso, con **una lista de instructores** que portan `courses:teach`, y con **una portada opcional**—; **`RN-AC-028` se reescribe**: lo propio es lo de las clases de las que se es instructor; `RN-AC-025` deja de hablar del curso. Nacen **`RF-AC-058` a `RF-AC-061`**, poner y quitar la portada, de administración y propias, con cuatro permisos; **se retira `RF-AC-057`** con `courses:list-own`. §8.10 cambia `course_id` por `cover_image_id`, y nace §8.14 `live_session_instructors` (`V105`). | Responsable técnico |
 | 0.28.0 | 13-10-2026 | **Varios instructores por curso** (§5.2.19), a petición del responsable del proyecto: nace **`RN-AC-033`** —el curso declara una lista de uno o más instructores, que se reemplaza entera— y, sin ruta propia, **`RF-AC-062`**; se enmiendan `RN-AC-006`, `RN-AC-024`, `RF-AC-008` y `RF-AC-011`. §8.2 pierde `instructor_id` y nace §8.15 `course_instructors` (`V106`). | Responsable técnico |
+| 0.29.0 | 14-10-2026 | **Las categorías de las clases en vivo** (§5.2.20), a petición del responsable del proyecto: nace **`RN-AC-034`** —un catálogo propio con nombre y orden, sembrado con «Trading», «Clases» y «Señales»; toda clase declara una, obligatoria; retirar no toca las clases— y **`RF-AC-063`** a **`RF-AC-066`** —consultar, registrar, corregir y retirar— con cuatro permisos `live-session-categories:*` (§7); `live_sessions.category_id` (§8.10) y **§8.16** `live_session_categories`; restricciones en §8.9. Las clases existentes quedan en «Clases» (`V107`). | Responsable técnico |

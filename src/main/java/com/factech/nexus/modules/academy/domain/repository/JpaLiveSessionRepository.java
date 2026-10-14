@@ -39,12 +39,17 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
       s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
       s.cover_image_id AS cover_image_id,
+      s.category_id AS category_id, lc.name AS category_name,
       s.zoom_meeting_id AS zoom_meeting_id, s.status AS status, s.cancelled_at AS cancelled_at,
       s.cancellation_reason AS cancellation_reason, s.created_by AS created_by,
       s.created_at AS created_at, s.updated_at AS updated_at
       """;
 
-  private static final String DESDE = " FROM live_sessions s";
+  /**
+   * La categoría viaja con la fila (`RN-AC-034`): es obligatoria, y la unión no suma sentencias.
+   */
+  private static final String DESDE =
+      " FROM live_sessions s JOIN live_session_categories lc ON lc.id = s.category_id";
 
   private final EntityManager em;
 
@@ -64,9 +69,9 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
             """
             INSERT INTO live_sessions (id, title, description, starts_at, ends_at,
                                        recurrence, repeat_until, series_ends_at,
-                                       zoom_meeting_id, status, created_by)
+                                       zoom_meeting_id, status, category_id, created_by)
             VALUES (:id, :titulo, :descripcion, :inicio, :fin, :frecuencia, :hasta,
-                    :finSerie, :reunion, 'PROGRAMADA', :autor)
+                    :finSerie, :reunion, 'PROGRAMADA', :categoria, :autor)
             """);
     tipado(alta, "frecuencia", clase.recurrence(), String.class);
     tipado(alta, "hasta", clase.repeatUntil(), LocalDate.class);
@@ -77,6 +82,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         .setParameter("fin", clase.endsAt())
         .setParameter("finSerie", clase.seriesEndsAt())
         .setParameter("reunion", clase.zoomMeetingId())
+        .setParameter("categoria", clase.categoryId())
         .setParameter("autor", clase.createdBy())
         .executeUpdate();
   }
@@ -91,14 +97,16 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
       OffsetDateTime endsAt,
       String recurrence,
       LocalDate repeatUntil,
-      OffsetDateTime seriesEndsAt) {
+      OffsetDateTime seriesEndsAt,
+      UUID categoryId) {
     Query cambio =
         em.createNativeQuery(
             """
             UPDATE live_sessions
                SET title = :titulo, description = :descripcion,
                    starts_at = :inicio, ends_at = :fin, recurrence = :frecuencia,
-                   repeat_until = :hasta, series_ends_at = :finSerie, updated_at = now()
+                   repeat_until = :hasta, series_ends_at = :finSerie, category_id = :categoria,
+                   updated_at = now()
              WHERE id = :id
             """);
     tipado(cambio, "frecuencia", recurrence, String.class);
@@ -110,6 +118,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         .setParameter("inicio", startsAt)
         .setParameter("fin", endsAt)
         .setParameter("finSerie", seriesEndsAt)
+        .setParameter("categoria", categoryId)
         .executeUpdate();
   }
 
@@ -291,6 +300,7 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                s.starts_at AS starts_at, s.ends_at AS ends_at, s.recurrence AS recurrence,
                s.repeat_until AS repeat_until, s.series_ends_at AS series_ends_at,
                s.cover_image_id AS cover_image_id, s.status AS status,
+               s.category_id AS category_id, lc.name AS category_name,
                (SELECT count(*) FROM live_session_memberships x
                  WHERE x.live_session_id = s.id) AS membership_count,
                (SELECT count(*) FROM live_session_products x
@@ -319,6 +329,8 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                     dia(fila.get("repeat_until")),
                     JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
                     (UUID) fila.get("cover_image_id"),
+                    (UUID) fila.get("category_id"),
+                    (String) fila.get("category_name"),
                     (String) fila.get("status"),
                     ((Number) fila.get("membership_count")).longValue(),
                     ((Number) fila.get("product_count")).longValue(),
@@ -373,6 +385,8 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
                     c.recurrence(),
                     c.repeatUntil(),
                     c.coverImageId(),
+                    c.categoryId(),
+                    c.categoryName(),
                     c.instructorIds(),
                     membresias.getOrDefault(c.id(), List.of()),
                     servicios.getOrDefault(c.id(), List.of())))
@@ -476,6 +490,10 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
               + " WHERE i.live_session_id = s.id AND i.user_id = :instructor)");
       parametros.put("instructor", filtro.instructorId());
     }
+    if (filtro.categoryId() != null) {
+      partes.add("s.category_id = :categoria");
+      parametros.put("categoria", filtro.categoryId());
+    }
     if (filtro.status() != null) {
       partes.add("s.status = :estado");
       parametros.put("estado", filtro.status());
@@ -529,6 +547,8 @@ public class JpaLiveSessionRepository implements LiveSessionRepository, LiveSess
         dia(fila.get("repeat_until")),
         JpaCourseQueryRepository.momento(fila.get("series_ends_at")),
         (UUID) fila.get("cover_image_id"),
+        (UUID) fila.get("category_id"),
+        (String) fila.get("category_name"),
         ((Number) fila.get("zoom_meeting_id")).longValue(),
         (String) fila.get("status"),
         JpaCourseQueryRepository.momento(fila.get("cancelled_at")),

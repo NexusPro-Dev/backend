@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.138.0 |
+| Versión | 0.139.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -466,6 +466,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **Y dos más de `AC`, declarados y SEMBRADOS el 13-10-2026 por `V104`**: `live-sessions:read-own` —el detalle de una clase de los cursos que dicta, `GET /live-sessions/mine/{id}` (`RF-AC-056`)— y `courses:list-own` —los cursos que dicta, `GET /courses/mine` (`RF-AC-057`)—, **donde está `courses:teach`**, como los propios de `V94`. **No reutilizan `live-sessions:list-own` ni `courses:teach`** (`RN-SEG-014`): cada ruta, su permiso. El catálogo pasa a **237**, y `ADMIN` porta 235.
 
 **El mismo día, `V105` retira uno y siembra cuatro**, al separarse las clases en vivo de los cursos (`RN-AC-032`): **`courses:list-own` se retira** con `GET /courses/mine` (`RF-AC-057`); nacen **`live-sessions:set-cover`** y **`live-sessions:remove-cover`** —poner y quitar la portada de cualquier clase— a `SUPERADMIN` y `ADMIN` explícitos, y **`live-sessions:set-cover-own`** y **`live-sessions:remove-cover-own`** —las de una clase de la que se es instructor— donde está `courses:teach`. **Cuatro y no uno** por `RN-SEG-014`, como `products:set-cover` y `products:remove-cover`. **La propiedad de los `-own` de las clases cambia de fuente**: ya no es el instructor del curso, sino **estar en la lista de instructores de la clase**. El catálogo pasa a **240**, y `ADMIN` porta 238.
+
+**El 14-10-2026, `V107` siembra cuatro de un recurso nuevo**, las categorías de las clases en vivo (`RN-AC-034`, `RF-AC-063` a `RF-AC-066`): **`live-session-categories:create`**, **`:update`** y **`:delete`** a `SUPERADMIN` y `ADMIN` explícitos, y **`live-session-categories:list`** a ellos y además **donde está `courses:teach`** —el instructor elige categoría al programar por `/mine`— **o `live-sessions:learn`** —el alumno filtra la vitrina—. Catálogo **244**, `ADMIN` 242.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1141,3 +1143,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.136.0 | 13-10-2026 | **Dos permisos propios del instructor** (`RF-AC-056`, `RF-AC-057`): `live-sessions:read-own` y `courses:list-own`, donde está `courses:teach`, por `V104`. Catálogo **237**, `ADMIN` 235. | Responsable técnico |
 | 0.137.0 | 13-10-2026 | **`V105`**: se retira `courses:list-own` y nacen `live-sessions:set-cover`, `remove-cover` (administración), `set-cover-own` y `remove-cover-own` (donde está `courses:teach`); los propios de las clases se deciden por la lista de instructores de la clase (`RN-AC-032`). Catálogo **240**, `ADMIN` 238. | Responsable técnico |
 | 0.138.0 | 14-10-2026 | **D-21 tiene por fin un valor**, con la plataforma nueva ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), Dokploy en un VPS propio): `TRUSTED_PROXIES` lleva **la subred de `dokploy-network`**. En Railway no había valor posible porque el borde no tenía dirección fija ni publicada; en Dokploy, Traefik corre como contenedor fuera de la malla de entrada de Swarm, ve la IP real, descarta el `X-Forwarded-For` de fuera y llega al backend desde una subred que no cambia. El precio se dice como siempre: se confía en todo lo conectado a esa red —Traefik, Dokploy y los servicios de los dos entornos—, y es lo más estrecho que la plataforma permite. Queda **sin comprobar** sobre el despliegue real hasta pasar las dos pruebas de `deployment.md` §11.2. §6 anota que la salida C de `ADR-004` —puerto de administración aparte— pasa a ser comprobable en esta plataforma, sin darla por hecha. | Responsable técnico |
+| 0.139.0 | 14-10-2026 | **`V107`**: nacen `live-session-categories:list`, `create`, `update` y `delete` (`RF-AC-063` a `RF-AC-066`); las escrituras a `SUPERADMIN` y `ADMIN`, el listado también donde está `courses:teach` o `live-sessions:learn`. Catálogo **244**, `ADMIN` 242. | Responsable técnico |
