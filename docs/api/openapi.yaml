@@ -111,6 +111,9 @@ tags:
     \ con el secreto; el frontend no."
 - name: Permisos
   description: Catálogo de permisos del sistema. Solo lectura.
+- name: Señales
+  description: "Registrar señales de trading —una, varias o desde un CSV—, consultarlas,\
+    \ retirarlas y ver las vigentes que abre la membresía de quien mira."
 - name: Pasarela de pago
   description: "Lo que notifican las pasarelas: la de la tarjeta (Stripe) y la local\
     \ (PayRetailers). Solo las llaman ellas; el frontend no."
@@ -2550,6 +2553,328 @@ paths:
           description: El equipo ya está eliminado (`EX-002`) o tiene miembros vigentes
             (`EX-003`)
       x-required-permission: teams:delete
+  /api/v1/signals:
+    get:
+      tags:
+      - Señales
+      summary: Consultar las señales
+      description: |
+        **Permiso requerido:** `signals:list`. Sin él, `403` (`AUTH-002`).
+
+        **Todas**, las más nuevas primero y paginadas, con sus membresías, `visibleUntil`,
+        `visible` —si se muestra ahora—, `createdAt` y `deletedAt`. Filtros:
+        `subscriptionType`, `visible` —`true`, las que se muestran; `false`, las que ya no— e
+        `includeDeleted` —las retiradas no salen salvo con `true`—.
+
+        Exige `signals:list`.
+      operationId: listarSenales
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: size
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+      - name: subscriptionType
+        in: query
+        description: "FREE, PREMIUM o PERSONALIZED."
+        required: false
+        schema:
+          type: string
+          description: "FREE, PREMIUM o PERSONALIZED."
+      - name: visible
+        in: query
+        description: "true, las que se muestran ahora; false, las que ya no; ausente,\
+          \ todas."
+        required: false
+        schema:
+          type: boolean
+          description: "true, las que se muestran ahora; false, las que ya no; ausente,\
+            \ todas."
+      - name: includeDeleted
+        in: query
+        description: "true para incluir las retiradas; por omisión, no."
+        required: false
+        schema:
+          type: boolean
+          description: "true para incluir las retiradas; por omisión, no."
+      responses:
+        "200":
+          description: La página.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSignalResponse"
+        "400":
+          description: Paginación (`VAL-003`) o suscripción (`VAL-004`) inválidas
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSignalResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSignalResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PageResponseSignalResponse"
+      x-required-permission: signals:list
+    post:
+      tags:
+      - Señales
+      summary: Registrar una señal
+      description: |
+        **Permiso requerido:** `signals:create`. Sin él, `403` (`AUTH-002`).
+
+        Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
+        mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
+        lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
+        membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
+        vez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta
+        mañana a las 10:00—. No se corrige. Se audita cada una.
+
+        Exige `signals:create`.
+      operationId: registrarSenal
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterSignalRequest"
+      responses:
+        "201":
+          description: La señal registrada.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+        "400":
+          description: Datos inválidos (`VAL-001` a `VAL-006`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+        "422":
+          description: Una membresía no existe (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SignalResponse"
+      x-required-permission: signals:create
+  /api/v1/signals/{id}/deletion:
+    post:
+      tags:
+      - Señales
+      summary: Retirar una señal
+      description: |
+        **Permiso requerido:** `signals:delete`. Sin él, `403` (`AUTH-002`).
+
+        Baja lógica con `reason`: deja de mostrarse y guarda `deletedAt`. Se audita la
+        eliminación.
+
+        Exige `signals:delete`.
+      operationId: retirarSenal
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteSignalRequest"
+      responses:
+        "204":
+          description: Retirada.
+        "400":
+          description: "Sin motivo, o motivo inválido (`VAL-002`, `VAL-003`)"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+        "404":
+          description: No existe (`EX-001`)
+        "409":
+          description: Ya está retirada (`EX-002`)
+      x-required-permission: signals:delete
+  /api/v1/signals/import:
+    post:
+      tags:
+      - Señales
+      summary: Importar señales desde un CSV
+      description: |
+        **Permiso requerido:** `signals:import`. Sin él, `403` (`AUTH-002`).
+
+        `multipart/form-data` con una parte `file`: un CSV de hasta **1 MB** y **500 señales**
+        (`VAL-009`, `VAL-008`), en UTF-8 o Windows-1252, separado por comas o por punto y
+        coma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type` y
+        `subscription_type`, en cualquier orden (`VAL-010`), y `memberships` opcional: los
+        **códigos** de las membresías separados por `|`, como `ORO|VIP`. Sin filas,
+        `VAL-007`. **Todas o ninguna**, como el registro de varias; cada error dice su línea
+        —`lines[4].signal_time`—.
+
+        Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
+        mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
+        lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
+        membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
+        vez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta
+        mañana a las 10:00—. No se corrige. Se audita cada una.
+
+        Exige `signals:import`.
+      operationId: importarSenales
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Las señales registradas.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "400":
+          description: Archivo o datos inválidos (`VAL-001` a `VAL-010`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "422":
+          description: Un código de membresía no existe (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+      x-required-permission: signals:import
+  /api/v1/signals/batch:
+    post:
+      tags:
+      - Señales
+      summary: Registrar varias señales a la vez
+      description: |
+        **Permiso requerido:** `signals:create-batch`. Sin él, `403` (`AUTH-002`).
+
+        Un **arreglo** de señales, de 1 a 500 (`VAL-007`, `VAL-008`). **Todas o ninguna**: si
+        alguna falla no se registra ninguna, y la respuesta trae **todos** los errores, cada uno
+        con su posición en el campo —`[3].signalTime`—. Responde las registradas en el orden
+        recibido.
+
+        Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
+        mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
+        lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
+        membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
+        vez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta
+        mañana a las 10:00—. No se corrige. Se audita cada una.
+
+        Exige `signals:create-batch`.
+      operationId: registrarVariasSenales
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/RegisterSignalRequest"
+      responses:
+        "201":
+          description: Las señales registradas.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "400":
+          description: Datos inválidos (`VAL-001` a `VAL-008`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+        "422":
+          description: Una membresía no existe (`EX-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SignalResponse"
+      x-required-permission: signals:create-batch
   /api/v1/roles:
     get:
       tags:
@@ -12780,6 +13105,47 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: users:read-own-clients
+  /api/v1/signals/available:
+    get:
+      tags:
+      - Señales
+      summary: Ver mis señales vigentes
+      description: |
+        **Permiso requerido:** `signals:view`. Sin él, `403` (`AUTH-002`).
+
+        Las que **se muestran ahora** —sin retirar y antes de su `visibleUntil`— y abre la
+        membresía vigente de quien mira (`RN-AC-035`): las `FREE`, con cualquier membresía;
+        las `PREMIUM`, con una por encima de BECA; las `PERSONALIZED`, con una de las suyas.
+        Sin membresía vigente, ninguna. Sin paginar, por `visibleUntil`.
+
+        Exige `signals:view`.
+      operationId: verSenalesVigentes
+      responses:
+        "200":
+          description: Las señales.
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableSignal"
+        "401":
+          description: Sin sesión (`AUTH-001`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableSignal"
+        "403":
+          description: Sin el permiso (`AUTH-002`)
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AvailableSignal"
+      x-required-permission: signals:view
   /api/v1/products/{id}/comments/mine:
     get:
       tags:
@@ -18693,6 +19059,84 @@ components:
       properties:
         reason:
           type: string
+    RegisterSignalRequest:
+      type: object
+      properties:
+        currencyPair:
+          type: string
+          description: "El par, hasta 20 caracteres de letras, cifras y / . _ -; se\
+            \ guarda en mayúsculas."
+          example: EUR/USD
+        signalTime:
+          type: string
+          description: "La hora de la señal, HH:mm en America/Bogota."
+          example: 10:30
+        signalType:
+          type: integer
+          format: int32
+          description: "El tipo, un entero mayor o igual que cero."
+          example: 1
+        subscriptionType:
+          type: string
+          description: "FREE, PREMIUM o PERSONALIZED, sin distinguir mayúsculas."
+          example: FREE
+        membershipIds:
+          type: array
+          description: "Las membresías que la ven: una o más con PERSONALIZED; ninguna\
+            \ con las otras dos."
+          items:
+            type: string
+            format: uuid
+    SignalMembershipRef:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+    SignalResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        currencyPair:
+          type: string
+        signalTime:
+          type: string
+          description: HH:mm en America/Bogota.
+        signalType:
+          type: integer
+          format: int32
+        subscriptionType:
+          type: string
+        memberships:
+          type: array
+          description: Vacía salvo en una PERSONALIZED.
+          items:
+            $ref: "#/components/schemas/SignalMembershipRef"
+        visibleUntil:
+          type: string
+          format: date-time
+          description: "Hasta cuándo se muestra: la próxima vez que llega signalTime\
+            \ después de crearse."
+        visible:
+          type: boolean
+          description: "Si se muestra ahora: sin retirar y antes de visibleUntil."
+        createdAt:
+          type: string
+          format: date-time
+        deletedAt:
+          type: string
+          format: date-time
+    DeleteSignalRequest:
+      type: object
+      properties:
+        reason:
+          type: string
     CreateRoleRequest:
       type: object
       properties:
@@ -22497,6 +22941,49 @@ components:
           type: string
           format: date-time
         deletedAt:
+          type: string
+          format: date-time
+    PageResponseSignalResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/SignalResponse"
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalIsExact:
+          type: boolean
+    AvailableSignal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        currencyPair:
+          type: string
+        signalTime:
+          type: string
+          description: HH:mm en America/Bogota.
+        signalType:
+          type: integer
+          format: int32
+        subscriptionType:
+          type: string
+        visibleUntil:
+          type: string
+          format: date-time
+        createdAt:
           type: string
           format: date-time
     RoleDetailResponse:

@@ -48,6 +48,8 @@ final class CourseTestSupport {
         LiveSessionTestSupport.CLASES,
         LiveSessionTestSupport.TRADING,
         LiveSessionTestSupport.CLASES);
+    // Las señales (`RN-AC-035`): sus membresías se van con ellas (ON DELETE CASCADE).
+    jdbc.update("DELETE FROM signals");
     jdbc.update("DELETE FROM course_memberships");
     jdbc.update("DELETE FROM course_products");
     jdbc.update("DELETE FROM course_category_items");
@@ -68,11 +70,12 @@ final class CourseTestSupport {
     jdbc.update(
         "DELETE FROM audit_change_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"
-            + " 'course_modules', 'lessons', 'live_sessions', 'live_session_categories')");
+            + " 'course_modules', 'lessons', 'live_sessions', 'live_session_categories',"
+            + " 'signals')");
     jdbc.update(
         "DELETE FROM audit_deletion_log WHERE module = 'AC' AND entity IN ('courses',"
             + " 'course_category_items', 'course_products', 'course_memberships',"
-            + " 'course_modules', 'lessons', 'live_session_categories')");
+            + " 'course_modules', 'lessons', 'live_session_categories', 'signals')");
     jdbc.update(
         "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'ac-%')");
     jdbc.update(

@@ -532,6 +532,12 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "POST /api/v1/live-session-categories/{id}/deletion",
               "live-session-categories:delete"),
+          Map.entry("GET /api/v1/signals", "signals:list"),
+          Map.entry("GET /api/v1/signals/available", "signals:view"),
+          Map.entry("POST /api/v1/signals", "signals:create"),
+          Map.entry("POST /api/v1/signals/batch", "signals:create-batch"),
+          Map.entry("POST /api/v1/signals/import", "signals:import"),
+          Map.entry("POST /api/v1/signals/{id}/deletion", "signals:delete"),
           Map.entry("POST /api/v1/live-sessions/available/{id}/registration", "live-sessions:join"),
           Map.entry("GET /api/v1/courses/{courseId}/progress/{userId}", "courses:read-progress"),
           Map.entry("PATCH /api/v1/courses/{id}", "courses:update"),
