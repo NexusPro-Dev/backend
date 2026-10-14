@@ -7,6 +7,7 @@ import com.factech.nexus.modules.academy.application.SignalResponses.AvailableSi
 import com.factech.nexus.modules.academy.application.SignalResponses.SignalMembershipRef;
 import com.factech.nexus.modules.academy.application.SignalResponses.SignalResponse;
 import com.factech.nexus.modules.academy.domain.models.Signal;
+import com.factech.nexus.modules.academy.domain.models.SignalDirection;
 import com.factech.nexus.modules.academy.domain.models.SubscriptionType;
 import com.factech.nexus.modules.academy.domain.repository.SignalRepository;
 import com.factech.nexus.modules.academy.domain.repository.SignalRepository.MembershipRef;
@@ -118,6 +119,7 @@ public class SignalService {
                     s.getCurrencyPair(),
                     s.horaTexto(),
                     s.getSignalType(),
+                    s.getDirection().name(),
                     s.getSubscriptionType().name(),
                     s.getVisibleUntil(),
                     s.getCreatedAt()))
@@ -160,6 +162,7 @@ public class SignalService {
                         fila.signalTime(),
                         null,
                         fila.signalType(),
+                        fila.direction(),
                         fila.subscriptionType(),
                         List.of(),
                         fila.memberships()))
@@ -208,6 +211,7 @@ public class SignalService {
       String hora,
       Integer tipoNumero,
       String tipoTexto,
+      String direccion,
       String suscripcion,
       List<UUID> membresiaIds,
       List<String> membresiaCodigos) {
@@ -223,10 +227,15 @@ public class SignalService {
 
   /** Una entrada ya comprobada, a falta de resolver sus membresías. */
   private record Valida(
-      Entrada entrada, String par, LocalTime hora, int tipo, SubscriptionType suscripcion) {}
+      Entrada entrada,
+      String par,
+      LocalTime hora,
+      int tipo,
+      SignalDirection direccion,
+      SubscriptionType suscripcion) {}
 
   private static Entrada desdeJson(String prefijo, Register peticion) {
-    Register p = peticion == null ? new Register(null, null, null, null, null) : peticion;
+    Register p = peticion == null ? new Register(null, null, null, null, null, null) : peticion;
     List<UUID> membresiaIds =
         p.membershipIds() == null
             ? List.of()
@@ -238,6 +247,7 @@ public class SignalService {
         p.signalTime(),
         p.signalType(),
         null,
+        p.direction(),
         p.subscriptionType(),
         membresiaIds,
         List.of());
@@ -255,13 +265,15 @@ public class SignalService {
           e.csv()
               ? Signal.tipo(e.tipoTexto(), campoTipo, errores)
               : Signal.tipo(e.tipoNumero(), campoTipo, errores);
+      SignalDirection direccion =
+          Signal.direccion(e.direccion(), e.campo("direction", "direction"), errores);
       SubscriptionType suscripcion =
           Signal.suscripcion(
               e.suscripcion(), e.campo("subscriptionType", "subscription_type"), errores);
       int cuantas = e.csv() ? e.membresiaCodigos().size() : e.membresiaIds().size();
       Signal.membresias(suscripcion, cuantas, e.campoMembresias(), errores);
       if (errores.size() == antes) {
-        validas.add(new Valida(e, par, hora, tipo, suscripcion));
+        validas.add(new Valida(e, par, hora, tipo, direccion, suscripcion));
       }
     }
     lanzarSiHay(errores);
@@ -279,6 +291,7 @@ public class SignalService {
               v.par(),
               v.hora(),
               v.tipo(),
+              v.direccion(),
               v.suscripcion(),
               quien,
               ahora,
@@ -355,6 +368,7 @@ public class SignalService {
                     s.getCurrencyPair(),
                     s.horaTexto(),
                     s.getSignalType(),
+                    s.getDirection() == null ? null : s.getDirection().name(),
                     s.getSubscriptionType().name(),
                     deCada.getOrDefault(s.getId(), List.of()).stream()
                         .map(m -> new SignalMembershipRef(m.id(), m.code(), m.name()))

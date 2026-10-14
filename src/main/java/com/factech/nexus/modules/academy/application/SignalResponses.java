@@ -23,6 +23,11 @@ public final class SignalResponses {
       String currencyPair,
       @Schema(description = "HH:mm en America/Bogota.") String signalTime,
       int signalType,
+      @Schema(
+              description =
+                  "UP si sube o DOWN si baja; nula solo en una señal retirada al migrar (V109).",
+              allowableValues = {"UP", "DOWN"})
+          String direction,
       String subscriptionType,
       @Schema(description = "Vacía salvo en una PERSONALIZED.")
           List<SignalMembershipRef> memberships,
@@ -43,6 +48,10 @@ public final class SignalResponses {
       String currencyPair,
       @Schema(description = "HH:mm en America/Bogota.") String signalTime,
       int signalType,
+      @Schema(
+              description = "UP si sube o DOWN si baja.",
+              allowableValues = {"UP", "DOWN"})
+          String direction,
       String subscriptionType,
       OffsetDateTime visibleUntil,
       OffsetDateTime createdAt) {}

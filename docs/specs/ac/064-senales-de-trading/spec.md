@@ -4,7 +4,7 @@
 |---|---|
 | Requerimientos | `RF-AC-067`, `RF-AC-068`, `RF-AC-069`, `RF-AC-070`, `RF-AC-071`, `RF-AC-072` |
 | Módulo | `AC` — Academia |
-| Versión | 1.0.0 |
+| Versión | 1.1.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -64,18 +64,19 @@ Nace **`RN-AC-035`**.
 | `currencyPair` | Obligatorio; hasta 20 caracteres de letras, cifras y `/ . _ -` tras recortar; se guarda en mayúsculas |
 | `signalTime` | Obligatoria; `H:mm` o `HH:mm`, de 00:00 a 23:59, hora de America/Bogota |
 | `signalType` | Obligatorio; entero mayor o igual que cero |
+| `direction` | Obligatoria; `UP` si sube o `DOWN` si baja. Se aceptan, sin distinguir mayúsculas, `SUBE`/`BAJA`, `CALL`/`PUT` y `BUY`/`SELL`; se guarda y sale `UP` o `DOWN` (`ac.md` §5.2.22) |
 | `subscriptionType` | Obligatoria; `FREE`, `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas |
 | `membershipIds` | Con `PERSONALIZED`, una o más, existentes; los repetidos cuentan una vez. Con las otras dos, ninguna |
 | `file` | El CSV: hasta 1 MB y 500 filas, UTF-8 o Windows-1252, separado por `,` o `;` según la cabecera |
 | `reason` | Al retirar, como todo retiro (`DeletionReason`) |
 | `subscriptionType`, `visible`, `includeDeleted`, `page`, `size` | Filtros del listado, opcionales |
 
-**El CSV**: cabecera obligatoria con `currency_pair`, `signal_time`, `signal_type` y `subscription_type`, en cualquier orden y sin distinguir mayúsculas ni guiones bajos —`signalTime` también vale—; `memberships` opcional, con los **códigos** separados por `|` (`ORO|VIP`). Las columnas desconocidas se ignoran y las líneas en blanco se saltan; un campo entre comillas dobles puede llevar el separador.
+**El CSV**: cabecera obligatoria con `currency_pair`, `signal_time`, `signal_type`, `direction` y `subscription_type`, en cualquier orden y sin distinguir mayúsculas ni guiones bajos —`signalTime` también vale—; `memberships` opcional, con los **códigos** separados por `|` (`ORO|VIP`). Las columnas desconocidas se ignoran y las líneas en blanco se saltan; un campo entre comillas dobles puede llevar el separador. El ejemplo que se entrega a quien importa es [`ejemplo-senales.csv`](ejemplo-senales.csv), y una prueba lo lee.
 
 ### 6.2 Salida
 
-- **Administración** (`SignalResponse`): `{ id, currencyPair, signalTime, signalType, subscriptionType, memberships: [{ id, code, name }], visibleUntil, visible, createdAt, deletedAt }`. `signalTime` sale siempre `HH:mm`.
-- **Alumno** (`AvailableSignal`): `{ id, currencyPair, signalTime, signalType, subscriptionType, visibleUntil, createdAt }`, sin las membresías.
+- **Administración** (`SignalResponse`): `{ id, currencyPair, signalTime, signalType, direction, subscriptionType, memberships: [{ id, code, name }], visibleUntil, visible, createdAt, deletedAt }`. `direction` es `null` solo en las retiradas por `V109`. `signalTime` sale siempre `HH:mm`.
+- **Alumno** (`AvailableSignal`): `{ id, currencyPair, signalTime, signalType, direction, subscriptionType, visibleUntil, createdAt }`, sin las membresías.
 - Registrar varias e importar responden la lista de las registradas, en el orden recibido.
 
 ## 7. Precondiciones y postcondiciones
@@ -129,6 +130,7 @@ Como §8 con un arreglo; los campos llevan su posición (`[3].signalTime`).
 | `VAL-008` | `body` / `file` | Más de 500 |
 | `VAL-009` | `file` | Sin archivo, vacío o de más de 1 MB |
 | `VAL-010` | `file` | Faltan columnas en la cabecera |
+| `VAL-011` | `direction` | Vacía o fuera de `UP`/`DOWN` y sus sinónimos |
 | `VAL-003` | `page`, `size` | La paginación de siempre |
 | `VAL-002`, `VAL-003` | `reason` | Las del motivo de todo retiro |
 
@@ -147,6 +149,8 @@ Con varios errores, el código de la respuesta es el del primero y `errors` los 
 | `CA-AC-345` | **Retirar** con motivo responde `204`, guarda `deleted_at` y audita la eliminación; sin motivo, `400`; ya retirada, `409` `EX-002`; inexistente, `404` |
 | `CA-AC-346` | **Las vigentes**: con BECA, las `FREE` y las `PERSONALIZED` de BECA; con VIP, además las `PREMIUM` y las `PERSONALIZED` de VIP, no las de BECA; nunca las vencidas ni las retiradas; con la membresía vencida, ninguna |
 | `CA-AC-347` | **Cada ruta exige su permiso**: con el de otra, `403` |
+| `CA-AC-348` | **La dirección** (§5.2.22): registrar una, varias o un CSV exige `direction`; `UP`, `down`, `Sube`, `BAJA`, `call`, `PUT`, `buy` y `sell` se guardan como `UP` o `DOWN` y así salen en la respuesta, el listado y las vigentes; sin ella o con otro valor, `400` `VAL-011` con su posición; un CSV sin la columna, `VAL-010` |
+| `CA-AC-349` | **`V109`** retira —`deleted_at`— las señales vivas que no tienen dirección; la base rechaza una señal sin dirección que no esté retirada (`ck_signals_direction`) |
 
 ## 13. Casos límite
 
@@ -159,10 +163,11 @@ Con varios errores, el código de la respuesta es el del primero y `errors` los 
 
 ## 14. Preguntas abiertas
 
-Ninguna. Las decisiones tomadas sin preguntar están en `ac.md` §5.2.21, abiertas a revisión.
+Ninguna. Las decisiones tomadas sin preguntar están en `ac.md` §5.2.21 y §5.2.22, abiertas a revisión.
 
 ## 15. Control de cambios
 
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 1.0.0 | 14-10-2026 | Nace con las señales de trading (`ac.md` v0.30.0 §5.2.21, `RN-AC-035`). | Responsable técnico |
+| 1.1.0 | 14-10-2026 | **La dirección** (`ac.md` v0.31.0 §5.2.22, a petición del responsable del proyecto): `direction` `UP` o `DOWN` en la entrada, el CSV y las dos salidas; `VAL-011`; `CA-AC-348` y `CA-AC-349`. Aprobada por el responsable del proyecto con sus dos respuestas. | Responsable técnico |

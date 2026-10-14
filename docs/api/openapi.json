@@ -453,6 +453,11 @@
           "currencyPair" : {
             "type" : "string"
           },
+          "direction" : {
+            "description" : "UP si sube o DOWN si baja.",
+            "enum" : [ "UP", "DOWN" ],
+            "type" : "string"
+          },
           "id" : {
             "format" : "uuid",
             "type" : "string"
@@ -8359,6 +8364,11 @@
             "example" : "EUR/USD",
             "type" : "string"
           },
+          "direction" : {
+            "description" : "UP si sube o DOWN si baja; también SUBE/BAJA, CALL/PUT o BUY/SELL, sin distinguir mayúsculas. Se guarda UP o DOWN.",
+            "example" : "UP",
+            "type" : "string"
+          },
           "membershipIds" : {
             "description" : "Las membresías que la ven: una o más con PERSONALIZED; ninguna con las otras dos.",
             "items" : {
@@ -9855,6 +9865,11 @@
           },
           "deletedAt" : {
             "format" : "date-time",
+            "type" : "string"
+          },
+          "direction" : {
+            "description" : "UP si sube o DOWN si baja; nula solo en una señal retirada al migrar (V109).",
+            "enum" : [ "UP", "DOWN" ],
             "type" : "string"
           },
           "id" : {
@@ -25125,7 +25140,7 @@
         "x-required-permission" : "signals:list"
       },
       "post" : {
-        "description" : "**Permiso requerido:** `signals:create`. Sin él, `403` (`AUTH-002`).\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:create`.\n",
+        "description" : "**Permiso requerido:** `signals:create`. Sin él, `403` (`AUTH-002`).\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o\n`DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o\n`DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:create`.\n",
         "operationId" : "registrarSenal",
         "requestBody" : {
           "content" : {
@@ -25155,7 +25170,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos (`VAL-001` a `VAL-006`)"
+            "description" : "Datos inválidos (`VAL-001` a `VAL-006`, `VAL-011`)"
           },
           "401" : {
             "content" : {
@@ -25195,7 +25210,7 @@
     },
     "/api/v1/signals/available" : {
       "get" : {
-        "description" : "**Permiso requerido:** `signals:view`. Sin él, `403` (`AUTH-002`).\n\nLas que **se muestran ahora** —sin retirar y antes de su `visibleUntil`— y abre la\nmembresía vigente de quien mira (`RN-AC-035`): las `FREE`, con cualquier membresía;\nlas `PREMIUM`, con una por encima de BECA; las `PERSONALIZED`, con una de las suyas.\nSin membresía vigente, ninguna. Sin paginar, por `visibleUntil`.\n\nExige `signals:view`.\n",
+        "description" : "**Permiso requerido:** `signals:view`. Sin él, `403` (`AUTH-002`).\n\nLas que **se muestran ahora** —sin retirar y antes de su `visibleUntil`— y abre la\nmembresía vigente de quien mira (`RN-AC-035`): las `FREE`, con cualquier membresía;\nlas `PREMIUM`, con una por encima de BECA; las `PERSONALIZED`, con una de las suyas.\nSin membresía vigente, ninguna. Sin paginar, por `visibleUntil`, cada una con su\n`direction`.\n\nExige `signals:view`.\n",
         "operationId" : "verSenalesVigentes",
         "responses" : {
           "200" : {
@@ -25245,7 +25260,7 @@
     },
     "/api/v1/signals/batch" : {
       "post" : {
-        "description" : "**Permiso requerido:** `signals:create-batch`. Sin él, `403` (`AUTH-002`).\n\nUn **arreglo** de señales, de 1 a 500 (`VAL-007`, `VAL-008`). **Todas o ninguna**: si\nalguna falla no se registra ninguna, y la respuesta trae **todos** los errores, cada uno\ncon su posición en el campo —`[3].signalTime`—. Responde las registradas en el orden\nrecibido.\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:create-batch`.\n",
+        "description" : "**Permiso requerido:** `signals:create-batch`. Sin él, `403` (`AUTH-002`).\n\nUn **arreglo** de señales, de 1 a 500 (`VAL-007`, `VAL-008`). **Todas o ninguna**: si\nalguna falla no se registra ninguna, y la respuesta trae **todos** los errores, cada uno\ncon su posición en el campo —`[3].signalTime`—. Responde las registradas en el orden\nrecibido.\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o\n`DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o\n`DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:create-batch`.\n",
         "operationId" : "registrarVariasSenales",
         "requestBody" : {
           "content" : {
@@ -25284,7 +25299,7 @@
                 }
               }
             },
-            "description" : "Datos inválidos (`VAL-001` a `VAL-008`)"
+            "description" : "Datos inválidos (`VAL-001` a `VAL-008`, `VAL-011`)"
           },
           "401" : {
             "content" : {
@@ -25333,7 +25348,7 @@
     },
     "/api/v1/signals/import" : {
       "post" : {
-        "description" : "**Permiso requerido:** `signals:import`. Sin él, `403` (`AUTH-002`).\n\n`multipart/form-data` con una parte `file`: un CSV de hasta **1 MB** y **500 señales**\n(`VAL-009`, `VAL-008`), en UTF-8 o Windows-1252, separado por comas o por punto y\ncoma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type` y\n`subscription_type`, en cualquier orden (`VAL-010`), y `memberships` opcional: los\n**códigos** de las membresías separados por `|`, como `ORO|VIP`. Sin filas,\n`VAL-007`. **Todas o ninguna**, como el registro de varias; cada error dice su línea\n—`lines[4].signal_time`—.\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:import`.\n",
+        "description" : "**Permiso requerido:** `signals:import`. Sin él, `403` (`AUTH-002`).\n\n`multipart/form-data` con una parte `file`: un CSV de hasta **1 MB** y **500 señales**\n(`VAL-009`, `VAL-008`), en UTF-8 o Windows-1252, separado por comas o por punto y\ncoma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type`,\n`direction` y `subscription_type`, en cualquier orden (`VAL-010`), y `memberships`\nopcional: los\n**códigos** de las membresías separados por `|`, como `ORO|VIP`. Sin filas,\n`VAL-007`. **Todas o ninguna**, como el registro de varias; cada error dice su línea\n—`lines[4].signal_time`—.\n\nCada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en\nmayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,\n`signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o\n`DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o\n`DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,\n`PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`\nlleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una\nmembresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima\nvez que llega `signalTime` después de crearse —creada a las 11:00 con hora 10:00, hasta\nmañana a las 10:00—. No se corrige. Se audita cada una.\n\nExige `signals:import`.\n",
         "operationId" : "importarSenales",
         "requestBody" : {
           "content" : {
@@ -25375,7 +25390,7 @@
                 }
               }
             },
-            "description" : "Archivo o datos inválidos (`VAL-001` a `VAL-010`)"
+            "description" : "Archivo o datos inválidos (`VAL-001` a `VAL-011`)"
           },
           "401" : {
             "content" : {

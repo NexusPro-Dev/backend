@@ -20,10 +20,10 @@ import java.util.Map;
  *
  * <p>La forma: UTF-8 —o Windows-1252, lo que guarda Excel— con o sin BOM; separado por comas o por
  * punto y coma, según la cabecera; <b>cabecera obligatoria</b> con {@code currency_pair}, {@code
- * signal_time}, {@code signal_type} y {@code subscription_type}, en cualquier orden y sin
- * distinguir mayúsculas ni guiones bajos, y {@code memberships} opcional —los códigos separados por
- * {@code |}—. Las columnas que no conoce se ignoran y las líneas en blanco se saltan. Un campo
- * entre comillas dobles puede llevar el separador.
+ * signal_time}, {@code signal_type}, {@code direction} y {@code subscription_type}, en cualquier
+ * orden y sin distinguir mayúsculas ni guiones bajos, y {@code memberships} opcional —los códigos
+ * separados por {@code |}—. Las columnas que no conoce se ignoran y las líneas en blanco se saltan.
+ * Un campo entre comillas dobles puede llevar el separador.
  */
 final class SignalCsv {
 
@@ -31,7 +31,7 @@ final class SignalCsv {
   static final int FILAS_MAXIMAS = 500;
 
   private static final List<String> OBLIGATORIAS =
-      List.of("currencypair", "signaltime", "signaltype", "subscriptiontype");
+      List.of("currencypair", "signaltime", "signaltype", "direction", "subscriptiontype");
 
   private SignalCsv() {}
 
@@ -41,6 +41,7 @@ final class SignalCsv {
       String currencyPair,
       String signalTime,
       String signalType,
+      String direction,
       String subscriptionType,
       List<String> memberships) {}
 
@@ -74,7 +75,8 @@ final class SignalCsv {
     if (!faltan.isEmpty()) {
       throw archivo(
           "VAL-010",
-          "La cabecera debe tener currency_pair, signal_time, signal_type y subscription_type;"
+          "La cabecera debe tener currency_pair, signal_time, signal_type, direction y"
+              + " subscription_type;"
               + " faltan "
               + faltan.size()
               + ".");
@@ -96,6 +98,7 @@ final class SignalCsv {
               valor(valores, columnas.get("currencypair")),
               valor(valores, columnas.get("signaltime")),
               valor(valores, columnas.get("signaltype")),
+              valor(valores, columnas.get("direction")),
               valor(valores, columnas.get("subscriptiontype")),
               codigos(valor(valores, membresias))));
     }

@@ -2,6 +2,7 @@ package com.factech.nexus.modules.academy.interfaces;
 
 import static com.factech.nexus.modules.academy.interfaces.CourseTestSupport.con;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
@@ -40,7 +41,7 @@ class SignalsIT extends IntegrationTestBase {
   private static final UUID BECA = UUID.fromString("01a04ad0-e800-7001-9c4f-5e7ad7000001");
   private static final UUID VIP = UUID.fromString("01a04ad0-e800-7002-9c4f-5e7ad7000002");
   private static final String CABECERA =
-      "currency_pair;signal_time;signal_type;subscription_type;memberships\n";
+      "currency_pair;signal_time;signal_type;direction;subscription_type;memberships\n";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -145,9 +146,12 @@ class SignalsIT extends IntegrationTestBase {
         .andExpect(
             jsonPath(
                 "$.errors[*].field",
-                contains("currencyPair", "signalTime", "signalType", "subscriptionType")))
+                contains(
+                    "currencyPair", "signalTime", "signalType", "direction", "subscriptionType")))
         .andExpect(
-            jsonPath("$.errors[*].code", contains("VAL-001", "VAL-002", "VAL-003", "VAL-004")));
+            jsonPath(
+                "$.errors[*].code",
+                contains("VAL-001", "VAL-002", "VAL-003", "VAL-011", "VAL-004")));
     registrar(senal("EUR USD", "25:00", -1, "gold", null))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors", hasSize(4)));
@@ -214,20 +218,21 @@ class SignalsIT extends IntegrationTestBase {
           + " lines[n].columna y ninguna; código inexistente 422; sin cabecera VAL-010; sin archivo"
           + " VAL-009")
   void importa() throws Exception {
-    importar(CABECERA + "eur/usd;10:30;1;free;\nXAU/USD;9:00;2;personalized;oro|vip\n")
+    importar(CABECERA + "eur/usd;10:30;1;sube;free;\nXAU/USD;9:00;2;PUT;personalized;oro|vip\n")
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$", hasSize(2)))
         .andExpect(jsonPath("$[1].memberships[*].code", containsInAnyOrder("ORO", "VIP")))
-        .andExpect(jsonPath("$[1].signalTime").value("09:00"));
+        .andExpect(jsonPath("$[1].signalTime").value("09:00"))
+        .andExpect(jsonPath("$[*].direction", contains("UP", "DOWN")));
 
     importar(
             CABECERA
-                + "EUR/USD;10:30;1;FREE;\nGBP/USD;10:30;uno;FREE;\n\nUSD/JPY;10:30;1;FREE;ORO\n")
+                + "EUR/USD;10:30;1;UP;FREE;\nGBP/USD;10:30;uno;UP;FREE;\n\nUSD/JPY;10:30;1;UP;FREE;ORO\n")
         .andExpect(status().isBadRequest())
         .andExpect(
             jsonPath("$.errors[*].field", contains("lines[3].signal_type", "lines[5].memberships")))
         .andExpect(jsonPath("$.errors[*].code", contains("VAL-003", "VAL-006")));
-    importar(CABECERA + "EUR/USD;10:30;1;PERSONALIZED;DIAMANTE\n")
+    importar(CABECERA + "EUR/USD;10:30;1;UP;PERSONALIZED;DIAMANTE\n")
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].field").value("lines[2].memberships"))
         .andExpect(jsonPath("$.errors[0].code").value("EX-002"));
@@ -323,6 +328,7 @@ class SignalsIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[*].id", containsInAnyOrder(free.toString(), paraBeca.toString())))
         .andExpect(jsonPath("$[0].signalTime").value("10:00"))
+        .andExpect(jsonPath("$[0].direction").value("UP"))
         .andExpect(jsonPath("$[0].memberships").doesNotExist());
 
     ClassroomTestSupport.conMembresia(jdbc, alumno, VIP);
@@ -334,6 +340,71 @@ class SignalsIT extends IntegrationTestBase {
 
     ClassroomTestSupport.conMembresiaVencida(jdbc, alumno);
     vigentesDe(alumno).andExpect(jsonPath("$", hasSize(0)));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-AC-348` — la dirección: obligatoria en una, varias y el CSV; los sinónimos se guardan"
+          + " UP o DOWN y así salen; sin ella u otra, VAL-011 con su posición")
+  void direccion() throws Exception {
+    UUID baja =
+        idDe(
+            registrar(senalCon("EUR/USD", "10:00", 1, "baja", "FREE", null))
+                .andExpect(jsonPath("$.direction").value("DOWN")));
+    assertThat(
+            jdbc.queryForObject("SELECT direction FROM signals WHERE id = ?", String.class, baja))
+        .isEqualTo("DOWN");
+    lote("["
+            + senalCon("GBP/USD", "10:00", 1, "call", "FREE", null)
+            + ","
+            + senalCon("USD/JPY", "10:00", 1, "Sell", "FREE", null)
+            + "]")
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$[*].direction", contains("UP", "DOWN")));
+    mvc.perform(get(RUTA).with(con("signals:list")))
+        .andExpect(jsonPath("$.content[*].direction", containsInAnyOrder("DOWN", "UP", "DOWN")));
+
+    registrar(
+            "{\"currencyPair\":\"EUR/USD\",\"signalTime\":\"10:00\",\"signalType\":1,"
+                + "\"subscriptionType\":\"FREE\"}")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].field", contains("direction")))
+        .andExpect(jsonPath("$.errors[*].code", contains("VAL-011")));
+    lote("["
+            + senal("EUR/USD", "10:00", 1, "FREE", null)
+            + ","
+            + senalCon("EUR/USD", "10:00", 1, "lateral", "FREE", null)
+            + "]")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[*].field", contains("[1].direction")));
+    importar(CABECERA + "EUR/USD;10:00;1;;FREE;\n")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].field").value("lines[2].direction"))
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-011"));
+    importar("currency_pair;signal_time;signal_type;subscription_type\nEUR/USD;10:00;1;FREE\n")
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-010"));
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM signals", Integer.class)).isEqualTo(3);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-AC-349` — V109: una señal sin dirección solo puede existir retirada"
+          + " (ck_signals_direction)")
+  void sinDireccionSoloRetirada() {
+    String insertar =
+        "INSERT INTO signals (id, currency_pair, signal_time, signal_type, subscription_type,"
+            + " visible_until, created_at, deleted_at, direction) VALUES (?, 'EUR/USD', '10:00', 1,"
+            + " 'FREE', now() + interval '1 hour', now(), %s, %s)";
+    assertThatThrownBy(() -> jdbc.update(insertar.formatted("NULL", "NULL"), UUID.randomUUID()))
+        .hasMessageContaining("ck_signals_direction");
+    assertThatThrownBy(() -> jdbc.update(insertar.formatted("NULL", "'LEFT'"), UUID.randomUUID()))
+        .hasMessageContaining("ck_signals_direction");
+    jdbc.update(insertar.formatted("now()", "NULL"), UUID.randomUUID());
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM signals WHERE direction IS NULL", Integer.class))
+        .isEqualTo(1);
   }
 
   @Test
@@ -368,11 +439,17 @@ class SignalsIT extends IntegrationTestBase {
 
   private static String senal(
       String par, String hora, int tipo, String suscripcion, String membresias) {
-    return "{\"currencyPair\":\"%s\",\"signalTime\":\"%s\",\"signalType\":%d,\"subscriptionType\":\"%s\"%s}"
+    return senalCon(par, hora, tipo, "UP", suscripcion, membresias);
+  }
+
+  private static String senalCon(
+      String par, String hora, int tipo, String direccion, String suscripcion, String membresias) {
+    return "{\"currencyPair\":\"%s\",\"signalTime\":\"%s\",\"signalType\":%d,\"direction\":\"%s\",\"subscriptionType\":\"%s\"%s}"
         .formatted(
             par,
             hora,
             tipo,
+            direccion,
             suscripcion,
             membresias == null ? "" : ",\"membershipIds\":" + membresias);
   }

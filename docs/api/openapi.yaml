@@ -2639,7 +2639,9 @@ paths:
 
         Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
         mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
-        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o
+        `DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o
+        `DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,
         `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
         lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
         membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
@@ -2661,7 +2663,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/SignalResponse"
         "400":
-          description: Datos inválidos (`VAL-001` a `VAL-006`)
+          description: "Datos inválidos (`VAL-001` a `VAL-006`, `VAL-011`)"
           content:
             '*/*':
               schema:
@@ -2734,15 +2736,18 @@ paths:
 
         `multipart/form-data` con una parte `file`: un CSV de hasta **1 MB** y **500 señales**
         (`VAL-009`, `VAL-008`), en UTF-8 o Windows-1252, separado por comas o por punto y
-        coma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type` y
-        `subscription_type`, en cualquier orden (`VAL-010`), y `memberships` opcional: los
+        coma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type`,
+        `direction` y `subscription_type`, en cualquier orden (`VAL-010`), y `memberships`
+        opcional: los
         **códigos** de las membresías separados por `|`, como `ORO|VIP`. Sin filas,
         `VAL-007`. **Todas o ninguna**, como el registro de varias; cada error dice su línea
         —`lines[4].signal_time`—.
 
         Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
         mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
-        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o
+        `DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o
+        `DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,
         `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
         lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
         membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
@@ -2770,7 +2775,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/SignalResponse"
         "400":
-          description: Archivo o datos inválidos (`VAL-001` a `VAL-010`)
+          description: Archivo o datos inválidos (`VAL-001` a `VAL-011`)
           content:
             '*/*':
               schema:
@@ -2817,7 +2822,9 @@ paths:
 
         Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
         mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
-        `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+        `signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o
+        `DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o
+        `DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,
         `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
         lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
         membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
@@ -2843,7 +2850,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/SignalResponse"
         "400":
-          description: Datos inválidos (`VAL-001` a `VAL-008`)
+          description: "Datos inválidos (`VAL-001` a `VAL-008`, `VAL-011`)"
           content:
             '*/*':
               schema:
@@ -13116,7 +13123,8 @@ paths:
         Las que **se muestran ahora** —sin retirar y antes de su `visibleUntil`— y abre la
         membresía vigente de quien mira (`RN-AC-035`): las `FREE`, con cualquier membresía;
         las `PREMIUM`, con una por encima de BECA; las `PERSONALIZED`, con una de las suyas.
-        Sin membresía vigente, ninguna. Sin paginar, por `visibleUntil`.
+        Sin membresía vigente, ninguna. Sin paginar, por `visibleUntil`, cada una con su
+        `direction`.
 
         Exige `signals:view`.
       operationId: verSenalesVigentes
@@ -19076,6 +19084,11 @@ components:
           format: int32
           description: "El tipo, un entero mayor o igual que cero."
           example: 1
+        direction:
+          type: string
+          description: "UP si sube o DOWN si baja; también SUBE/BAJA, CALL/PUT o BUY/SELL,\
+            \ sin distinguir mayúsculas. Se guarda UP o DOWN."
+          example: UP
         subscriptionType:
           type: string
           description: "FREE, PREMIUM o PERSONALIZED, sin distinguir mayúsculas."
@@ -19111,6 +19124,13 @@ components:
         signalType:
           type: integer
           format: int32
+        direction:
+          type: string
+          description: UP si sube o DOWN si baja; nula solo en una señal retirada
+            al migrar (V109).
+          enum:
+          - UP
+          - DOWN
         subscriptionType:
           type: string
         memberships:
@@ -22978,6 +22998,12 @@ components:
         signalType:
           type: integer
           format: int32
+        direction:
+          type: string
+          description: UP si sube o DOWN si baja.
+          enum:
+          - UP
+          - DOWN
         subscriptionType:
           type: string
         visibleUntil:

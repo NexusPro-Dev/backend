@@ -46,7 +46,9 @@ public class SignalController {
       """
       Cada señal: `currencyPair` —hasta 20 caracteres de letras, cifras y `/ . _ -`, se guarda en
       mayúsculas (`VAL-001`)—, `signalTime` —`HH:mm` en America/Bogota (`VAL-002`)—,
-      `signalType` —entero mayor o igual que cero (`VAL-003`)— y `subscriptionType` —`FREE`,
+      `signalType` —entero mayor o igual que cero (`VAL-003`)—, `direction` —`UP` si sube o
+      `DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, y se guarda `UP` o
+      `DOWN` (`VAL-011`)— y `subscriptionType` —`FREE`,
       `PREMIUM` o `PERSONALIZED`, sin distinguir mayúsculas (`VAL-004`)—. Una `PERSONALIZED`
       lleva al menos una membresía (`VAL-005`) y las otras dos ninguna (`VAL-006`); una
       membresía que no existe, `422` `EX-002`. **Se muestra hasta `visibleUntil`**: la próxima
@@ -95,7 +97,8 @@ public class SignalController {
           Las que **se muestran ahora** —sin retirar y antes de su `visibleUntil`— y abre la
           membresía vigente de quien mira (`RN-AC-035`): las `FREE`, con cualquier membresía;
           las `PREMIUM`, con una por encima de BECA; las `PERSONALIZED`, con una de las suyas.
-          Sin membresía vigente, ninguna. Sin paginar, por `visibleUntil`.
+          Sin membresía vigente, ninguna. Sin paginar, por `visibleUntil`, cada una con su
+          `direction`.
 
           Exige `signals:view`.
           """)
@@ -114,7 +117,9 @@ public class SignalController {
   @Operation(summary = "Registrar una señal", description = REGLAS + "\nExige `signals:create`.\n")
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "La señal registrada."),
-    @ApiResponse(responseCode = "400", description = "Datos inválidos (`VAL-001` a `VAL-006`)"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Datos inválidos (`VAL-001` a `VAL-006`, `VAL-011`)"),
     @ApiResponse(responseCode = "401", description = "Sin sesión (`AUTH-001`)"),
     @ApiResponse(responseCode = "403", description = "Sin el permiso (`AUTH-002`)"),
     @ApiResponse(responseCode = "422", description = "Una membresía no existe (`EX-002`)")
@@ -140,7 +145,9 @@ public class SignalController {
               + "\nExige `signals:create-batch`.\n")
   @ApiResponses({
     @ApiResponse(responseCode = "201", description = "Las señales registradas."),
-    @ApiResponse(responseCode = "400", description = "Datos inválidos (`VAL-001` a `VAL-008`)"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Datos inválidos (`VAL-001` a `VAL-008`, `VAL-011`)"),
     @ApiResponse(responseCode = "401", description = "Sin sesión (`AUTH-001`)"),
     @ApiResponse(responseCode = "403", description = "Sin el permiso (`AUTH-002`)"),
     @ApiResponse(responseCode = "422", description = "Una membresía no existe (`EX-002`)")
@@ -159,8 +166,9 @@ public class SignalController {
           """
           `multipart/form-data` con una parte `file`: un CSV de hasta **1 MB** y **500 señales**
           (`VAL-009`, `VAL-008`), en UTF-8 o Windows-1252, separado por comas o por punto y
-          coma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type` y
-          `subscription_type`, en cualquier orden (`VAL-010`), y `memberships` opcional: los
+          coma. **Cabecera obligatoria** con `currency_pair`, `signal_time`, `signal_type`,
+          `direction` y `subscription_type`, en cualquier orden (`VAL-010`), y `memberships`
+          opcional: los
           **códigos** de las membresías separados por `|`, como `ORO|VIP`. Sin filas,
           `VAL-007`. **Todas o ninguna**, como el registro de varias; cada error dice su línea
           —`lines[4].signal_time`—.
@@ -172,7 +180,7 @@ public class SignalController {
     @ApiResponse(responseCode = "201", description = "Las señales registradas."),
     @ApiResponse(
         responseCode = "400",
-        description = "Archivo o datos inválidos (`VAL-001` a `VAL-010`)"),
+        description = "Archivo o datos inválidos (`VAL-001` a `VAL-011`)"),
     @ApiResponse(responseCode = "401", description = "Sin sesión (`AUTH-001`)"),
     @ApiResponse(responseCode = "403", description = "Sin el permiso (`AUTH-002`)"),
     @ApiResponse(responseCode = "422", description = "Un código de membresía no existe (`EX-002`)")

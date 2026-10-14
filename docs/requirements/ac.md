@@ -5,7 +5,7 @@
 | Módulo | `AC` — Academia |
 | Paquete | `modules/academy` |
 | Prefijos de permiso | `course-categories:`, `courses:`, `lessons:`, `live-sessions:`, `live-session-categories:`, `signals:` |
-| Versión | 0.30.0 |
+| Versión | 0.31.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 17-09-2026 |
@@ -204,7 +204,7 @@ La dependencia es **acíclica**: `AC` → `SP` y, desde el 25-09-2026, `AC` → 
 | `RN-AC-028` | **Administración gobierna todas las clases; el instructor, aquellas de las que es instructor** | Al listar, ver, programar, corregir, cancelar, iniciar y poner o quitar la portada | Con los permisos de administración se gobierna **cualquier clase**. Con los permisos **propios** (`-own`), **solo las clases en cuya lista de instructores está quien pregunta** (`RN-AC-032`; hasta el 13-10-2026, las de los cursos que dictaba): ver, corregir, cancelar, iniciar o tocar la portada de una ajena responde **`404`**, como si no existiera. **Programar una propia lo pone en la lista**, con los demás instructores que nombre; **al corregir una propia no puede quitarse de la lista** (`422`). **Una clase sin instructores solo la gobierna administración** | Alta |
 | `RN-AC-032` | **La clase en vivo no cuelga de ningún curso: tiene sus instructores y su portada** | Al programar, corregir, poner y quitar la portada, y en toda lectura | Desde el 13-10-2026 la clase **es independiente de los cursos** de la academia: no declara curso ni lo hereda en nada. **Declara sus instructores**, una lista de **cero o más personas** que **existen, no están retiradas y portan `courses:teach`** (`RN-AC-006`), comprobado **al asignar y solo al asignar**, sin repetir. Sin instructores, **solo la gobierna administración**. Y tiene **una portada opcional**, un archivo de `academy_images` como la del curso (`RN-AC-004`): se pone y se quita aparte, en cualquier estado salvo cancelada o terminada (`RN-AC-029`), y sin ella `coverImageUrl` va nulo | Alta |
 | `RN-AC-033` | **El curso tiene uno o varios instructores** | Al registrar un curso, al corregir sus instructores y en toda lectura | Desde el 13-10-2026 el curso **declara una lista de instructores** de **una persona o más** —nunca vacía: el curso dice quién lo enseña (`RF-AC-008`)—, sin repetir, cada una comprobada como dice `RN-AC-006`. **Corregir la lista la reemplaza entera.** Las lecturas los traen todos en `instructors`, por nombre completo; el filtro `instructorId` deja los cursos **en cuya lista está** esa persona; y el progreso de los alumnos (`RN-AC-024`) se le abre a **cualquiera de ellos**. Hasta ese día el curso tenía un solo instructor, en `courses.instructor_id`; `V106` lo pasó a la lista | Alta |
-| `RN-AC-035` | **Las señales de trading se muestran hasta que vuelve su hora, a quien abre su suscripción** | Al registrar, importar, retirar y consultar señales | Desde el 14-10-2026 hay **señales**: par de divisas (`currencyPair`, hasta 20 caracteres, en mayúsculas), hora (`signalTime`, `HH:mm` en America/Bogota), tipo (`signalType`, un entero mayor o igual que cero, por ahora sin catálogo) y suscripción (`subscriptionType`). **Se muestra hasta `visibleUntil`**, la próxima vez que llega su hora después de crearse: creada a las 11:00 con hora 10:00, hasta mañana a las 10:00; con hora 10:30, hasta hoy a las 10:30; justo a su hora, hasta mañana. Como **no se corrige**, `visibleUntil` se calcula una vez y se guarda. **La ve**, con su membresía **vigente**: `FREE`, cualquiera —BECA o superior—; `PREMIUM`, una por encima de BECA; `PERSONALIZED`, una de las que la señal elige, una o más. Sin membresía vigente, ninguna. Se registran **de una en una, en un arreglo o desde un CSV**, y en los dos últimos **todas o ninguna**. Se **retira** con motivo y guarda `deleted_at` | Alta |
+| `RN-AC-035` | **Las señales de trading se muestran hasta que vuelve su hora, a quien abre su suscripción** | Al registrar, importar, retirar y consultar señales | Desde el 14-10-2026 hay **señales**: par de divisas (`currencyPair`, hasta 20 caracteres, en mayúsculas), hora (`signalTime`, `HH:mm` en America/Bogota), tipo (`signalType`, un entero mayor o igual que cero, por ahora sin catálogo), **dirección** (`direction`, `UP` si sube o `DOWN` si baja, desde el 14-10-2026, §5.2.22) y suscripción (`subscriptionType`). **Se muestra hasta `visibleUntil`**, la próxima vez que llega su hora después de crearse: creada a las 11:00 con hora 10:00, hasta mañana a las 10:00; con hora 10:30, hasta hoy a las 10:30; justo a su hora, hasta mañana. Como **no se corrige**, `visibleUntil` se calcula una vez y se guarda. **La ve**, con su membresía **vigente**: `FREE`, cualquiera —BECA o superior—; `PREMIUM`, una por encima de BECA; `PERSONALIZED`, una de las que la señal elige, una o más. Sin membresía vigente, ninguna. Se registran **de una en una, en un arreglo o desde un CSV**, y en los dos últimos **todas o ninguna**. Se **retira** con motivo y guarda `deleted_at` | Alta |
 | `RN-AC-034` | **La clase en vivo pertenece a una categoría** | Al programar y corregir una clase, al gestionar las categorías y en toda lectura de clases | Desde el 14-10-2026 las clases en vivo tienen **su propio catálogo de categorías**, distinto del de cursos: cada una con **nombre** —de 1 a 100 caracteres, **único entre las vivas** sin distinguir acentos ni mayúsculas— y **orden** —entero mayor o igual que cero, no único (`RN-AC-002`)—. **Nacen tres: «Trading», «Clases» y «Señales»** (`V107`), que se corrigen y retiran como cualquier otra. **Toda clase declara exactamente una**, obligatoria al programar y que al corregir, si viene, se cambia; **solo se asigna una viva**. **Retirarla** —baja lógica con motivo (`RN-AC-018`)— **no toca las clases**: las que la tienen la conservan y la siguen mostrando, y deja de ofrecerse para asignar y de salir en el listado de categorías. Las clases que existían ese día quedaron en «Clases». Las lecturas de las clases traen `category` y se filtran por `categoryId` | Alta |
 | `RN-AC-029` | **Lo cancelado y lo terminado no se corrigen, y cancelar no borra** | Al corregir, cancelar e iniciar | Una clase está **`PROGRAMADA`** o **`CANCELADA`**, y además **ha terminado** si su hora de fin —la de su última fecha, si se repite (`RN-AC-031`)— ya pasó —se calcula, no se guarda—. **Solo una programada que no ha terminado se corrige, se cancela o se inicia**; lo demás es `409`. **Cancelar exige motivo**, borra la reunión en Zoom, **conserva la fila** con fecha y motivo, se audita y **no se deshace**: para repetirla se programa otra. **Se programa con día, hora de inicio y hora de fin** —por decisión del responsable del proyecto, el 09-10-2026—: el inicio **no en el pasado**, el fin **después del inicio**, y entre los dos **de 15 minutos a 10 horas**. Las horas llegan con su zona; sin zona, se entienden en `America/Bogota`, que es también la zona que se le da a Zoom | Alta |
 | `RN-AC-030` | **El anfitrión entra por la plataforma** | Al iniciar una clase (`RF-AC-047`, `RF-AC-052`) | La reunión pertenece al **usuario anfitrión de la cuenta** (`ZOOM_HOST_USER`), y quien la dicta **pide el enlace de anfitrión a la plataforma**, que se lo pide a Zoom en ese momento —**caduca a las pocas horas** y por eso no se guarda—. Lo pide administración para cualquier clase o el instructor para las suyas (`RN-AC-028`). **Se audita** cada entrega, porque ese enlace da el control de la reunión | Alta |
@@ -418,6 +418,20 @@ El responsable del proyecto lo pidió el 14-10-2026: «ahora manejaremos "Señal
 - **El CSV**: UTF-8 o Windows-1252, comas o punto y coma, **cabecera obligatoria** en cualquier orden, hasta 1 MB y 500 filas. Cada error dice su línea (`lines[4].signal_time`); en el arreglo, su posición (`[3].signalTime`).
 - **Un módulo propio no**: el futuro módulo de señales de `modules.md` (HU14) queda como estaba; estas señales viven en `AC`, junto a la categoría «Señales» de las clases en vivo, sin relación con ella.
 - **Seis rutas, seis permisos** (`RN-SEG-014`): `signals:list`, `:create`, `:create-batch`, `:import` y `:delete` a `SUPERADMIN` y `ADMIN`; `signals:view` donde está `live-sessions:learn`.
+
+#### 5.2.22 La dirección de la señal — 14-10-2026
+
+El responsable del proyecto lo añadió el mismo día, después de §5.2.21: «se me olvidó decirte algo para las señales, indicar si sube o baja». **Enmienda `RN-AC-035`** y los requerimientos `RF-AC-067` a `RF-AC-072`, sin ruta ni permiso nuevos.
+
+**Lo que respondió el responsable**, a dos preguntas: el campo es **`direction`** con **`UP`** o **`DOWN`**; y las señales que ya existían sin dirección **se retiran al migrar**.
+
+**Lo que se decidió aquí sin preguntar, y por qué** — abierto a revisión:
+
+- **Obligatoria** al registrar, en las tres formas; sin ella, `400` `VAL-011`. Una señal que no dice hacia dónde no sirve.
+- **En la entrada se aceptan sinónimos**, sin distinguir mayúsculas: `SUBE`/`BAJA`, `CALL`/`PUT` y `BUY`/`SELL`, que es como se escribe en una hoja de cálculo o como lo llaman los brokers de opciones; **se guarda y se devuelve siempre `UP` o `DOWN`**.
+- **En el CSV es la columna obligatoria `direction`**; una cabecera sin ella es `VAL-010`, como las otras cuatro.
+- **Las retiradas al migrar quedan sin dirección**: `V109` les pone `deleted_at` y la columna admite vacío **solo** en una señal retirada (`ck_signals_direction`). Retirarlas sin borrarlas conserva su auditoría; inventarles una dirección sería un dato falso. En el listado con `includeDeleted` salen con `direction: null`.
+- **El alumno la ve** en sus vigentes (`RF-AC-072`), que es para lo que sirve.
 
 #### 5.2.19 Varios instructores por curso — 13-10-2026
 
@@ -1365,7 +1379,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Tripleta | `docs/specs/ac/064-senales-de-trading/` |
 | Estado | **En desarrollo** (14-10-2026) |
 
-`POST /signals` con `currencyPair`, `signalTime`, `signalType`, `subscriptionType` y, si es `PERSONALIZED`, `membershipIds`. Se audita.
+`POST /signals` con `currencyPair`, `signalTime`, `signalType`, `direction` —`UP` o `DOWN`, §5.2.22—, `subscriptionType` y, si es `PERSONALIZED`, `membershipIds`. Se audita.
 
 #### `RF-AC-069` — Registrar varias señales
 
@@ -1391,7 +1405,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Tripleta | `docs/specs/ac/064-senales-de-trading/` |
 | Estado | **En desarrollo** (14-10-2026) |
 
-`POST /signals/import`, `multipart/form-data` con `file`: un CSV de hasta 1 MB y 500 filas, con cabecera; **todas o ninguna**, cada error con su línea.
+`POST /signals/import`, `multipart/form-data` con `file`: un CSV de hasta 1 MB y 500 filas, con cabecera —`currency_pair`, `signal_time`, `signal_type`, `direction` y `subscription_type`, y `memberships` opcional—; **todas o ninguna**, cada error con su línea. El ejemplo está en la tripleta (`ejemplo-senales.csv`).
 
 #### `RF-AC-071` — Retirar una señal
 
@@ -1417,7 +1431,7 @@ Baja lógica con motivo y registro. No arrastra nada: no hay nada debajo.
 | Tripleta | `docs/specs/ac/064-senales-de-trading/` |
 | Estado | **En desarrollo** (14-10-2026) |
 
-`GET /signals/available`: las que se muestran ahora y abre la membresía vigente de quien mira, por `visibleUntil`.
+`GET /signals/available`: las que se muestran ahora y abre la membresía vigente de quien mira, por `visibleUntil`, con su `direction`.
 
 #### `RF-AC-057` — Consultar los cursos que dicto
 
@@ -1727,6 +1741,7 @@ Clave primaria compuesta. **La clave foránea a `memberships` se declara** hacia
 | `currency_pair` | `varchar(20)` | No | `RN-AC-035`: en mayúsculas |
 | `signal_time` | `time` | No | La hora en America/Bogota |
 | `signal_type` | `integer` | No | Mayor o igual que cero |
+| `direction` | `varchar(4)` | **Solo retirada** | `UP` o `DOWN` (§5.2.22, `V109`); vacía solo en las retiradas al migrar |
 | `subscription_type` | `varchar(20)` | No | `FREE`, `PREMIUM` o `PERSONALIZED` |
 | `visible_until` | `timestamptz` | No | La próxima vez que llega `signal_time` después de `created_at`; no cambia |
 | `created_by` | `uuid` | Sí | Quien la registró, sin clave foránea |
@@ -1780,7 +1795,7 @@ Las membresías de una `PERSONALIZED`; las otras dos no tienen filas. Que una `P
 | `uq_live_session_categories_name` | Índice único parcial sobre `f_unaccent(lower(name))`, `WHERE deleted_at IS NULL` | `RN-AC-034`; una retirada libera el nombre |
 | `ck_live_session_categories_display_order` | `display_order >= 0` | `RN-AC-002` |
 | `fk_live_sessions_category` | `category_id` → `live_session_categories(id)`, sin `ON DELETE` | `RN-AC-034`. Que sea viva al asignarse **no cabe aquí**: vive en el dominio |
-| `ck_signals_signal_type`, `ck_signals_subscription_type`, `ck_signals_visible_until` | Tipo mayor o igual que cero; suscripción de las tres; `visible_until > created_at` | `RN-AC-035` |
+| `ck_signals_signal_type`, `ck_signals_subscription_type`, `ck_signals_visible_until`, `ck_signals_direction` | Tipo mayor o igual que cero; suscripción de las tres; `visible_until > created_at`; dirección `UP` o `DOWN`, vacía solo si está retirada (`V109`) | `RN-AC-035` |
 | `ix_signals_visible` | `(visible_until) WHERE deleted_at IS NULL` | Sostiene las vigentes de `RF-AC-072` |
 | `pk_signal_memberships`, `fk_signal_memberships_*` | `(signal_id, membership_id)`; hacia `signals` en cascada y hacia `memberships` sin `ON DELETE` | `RN-AC-035` |
 | `pk_course_instructors`, `fk_course_instructors_course`, `fk_course_instructors_user` | `(course_id, user_id)`; hacia `courses` y `users`, sin `ON DELETE` | `RN-AC-006`, `RN-AC-033`. Que porte el permiso y que la lista no quede vacía **no caben aquí**: viven en el dominio. `fk_courses_instructor` se quitó con la columna el 13-10-2026 (`V106`) |
@@ -1867,3 +1882,4 @@ Las membresías de una `PERSONALIZED`; las otras dos no tienen filas. Que una `P
 | 0.28.0 | 13-10-2026 | **Varios instructores por curso** (§5.2.19), a petición del responsable del proyecto: nace **`RN-AC-033`** —el curso declara una lista de uno o más instructores, que se reemplaza entera— y, sin ruta propia, **`RF-AC-062`**; se enmiendan `RN-AC-006`, `RN-AC-024`, `RF-AC-008` y `RF-AC-011`. §8.2 pierde `instructor_id` y nace §8.15 `course_instructors` (`V106`). | Responsable técnico |
 | 0.29.0 | 14-10-2026 | **Las categorías de las clases en vivo** (§5.2.20), a petición del responsable del proyecto: nace **`RN-AC-034`** —un catálogo propio con nombre y orden, sembrado con «Trading», «Clases» y «Señales»; toda clase declara una, obligatoria; retirar no toca las clases— y **`RF-AC-063`** a **`RF-AC-066`** —consultar, registrar, corregir y retirar— con cuatro permisos `live-session-categories:*` (§7); `live_sessions.category_id` (§8.10) y **§8.16** `live_session_categories`; restricciones en §8.9. Las clases existentes quedan en «Clases» (`V107`). | Responsable técnico |
 | 0.30.0 | 14-10-2026 | **Las señales de trading** (§5.2.21), a petición del responsable del proyecto: nace **`RN-AC-035`** —par, hora de Bogotá, tipo entero y suscripción `FREE`, `PREMIUM` o `PERSONALIZED`; se muestran hasta la próxima vez que llega su hora; no se corrigen— y **`RF-AC-067`** a **`RF-AC-072`** —consultar, registrar una, varias o un CSV, retirar y ver las vigentes— con seis permisos `signals:*` (§7); **§8.17** `signals` y **§8.18** `signal_memberships`; restricciones en §8.9 (`V108`). | Responsable técnico |
+| 0.31.0 | 14-10-2026 | **La dirección de la señal** (§5.2.22), a petición del responsable del proyecto: **enmienda `RN-AC-035`** y `RF-AC-067` a `RF-AC-072` con `direction` —`UP` o `DOWN`, obligatoria, con sinónimos en la entrada (`SUBE`/`BAJA`, `CALL`/`PUT`, `BUY`/`SELL`) y columna obligatoria del CSV—; §8.17 y §8.9 con `ck_signals_direction`; `V109` retira las que existían sin dirección. Sin ruta ni permiso nuevos. | Responsable técnico |

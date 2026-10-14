@@ -28,11 +28,13 @@
 3. Seis permisos (`…7020` a `…7025`, cola `000051` a `000056`): cinco a `SUPERADMIN` y `ADMIN`, `signals:view` donde está `live-sessions:learn`.
 4. Guardas: catálogo de 250; los cinco de administración solo en los dos roles.
 
+`V109` (enmienda del 14-10-2026, `ac.md` §5.2.22): `signals.direction varchar(4)`; **retira** con `deleted_at = now()` las vivas que existían, porque no tienen dirección; y `ck_signals_direction` —`UP` o `DOWN`, o vacía **solo** si `deleted_at` no es nulo—. Sin permisos: el catálogo sigue en 250.
+
 ## 3. Componentes afectados
 
 | Capa | Elemento |
 |---|---|
-| domain/models | **`Signal`**, **`SubscriptionType`** (nuevos) |
+| domain/models | **`Signal`**, **`SubscriptionType`**, **`SignalDirection`** (nuevos; el último con la enmienda, y `Signal.direccion` traduce los sinónimos) |
 | domain/repository | **`SignalRepository`**, **`JpaSignalRepository`** (nuevos) |
 | domain/service | **`SignalService`**, **`SignalCsv`** (nuevos) |
 | application | **`SignalRequests`**, **`SignalResponses`** (nuevos) |
@@ -49,7 +51,7 @@
 | `POST` | `/api/v1/signals/import` | `signals:import` | `201`, lista |
 | `POST` | `/api/v1/signals/{id}/deletion` | `signals:delete` | `204` |
 
-Compatible: todo es nuevo.
+Compatible: todo es nuevo. La enmienda de la dirección añade `direction` **obligatoria** a la entrada de `POST /signals` y `/batch` y como columna del CSV: incompatible para un cliente que ya registrara, pero el único es el frontend y las rutas nacieron hoy.
 
 ## 5. Autorización
 
@@ -71,6 +73,8 @@ Una transacción por petición: varias o un CSV escriben todo o nada. El instant
 | **Registrar las válidas y devolver las fallidas** | El responsable eligió todo o nada |
 | **Membresías por identificador en el CSV** | Nadie escribe un UUID en una hoja de cálculo; el código es único |
 | **Un módulo nuevo de señales** | Es poco y vive junto a las clases en vivo; partirlo después es barato |
+| **Dirección por defecto (`UP`) para las existentes** | Sería un dato inventado; el responsable eligió retirarlas |
+| **Dirección como booleano `up`** | Un enumerado deja sitio a un tercer valor —lateral, neutra— sin cambiar el contrato |
 
 ## 9. Riesgos
 
@@ -81,4 +85,4 @@ Una transacción por petición: varias o un CSV escriben todo o nada. El instant
 
 ## 10. Estrategia de prueba
 
-Unitarias: `SignalTest` (`CA-AC-340` y las comprobaciones) y `SignalCsvTest` (`CA-AC-343`, la forma del archivo). Integración de API: `SignalsIT` (`CA-AC-339`, `CA-AC-341` a `CA-AC-347`); las del catálogo, con la cifra nueva; `EndpointPermissionsIT`, con las seis rutas.
+Unitarias: `SignalTest` (`CA-AC-340` y las comprobaciones) y `SignalCsvTest` (`CA-AC-343`, la forma del archivo). Integración de API: `SignalsIT` (`CA-AC-339`, `CA-AC-341` a `CA-AC-347`); las del catálogo, con la cifra nueva; `EndpointPermissionsIT`, con las seis rutas. La dirección: `SignalTest` (los sinónimos), `SignalCsvTest` (la columna y el ejemplo) y `SignalsIT` (`CA-AC-348`, `CA-AC-349`).

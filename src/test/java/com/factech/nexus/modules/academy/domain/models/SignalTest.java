@@ -53,6 +53,27 @@ class SignalTest {
   }
 
   @Test
+  @DisplayName("`CA-AC-348` — la dirección acepta sus sinónimos y se guarda UP o DOWN")
+  void direccion() {
+    List<FieldError> errores = new ArrayList<>();
+    for (String sube : List.of("UP", "up", " Sube ", "call", "BUY")) {
+      assertThat(Signal.direccion(sube, "d", errores)).isEqualTo(SignalDirection.UP);
+    }
+    for (String baja : List.of("DOWN", "down", "BAJA", "Put", "sell")) {
+      assertThat(Signal.direccion(baja, "d", errores)).isEqualTo(SignalDirection.DOWN);
+    }
+    assertThat(errores).isEmpty();
+
+    assertThat(Signal.direccion(null, "[0].direction", errores)).isNull();
+    assertThat(Signal.direccion("lateral", "[1].direction", errores)).isNull();
+    assertThat(errores)
+        .extracting(FieldError::field, FieldError::code)
+        .containsExactly(
+            org.assertj.core.groups.Tuple.tuple("[0].direction", "VAL-011"),
+            org.assertj.core.groups.Tuple.tuple("[1].direction", "VAL-011"));
+  }
+
+  @Test
   @DisplayName("Las comprobaciones acumulan con el campo que se les da")
   void comprobaciones() {
     List<FieldError> errores = new ArrayList<>();

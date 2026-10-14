@@ -21,7 +21,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * Una señal de trading (`RF-AC-067` a `RF-AC-072`, `RN-AC-035`): par, hora, tipo y suscripción.
+ * Una señal de trading (`RF-AC-067` a `RF-AC-072`, `RN-AC-035`): par, hora, tipo, dirección y
+ * suscripción.
  *
  * <p><b>No se corrige</b>: nace, se muestra hasta {@code visibleUntil} y se retira. {@code
  * visibleUntil} es la próxima vez que llega {@code signalTime} en la zona del negocio después de
@@ -53,6 +54,11 @@ public class Signal {
   @Column(name = "signal_type", nullable = false, updatable = false)
   private int signalType;
 
+  /** Vacía solo en las que `V109` retiró por no tenerla (`ck_signals_direction`). */
+  @Enumerated(EnumType.STRING)
+  @Column(name = "direction", length = 4, updatable = false)
+  private SignalDirection direction;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "subscription_type", nullable = false, length = 20, updatable = false)
   private SubscriptionType subscriptionType;
@@ -78,6 +84,7 @@ public class Signal {
       String currencyPair,
       LocalTime signalTime,
       int signalType,
+      SignalDirection direction,
       SubscriptionType subscriptionType,
       UUID createdBy,
       OffsetDateTime ahora,
@@ -87,6 +94,7 @@ public class Signal {
     senal.currencyPair = currencyPair;
     senal.signalTime = signalTime;
     senal.signalType = signalType;
+    senal.direction = direction;
     senal.subscriptionType = subscriptionType;
     senal.createdBy = createdBy;
     senal.createdAt = ahora;
@@ -124,6 +132,7 @@ public class Signal {
     estado.put("currency_pair", currencyPair);
     estado.put("signal_time", horaTexto());
     estado.put("signal_type", signalType);
+    estado.put("direction", direction == null ? null : direction.name());
     estado.put("subscription_type", subscriptionType.name());
     estado.put("membership_ids", membresias.stream().map(UUID::toString).sorted().toList());
     estado.put("visible_until", visibleUntil.toString());
@@ -186,6 +195,24 @@ public class Signal {
     return tipo(numero, campo, errores);
   }
 
+  /**
+   * `VAL-011`: obligatoria, {@code UP} o {@code DOWN}, o uno de sus sinónimos ({@link
+   * SignalDirection#of}).
+   */
+  public static SignalDirection direccion(String valor, String campo, List<FieldError> errores) {
+    return SignalDirection.of(valor)
+        .orElseGet(
+            () -> {
+              errores.add(
+                  new FieldError(
+                      campo,
+                      "VAL-011",
+                      "La dirección es obligatoria: UP si sube o DOWN si baja (también SUBE/BAJA,"
+                          + " CALL/PUT o BUY/SELL)."));
+              return null;
+            });
+  }
+
   /** `VAL-004`: obligatoria, FREE, PREMIUM o PERSONALIZED, sin distinguir mayúsculas. */
   public static SubscriptionType suscripcion(String valor, String campo, List<FieldError> errores) {
     String texto = valor == null ? "" : valor.trim().toUpperCase(Locale.ROOT);
@@ -230,6 +257,10 @@ public class Signal {
 
   public int getSignalType() {
     return signalType;
+  }
+
+  public SignalDirection getDirection() {
+    return direction;
   }
 
   public SubscriptionType getSubscriptionType() {

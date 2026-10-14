@@ -23,6 +23,12 @@ public final class SignalRequests {
       @Schema(description = "El tipo, un entero mayor o igual que cero.", example = "1")
           Integer signalType,
       @Schema(
+              description =
+                  "UP si sube o DOWN si baja; también SUBE/BAJA, CALL/PUT o BUY/SELL, sin"
+                      + " distinguir mayúsculas. Se guarda UP o DOWN.",
+              example = "UP")
+          String direction,
+      @Schema(
               description = "FREE, PREMIUM o PERSONALIZED, sin distinguir mayúsculas.",
               example = "FREE")
           String subscriptionType,
