@@ -120,6 +120,11 @@ public class BrokerAccountController {
           - `hasHolder` — `false`, las cuentas **sin titular**, que llegaron del
             broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
             titular, `user` va nulo.
+          - `sellerId` — **el vendedor de origen**: solo las cuentas que originó
+            una cuenta `VENDEDOR` suya (`RN-SP-070`), sea quien sea el titular.
+          - `hasReferrer` — `false`, las cuentas **sin vendedor de origen**;
+            `true`, las que lo tienen. Con `sellerId`, `false` da la página
+            vacía.
           - `brokerId` — un broker del catálogo.
           - `search` — fragmento de **número de cuenta**, de **nombre de usuario
             en el broker**, o del usuario, correo o nombre completo del titular.
@@ -135,7 +140,8 @@ public class BrokerAccountController {
             `from`, excluye `to`. `from` posterior a `to` es `400`.
 
           **Un identificador inexistente devuelve la página vacía sin error** —
-          `supervisorId`, `userId` y `brokerId` no se validan contra su tabla—,
+          `supervisorId`, `userId`, `sellerId` y `brokerId` no se validan contra
+          su tabla—,
           al revés que `status` y que el rango: aquellos son preguntas legítimas
           con respuesta vacía y estos son preguntas mal escritas.
 

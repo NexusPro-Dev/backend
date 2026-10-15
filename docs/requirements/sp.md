@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.124.0 |
+| Versión | 1.125.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -1102,7 +1102,7 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 
 | Campo | Valor |
 |---|---|
-| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por **tipo**, por broker, por texto —también el **nombre de usuario en el broker**, desde el 10-10-2026— y por fecha de declaración; cada fila con su titular y **el vendedor de su origen, con nombre** |
+| Objetivo | Ver **todas** las cuentas de broker del sistema y acotarlas: por **red de un vendedor**, por persona, por estado, por **tipo**, por broker, por texto —también el **nombre de usuario en el broker**, desde el 10-10-2026— y por fecha de declaración, y desde el 15-10-2026 por **vendedor de origen** y por las cuentas **sin vendedor de origen**; cada fila con su titular y **el vendedor de su origen, con nombre** |
 | Actor | Administrador |
 | Permiso requerido | `broker-accounts:read` |
 | Prioridad | Alta |
@@ -1130,6 +1130,8 @@ El **listado plano y paginado** de las cuentas de todas las personas que depende
 **El desglose por broker trae TODOS los brokers del catálogo, con cero donde no hay.** Nació al revés el mismo día y se invirtió: un arreglo cuya longitud depende del filtro obliga a **rearmar las columnas en cada consulta**, y una columna que desaparece se lee como un dato que falta, no como un cero. Consecuencia declarada: **un broker desactivado sigue apareciendo** —apagarlo no borra lo declarado en él—, al precio de una columna muerta el día que se retire alguno.
 
 **`?kind=VENDEDOR|CONSUMIDOR` filtra por tipo** (`RN-SP-068`, 09-10-2026), y el resumen lo respeta como respeta `status`. Un valor que no es ninguno de los dos es `400`, como un estado mal escrito. Toda fila de las consultas de cuentas —`RF-SP-055`, `RF-SP-056`, `RF-SP-057`, `RF-SP-079` y el alta— **lleva su `kind`**.
+
+**`sellerId` y `hasReferrer` filtran por el VENDEDOR DE ORIGEN** (15-10-2026, a petición del responsable del proyecto), separado del titular: `sellerId` deja las cuentas cuyo origen (`RN-SP-070`) es una cuenta `VENDEDOR` de esa persona —el mismo nombre y el mismo sentido que en `RF-SP-083`, aquí sin acotar a una red—, y `hasReferrer=false` las que **no tienen vendedor de origen**; `true`, las que sí. Junto a `userId` y `hasHolder` —el titular y las cuentas sin titular— cubren las dos preguntas por separado, cada una con su opción de «vacíos». Un `sellerId` inexistente da la página vacía, como `userId`; `sellerId` con `hasReferrer=false` se contradicen y dan la página vacía, sin error. El resumen los respeta como respeta el resto. **Ningún permiso nuevo**: es la misma consulta, `broker-accounts:read`.
 
 #### `RF-SP-058` — Consultar los indicadores de la red comercial
 
@@ -1650,7 +1652,7 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 | Tripleta | `docs/specs/sp/083-consultar-cuentas-originadas-por-mi-red/` |
 | Estado | **En desarrollo** (10-10-2026) |
 
-**Nace a petición del responsable del proyecto** (10-10-2026). `GET /api/v1/users/me/referred-broker-accounts`: la misma fila, los mismos filtros de texto, estado, broker y fecha, y el mismo resumen que `RF-SP-057`, **con el alcance fijado por el sistema** (`RN-SP-075`) y un filtro `sellerId` para ver la línea de un vendedor concreto de la red. **No sustituye a `RF-SP-056`**: aquel mira las cuentas **de las personas** del equipo directo; este, las cuentas **que originó el enlace** de cada vendedor, sean de quien sean.
+**En el frontend se llama «Mis FTD's»** (15-10-2026): es la consulta **según la red**, y `RF-SP-057` la **administrativa**; cada una con su permiso. **Nace a petición del responsable del proyecto** (10-10-2026). `GET /api/v1/users/me/referred-broker-accounts`: la misma fila, los mismos filtros de texto, estado, broker y fecha, y el mismo resumen que `RF-SP-057`, **con el alcance fijado por el sistema** (`RN-SP-075`) y un filtro `sellerId` para ver la línea de un vendedor concreto de la red. **No sustituye a `RF-SP-056`**: aquel mira las cuentas **de las personas** del equipo directo; este, las cuentas **que originó el enlace** de cada vendedor, sean de quien sean.
 
 ## 7. Requerimientos no funcionales
 
@@ -2692,3 +2694,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.122.0 | 10-10-2026 | **`RF-SP-058` se retira y se muda a `IN` como `RF-IN-009`** ([`requirements/in.md`](in.md) v0.21.0, `RN-IN-015`), a petición del responsable del proyecto: los indicadores de la red se atribuyen por el `afftrack` y suman FTD por su fecha, operaciones y cuentas sin titular. **`RN-SP-048` queda sustituida** por `RN-IN-015`. Se retiran `GET /api/v1/broker-accounts/indicators` y `broker-accounts:read-indicators` (`V101`). `SP` publica `BrokerAccountFigures` para `IN`. | Responsable del proyecto |
 | 1.123.0 | 13-10-2026 | **Los avisos de los brokers, por una sola dirección y sin perder ninguno**, a petición del responsable del proyecto: «solo la ruta broker/notification, para capturar todas las notificaciones y desde ahí clasificarlas por el advertiser». Nace **`RN-SP-076`**: un aviso con el secreto correcto **se guarda siempre**; si su `advertiser` no es el de ningún broker activo, **sin broker y sin interpretar**, y **cuando una migración carga ese `advertiser`, el arranque se lo asocia y lo interpreta** en orden de llegada. **Se retira la ruta `/api/v1/brokers/{name}/notifications`** con sus tres secretos: `RN-SP-066` pasa a un solo secreto y `RN-SP-069` deja de rechazar (`404`). §10.25: `broker_id` admite nulo y nace `advertiser` (`V103`); §10.17 y §9 al día. Tripleta de `RF-SP-078` v0.6.0. | Responsable del proyecto |
 | 1.124.0 | 15-10-2026 | **Las cuentas de broker, la más reciente primero**, a petición del responsable del proyecto. Los cuatro listados —las de una persona (`RF-SP-055`), las mías (`RF-SP-079`), las del equipo (`RF-SP-056`) y todas (`RF-SP-057`, y con él las de mi red, `RF-SP-083`)— se ordenan por fecha de registro descendente, con el identificador de la fila como desempate único; antes iban por titular, broker e identificador de cuenta. Sin cambio de forma ni de permisos; el desglose `byBroker` sigue por nombre de broker. Specs de 055, 056, 057 y 079 enmendadas. | Responsable del proyecto |
+| 1.125.0 | 15-10-2026 | **La consulta administrativa de cuentas de broker filtra por vendedor de origen**, a petición del responsable del proyecto, que separó las dos consultas: **según la red** —`RF-SP-083`, «Mis FTD's» en el frontend, `broker-accounts:read-own-referred`— y **administrativa** —`RF-SP-057`, `broker-accounts:read`—, cada una con su permiso, como ya estaban. La administrativa filtra por estado, broker, número o usuario de broker (`search`, sin cambios), titular (`userId`, y `hasHolder=false` para las sin titular), fechas de declaración, y ahora **vendedor de origen**: `sellerId` y `hasReferrer` (`false` = sin vendedor de origen). Sin migración ni permiso nuevo. Tripleta de `RF-SP-057` v0.6.0. | Responsable del proyecto |

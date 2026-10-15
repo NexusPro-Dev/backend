@@ -176,6 +176,68 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-1016` — `sellerId` filtra por el vendedor de ORIGEN, no por el titular")
+  void filtraPorVendedorDeOrigen() throws Exception {
+    originarDesdeJefe("20000001", "40000001");
+
+    // La 10000001 es DE `jefe` y no sale: es su cuenta de origen, no una que
+    // originó. Las dos que salen tienen otro titular.
+    mvc.perform(get(RUTA + "?sellerId=" + jefe).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.summary.accounts.total").value(2))
+        .andExpect(jsonPath("$.content[0].accountId").value("40000001"))
+        .andExpect(jsonPath("$.content[1].accountId").value("20000001"));
+
+    mvc.perform(get(RUTA + "?sellerId=" + UUID.randomUUID()).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1017` — `hasReferrer` separa las cuentas con y sin vendedor de origen")
+  void conYSinVendedorDeOrigen() throws Exception {
+    originarDesdeJefe("20000001", "40000001");
+
+    mvc.perform(get(RUTA + "?hasReferrer=false").with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.summary.accounts.total").value(3));
+
+    mvc.perform(get(RUTA + "?hasReferrer=true").with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.summary.accounts.total").value(2));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1018` — `sellerId` con `hasReferrer=false` se contradicen: página vacía")
+  void vendedorYSinOrigenSeContradicen() throws Exception {
+    originarDesdeJefe("40000001");
+
+    mvc.perform(get(RUTA + "?sellerId=" + jefe + "&hasReferrer=false").with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0))
+        .andExpect(jsonPath("$.summary.accounts.total").value(0));
+
+    // Y combinado con el resto: el resumen sigue al filtro.
+    mvc.perform(get(RUTA + "?sellerId=" + jefe + "&brokerId=" + brokerA).with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1));
+  }
+
+  /** Hace de la 10000001 de `jefe` una cuenta `VENDEDOR` y la pone de origen de las dadas. */
+  private void originarDesdeJefe(String... cuentas) {
+    UUID origen =
+        jdbc.queryForObject(
+            "UPDATE user_brokers SET kind = 'VENDEDOR', afftrack = 'AFF-RAMON'"
+                + " WHERE external_id = '10000001' RETURNING id",
+            UUID.class);
+    for (String cuenta : cuentas) {
+      jdbc.update(
+          "UPDATE user_brokers SET referrer_account_id = ? WHERE external_id = ?", origen, cuenta);
+    }
+  }
+
+  @Test
   @DisplayName("`CA-SP-647` — sin el permiso es 403, y NO el 404 de `RF-SP-055`")
   void sinPermisoEs403() throws Exception {
     // La diferencia es deliberada: alli el actor es un vendedor cualquiera y un

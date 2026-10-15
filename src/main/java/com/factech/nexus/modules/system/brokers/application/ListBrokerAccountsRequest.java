@@ -16,10 +16,15 @@ import java.util.UUID;
  * {@code userId}, y <b>los dos filtros se combinan</b> — juntos responden «de la red de este
  * vendedor, las de esta persona», que es la comprobación natural al revisar un caso.
  *
- * <p><b>Ni {@code supervisorId}, ni {@code userId}, ni {@code brokerId} se validan contra su
- * tabla.</b> Uno inexistente devuelve la página vacía y <b>no es un error</b>: es el criterio de
- * `RF-SP-025` y de `RF-SP-056`, y validarlo costaría una consulta por petición para producir un
- * fallo que la especificación no quiere. Lo único que se les exige es la forma canónica.
+ * <p><b>{@code sellerId} y {@code hasReferrer} miran el VENDEDOR DE ORIGEN</b> (`RN-SP-070`,
+ * 15-10-2026), no el titular: {@code sellerId} con el mismo nombre y sentido que en `RF-SP-083`, y
+ * {@code hasReferrer} en falso las cuentas sin origen, como {@code hasHolder} las sin titular.
+ *
+ * <p><b>Ni {@code supervisorId}, ni {@code userId}, ni {@code sellerId}, ni {@code brokerId} se
+ * validan contra su tabla.</b> Uno inexistente devuelve la página vacía y <b>no es un error</b>: es
+ * el criterio de `RF-SP-025` y de `RF-SP-056`, y validarlo costaría una consulta por petición para
+ * producir un fallo que la especificación no quiere. Lo único que se les exige es la forma
+ * canónica.
  *
  * <p><b>{@code status} sí es un error si no es uno de los dos</b>, y la asimetría es deliberada: un
  * identificador que no designa nada es una pregunta legítima con respuesta vacía, mientras que
@@ -38,6 +43,8 @@ public record ListBrokerAccountsRequest(
     String status,
     String kind,
     Boolean hasHolder,
+    UUID sellerId,
+    Boolean hasReferrer,
     UUID brokerId,
     String search,
     OffsetDateTime from,

@@ -104,6 +104,9 @@ public interface BrokerAccountQueryRepository {
    * UUID} seguidos que significan cosas opuestas.
    *
    * <p><b>Todo nulo significa «sin filtrar»</b>, y se combinan con Y.
+   *
+   * <p>{@code referrerUserId} es el vendedor de origen (`RN-SP-070`): el `sellerId` de las dos
+   * rutas. {@code hasReferrer} en falso deja las cuentas sin origen (`RF-SP-057`, 15-10-2026).
    */
   record BrokerAccountFilters(
       UUID supervisorId,
@@ -116,23 +119,6 @@ public interface BrokerAccountQueryRepository {
       java.time.OffsetDateTime from,
       java.time.OffsetDateTime to,
       UUID referrerNetworkOf,
-      UUID referrerUserId) {
-
-    /**
-     * Los filtros de administración (`RF-SP-057`), sin los dos de `RF-SP-083`, que esa ruta no
-     * publica.
-     */
-    public BrokerAccountFilters(
-        UUID supervisorId,
-        UUID userId,
-        UserBrokerStatus status,
-        BrokerAccountKind kind,
-        Boolean hasHolder,
-        UUID brokerId,
-        String search,
-        java.time.OffsetDateTime from,
-        java.time.OffsetDateTime to) {
-      this(supervisorId, userId, status, kind, hasHolder, brokerId, search, from, to, null, null);
-    }
-  }
+      UUID referrerUserId,
+      Boolean hasReferrer) {}
 }

@@ -32,6 +32,8 @@
 | `T-15` | `search` por `broker_username` con su índice en `V100`; `BrokerAccountReferrer` con `firstName` y `lastName`; prosa OpenAPI (`plan.md` §11) | — | | **Hecha** — 10-10-2026 |
 | `T-16` | `AllBrokerAccountsIT`: `CA-SP-1007` y `CA-SP-1008`; contrato; `api/index.md` | `T-15` | `mvn verify` en verde | **Hecha** — 10-10-2026 |
 | `T-14` | Prosa OpenAPI del resumen, **con la frase del cero** | `T-13` | Dice que ese cero significa «no pediste ninguno» | **Hecha el 10-09-2026** |
+| `T-17` | `sellerId` y `hasReferrer` en `ListBrokerAccountsRequest`, `BrokerAccountFilters` y el predicado; prosa OpenAPI (`plan.md` §12) | — | | **Hecha** — 15-10-2026 |
+| `T-18` | `AllBrokerAccountsIT`: `CA-SP-1016` a `CA-SP-1018`; contrato; `api/index.md` | `T-17` | `mvn verify` en verde | **Hecha** — 15-10-2026 |
 
 ## 2. Orden de ejecución
 
@@ -55,6 +57,7 @@
 | `CA-SP-671`, `CA-SP-674` | `T-12`, `T-13` |
 | `CA-SP-672`, `CA-SP-673` | `T-11`, `T-13`, `T-14` |
 | `CA-SP-1007`, `CA-SP-1008` | `T-15`, `T-16` |
+| `CA-SP-1016` a `CA-SP-1018` | `T-17`, `T-18` |
 
 ## 4. Bloqueos
 

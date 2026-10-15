@@ -163,3 +163,13 @@ De ese único resultado salen **las cuatro cifras**: el total, su desglose por b
 ## 11. Enmienda 0.5.0 — el nombre de usuario en el broker y el vendedor con nombre (10-10-2026)
 
 **`search`** añade `OR f_unaccent(lower(ub.broker_username)) LIKE …` al mismo predicado, con su índice: **`ix_user_brokers_busqueda_usuario`** en `V100` (gin de trigramas, la expresión del predicado). **`BrokerAccountReferrer`** gana `firstName` y `lastName`, leídos de `ru` —el titular de la cuenta de origen, ya unido—. Es un superconjunto de la fila: también lo ven `RF-SP-055`, `RF-SP-056`, `RF-SP-079` y `RF-SP-083`, que comparten `BrokerAccountReferrer`. Pruebas en `AllBrokerAccountsIT`.
+
+## 12. Enmienda 0.6.0 — el vendedor de origen (15-10-2026)
+
+**`ListBrokerAccountsRequest`** gana `sellerId` y `hasReferrer`. **`BrokerAccountFilters` ya tenía `referrerUserId`** —lo puso `RF-SP-083` para su `sellerId`— y el predicado ya lo sabía aplicar (`r.user_id = :vendedor`, con `r` la cuenta de origen ya unida para la fila): aquí solo se publica. **`hasReferrer`** es un campo nuevo del registro y una condición más del predicado único —`ub.referrer_account_id IS NULL` o `IS NOT NULL`—, de modo que la página y el resumen lo aplican a la vez sin escribirlo dos veces.
+
+**Sin migración ni índice.** `sellerId` entra por `user_brokers.user_id` de la cuenta de origen, que ya tiene índice, y `hasReferrer` es poco selectivo: un índice parcial no pagaría su escritura.
+
+**Alternativa descartada: un único parámetro que admita «vacío»** (`sellerId=none`). Mezcla un `uuid` con un centinela, rompe la validación de forma que ya hace Spring, y no es como el sistema expresa «sin titular» (`hasHolder`). Se sigue ese patrón.
+
+**`RF-SP-083` no cambia**: su `sellerId` ya existía y su alcance lo fija el sistema. «Mis FTD's» es el nombre que le da el frontend.

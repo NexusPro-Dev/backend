@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.135.0 |
+| Versión | 1.136.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -240,3 +240,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.133.0 | 14-10-2026 | **La dirección de la señal** (`RN-AC-035` enmendada, [`requirements/ac.md`](../requirements/ac.md) v0.31.0 §5.2.22). `POST /signals` y `POST /signals/batch` exigen **`direction`** —`UP` si sube o `DOWN` si baja; también `SUBE`/`BAJA`, `CALL`/`PUT` o `BUY`/`SELL`, sin distinguir mayúsculas—, y el CSV de `POST /signals/import`, la columna **`direction`** (cabecera `currency_pair;signal_time;signal_type;direction;subscription_type;memberships`); sin ella, `400` `VAL-011` (o `VAL-010` si falta la columna). `SignalResponse` y `AvailableSignal` traen `direction`, `UP` o `DOWN`; nula solo en una señal retirada al migrar (`V109`). **Incompatible** para quien ya registrara señales: el único cliente es el frontend y las rutas nacieron hoy. | Responsable técnico |
 | 1.134.0 | 14-10-2026 | **La señal se ve el día en que se crea** (`RN-AC-035` enmendada, [`requirements/ac.md`](../requirements/ac.md) v0.32.0 §5.2.23). `visibleUntil` de `SignalResponse` y `AvailableSignal` pasa a ser **la medianoche de Bogotá que cierra el día de creación** —antes, la próxima vez que llegaba `signalTime`—; `GET /signals/available` trae las creadas hoy, también aquellas cuya hora ya pasó. Misma forma; cambia el significado del valor. | Responsable técnico |
 | 1.135.0 | 15-10-2026 | **Las cuentas de broker, la más reciente primero** ([`requirements/sp.md`](../requirements/sp.md) v1.124.0). `GET /users/{id}/broker-accounts`, `/users/me/broker-accounts`, `/users/me/team/broker-accounts`, `/users/me/referred-broker-accounts` y `/broker-accounts` ordenan por fecha de registro descendente; antes, por titular, broker e identificador de cuenta. Misma forma. | Responsable técnico |
+| 1.136.0 | 15-10-2026 | **`GET /broker-accounts` filtra por vendedor de origen** ([`requirements/sp.md`](../requirements/sp.md) v1.125.0, `RF-SP-057`). Nacen `sellerId` —las cuentas que originó una cuenta `VENDEDOR` de esa persona, sea quien sea el titular— y `hasReferrer` —`false`, las cuentas sin vendedor de origen—. El resumen los respeta. Misma forma y mismo permiso. | Responsable técnico |

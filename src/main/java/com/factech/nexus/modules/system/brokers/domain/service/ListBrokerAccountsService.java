@@ -98,7 +98,10 @@ public class ListBrokerAccountsService {
             peticion.brokerId(),
             peticion.search(),
             peticion.from(),
-            rangoVerificado(peticion.from(), peticion.to()));
+            rangoVerificado(peticion.from(), peticion.to()),
+            null,
+            peticion.sellerId(),
+            peticion.hasReferrer());
 
     return pagina(filtros, trozo);
   }
@@ -128,7 +131,8 @@ public class ListBrokerAccountsService {
             peticion.from(),
             rangoVerificado(peticion.from(), peticion.to()),
             quien,
-            peticion.sellerId());
+            peticion.sellerId(),
+            null);
 
     return pagina(filtros, trozo);
   }

@@ -357,6 +357,12 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     if (f.hasHolder() != null) {
       filtro.condicion(f.hasHolder() ? "ub.user_id IS NOT NULL" : "ub.user_id IS NULL");
     }
+    if (f.hasReferrer() != null) {
+      filtro.condicion(
+          f.hasReferrer()
+              ? "ub.referrer_account_id IS NOT NULL"
+              : "ub.referrer_account_id IS NULL");
+    }
 
     if (f.supervisorId() != null) {
       filtro.condicion("ub.user_id IN (SELECT user_id FROM alcance)", "raiz", f.supervisorId());
