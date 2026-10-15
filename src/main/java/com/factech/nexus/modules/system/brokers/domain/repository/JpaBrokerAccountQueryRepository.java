@@ -66,7 +66,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                   LEFT JOIN user_brokers r ON r.id = ub.referrer_account_id
                   LEFT JOIN users ru ON ru.id = r.user_id
                  WHERE ub.user_id = CAST(:persona AS uuid)
-                 ORDER BY b.name, ub.external_id
+                 ORDER BY ub.created_at DESC, ub.id DESC
                 """,
                 Tuple.class)
             .setParameter("persona", userId)
@@ -113,11 +113,11 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
             """
                 + UNION_ORIGEN_TEXTO
                 + DONDE
-                // Tres desempates, y el último es único: sin él, dos páginas
-                // consecutivas pueden repetir una fila y omitir otra sin que
-                // nada falle. Es la lección de `findTeam` en `RF-SP-042`.
+                // La más reciente primero, y el desempate es único: sin él, dos
+                // páginas consecutivas pueden repetir una fila y omitir otra sin
+                // que nada falle. Es la lección de `findTeam` en `RF-SP-042`.
                 + """
-                 ORDER BY u.username, b.name, ub.external_id
+                 ORDER BY ub.created_at DESC, ub.id DESC
                  OFFSET :salto LIMIT :tope
                 """,
             Tuple.class);
@@ -166,11 +166,11 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                 + DESDE_GLOBAL
                 + " WHERE "
                 + filtro.sql()
-                // Los mismos tres desempates que el listado del equipo, y el
-                // último es único: sin él dos páginas seguidas pueden repetir
-                // una fila y omitir otra sin que nada falle.
+                // El mismo orden que el listado del equipo, y el desempate es
+                // único: sin él dos páginas seguidas pueden repetir una fila y
+                // omitir otra sin que nada falle.
                 + """
-                 ORDER BY u.username, b.name, ub.external_id
+                 ORDER BY ub.created_at DESC, ub.id DESC
                  OFFSET :salto LIMIT :tope
                 """,
             Tuple.class);

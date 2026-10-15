@@ -194,8 +194,8 @@ public class BrokerAccountController {
     @ApiResponse(
         responseCode = "200",
         description =
-            "Página de cuentas, ordenada por titular, broker e identificador de cuenta, **con su"
-                + " resumen**. Vacía —y el resumen en ceros— si ningún registro cumple el filtro."),
+            "Página de cuentas, la más reciente primero, **con su resumen**."
+                + " Vacía —y el resumen en ceros— si ningún registro cumple el filtro."),
     @ApiResponse(
         responseCode = "400",
         description =

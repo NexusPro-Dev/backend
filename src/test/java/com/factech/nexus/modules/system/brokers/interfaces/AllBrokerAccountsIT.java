@@ -426,9 +426,9 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
 
-    // Orden por nombre de usuario: amartinez, lgarcia | pnieto, rlopez | zruiz.
-    assertThat(primera).contains("amartinez", "lgarcia").doesNotContain("pnieto");
-    assertThat(segunda).contains("pnieto", "rlopez").doesNotContain("lgarcia");
+    // La más reciente primero: zruiz, pnieto | lgarcia, amartinez | rlopez.
+    assertThat(primera).contains("zruiz", "pnieto").doesNotContain("lgarcia");
+    assertThat(segunda).contains("lgarcia", "amartinez").doesNotContain("pnieto");
   }
 
   @Test

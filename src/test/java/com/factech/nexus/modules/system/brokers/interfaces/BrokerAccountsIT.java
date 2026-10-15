@@ -127,12 +127,12 @@ class BrokerAccountsIT extends IntegrationTestBase {
     mvc.perform(get("/api/v1/users/" + medio + "/broker-accounts").with(comoPersona(jefe)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2))
-        // Ordenadas por nombre de broker: EXNOVA antes que IQOPTION.
-        .andExpect(jsonPath("$.content[0].broker.name").value("EXNOVA"))
-        .andExpect(jsonPath("$.content[0].accountId").value("70000001"))
+        // La más reciente primero: la 70000002 se registró después.
+        .andExpect(jsonPath("$.content[0].broker.name").value("IQOPTION"))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000002"))
         .andExpect(jsonPath("$.content[0].broker.id").isNotEmpty())
         .andExpect(jsonPath("$.content[0].declaredAt").isNotEmpty())
-        .andExpect(jsonPath("$.content[1].broker.name").value("IQOPTION"));
+        .andExpect(jsonPath("$.content[1].broker.name").value("EXNOVA"));
   }
 
   @Test
@@ -279,10 +279,10 @@ class BrokerAccountsIT extends IntegrationTestBase {
     mvc.perform(get("/api/v1/users/" + medio + "/broker-accounts").with(comoPersona(jefe)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(3))
-        // Desempate por identificador de cuenta dentro del mismo broker: sin él
-        // el orden lo elegiría el motor y bailaría entre llamadas.
-        .andExpect(jsonPath("$.content[0].accountId").value("70000001"))
-        .andExpect(jsonPath("$.content[1].accountId").value("70000099"));
+        // La más reciente primero, aunque sea del mismo broker que otra.
+        .andExpect(jsonPath("$.content[0].accountId").value("70000099"))
+        .andExpect(jsonPath("$.content[1].accountId").value("70000002"))
+        .andExpect(jsonPath("$.content[2].accountId").value("70000001"));
   }
 
   // ---------------------------------------------------------------------------
@@ -297,11 +297,11 @@ class BrokerAccountsIT extends IntegrationTestBase {
     mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(medio)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.content.length()").value(2))
-        .andExpect(jsonPath("$.content[0].broker.name").value("EXNOVA"))
-        .andExpect(jsonPath("$.content[0].accountId").value("70000001"))
+        .andExpect(jsonPath("$.content[0].broker.name").value("IQOPTION"))
+        .andExpect(jsonPath("$.content[0].accountId").value("70000002"))
         .andExpect(jsonPath("$.content[0].status").value("REGISTER"))
-        .andExpect(jsonPath("$.content[1].broker.name").value("IQOPTION"))
-        .andExpect(jsonPath("$.content[1].accountId").value("70000002"));
+        .andExpect(jsonPath("$.content[1].broker.name").value("EXNOVA"))
+        .andExpect(jsonPath("$.content[1].accountId").value("70000001"));
 
     // Y el cliente, la suya.
     mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(cliente)))
@@ -348,7 +348,7 @@ class BrokerAccountsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].user.username").value("amartinez"))
         .andExpect(jsonPath("$.content[0].user.id").isNotEmpty())
         .andExpect(jsonPath("$.content[0].user.firstName").isNotEmpty())
-        .andExpect(jsonPath("$.content[0].broker.name").value("EXNOVA"))
+        .andExpect(jsonPath("$.content[0].broker.name").value("IQOPTION"))
         .andExpect(jsonPath("$.content[0].status").value("REGISTER"));
   }
 
@@ -493,8 +493,9 @@ class BrokerAccountsIT extends IntegrationTestBase {
             .getResponse()
             .getContentAsString();
 
-    assertThat(primera).contains("70000001").doesNotContain("70000002");
-    assertThat(segunda).contains("70000002").doesNotContain("70000001");
+    // La más reciente primero: la 70000002 se registró después.
+    assertThat(primera).contains("70000002").doesNotContain("70000001");
+    assertThat(segunda).contains("70000001").doesNotContain("70000002");
   }
 
   @Test

@@ -113,7 +113,7 @@ Esto la hace **más estrecha que su hermana** y le ahorra el `404`: donde `RF-SP
 |---|---|---|
 | 1 | **Se publica el árbol descendente** por escribir la consulta recursiva «porque es más útil» | `CA-SP-645` lo prueba con tres niveles: las cuentas del nieto **no aparecen** |
 | 2 | **El historial concede lectura** por olvidar `ended_at IS NULL` | `CA-SP-640`, con un miembro que dejó el equipo ayer |
-| 3 | El orden no es determinista y la paginación **repite u omite** filas | Tres desempates —titular, broker, identificador de cuenta— y una prueba que recorre dos páginas |
+| 3 | El orden no es determinista y la paginación **repite u omite** filas | La más reciente primero y desempate único por el identificador de la fila (15-10-2026; antes, titular, broker e identificador de cuenta), y una prueba que recorre dos páginas |
 | 4 | `?status=cualquiercosa` devuelve **página vacía** en lugar de `400`, y se lee como «no hay ninguna» | `CA-SP-643`. Es la asimetría deliberada con `brokerId`, razonada en la spec §6.1 |
 
 ## 10. Estrategia de prueba

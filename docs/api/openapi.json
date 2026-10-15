@@ -12570,7 +12570,7 @@
                 }
               }
             },
-            "description" : "Página de cuentas, ordenada por titular, broker e identificador de cuenta, **con su resumen**. Vacía —y el resumen en ceros— si ningún registro cumple el filtro."
+            "description" : "Página de cuentas, la más reciente primero, **con su resumen**. Vacía —y el resumen en ceros— si ningún registro cumple el filtro."
           },
           "400" : {
             "content" : {
@@ -26836,7 +26836,7 @@
     },
     "/api/v1/users/me/broker-accounts" : {
       "get" : {
-        "description" : "**Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las cuentas de broker del actor**: broker, identificador\nde cuenta, nombre de usuario en el broker y estado, ordenadas por\nnombre de broker e identificador de cuenta. Es la misma respuesta que\n`GET /api/v1/users/{id}/broker-accounts`.\n\n**No hay identificador en la ruta**: la persona sale del token, y por\neso no hay `404`. Solo salen las suyas: ni las de su equipo\n(`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.\n\n**Una persona sin cuentas recibe `200` con la colección vacía.**\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**.\n\n**No se pagina**: una persona tiene unas pocas cuentas.\n",
+        "description" : "**Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).\n\nDevuelve **las cuentas de broker del actor**: broker, identificador\nde cuenta, nombre de usuario en el broker y estado, la más reciente\nprimero. Es la misma respuesta que\n`GET /api/v1/users/{id}/broker-accounts`.\n\n**No hay identificador en la ruta**: la persona sale del token, y por\neso no hay `404`. Solo salen las suyas: ni las de su equipo\n(`GET /api/v1/users/me/team/broker-accounts`) ni las de nadie más.\n\n**Una persona sin cuentas recibe `200` con la colección vacía.**\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**.\n\n**No se pagina**: una persona tiene unas pocas cuentas.\n",
         "operationId" : "misCuentasDeBroker",
         "responses" : {
           "200" : {
@@ -26847,7 +26847,7 @@
                 }
               }
             },
-            "description" : "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna."
+            "description" : "Las cuentas del actor, la más reciente primero. Vacía si no declaró ninguna."
           },
           "401" : {
             "description" : "Token ausente o inválido (`AUTH-001`)"
@@ -27279,7 +27279,7 @@
                 }
               }
             },
-            "description" : "Página de cuentas originadas por la red, ordenada por titular, broker y número, con su resumen. Vacía si no hay ninguna."
+            "description" : "Página de cuentas originadas por la red, la más reciente primero, con su resumen. Vacía si no hay ninguna."
           },
           "400" : {
             "description" : "`status` desconocido o `from` posterior a `to` (`VAL-001`), identificador malformado o paginación fuera de límites (`VAL-003`)"
@@ -27376,7 +27376,7 @@
                 }
               }
             },
-            "description" : "Página de cuentas del equipo directo, ordenada por titular, broker e identificador de cuenta. Vacía si el actor no tiene equipo."
+            "description" : "Página de cuentas del equipo directo, la más reciente primero. Vacía si el actor no tiene equipo."
           },
           "400" : {
             "description" : "`status` fuera de `REGISTER`/`FIRST_DEPOSIT` (`VAL-001`), `brokerId` malformado o paginación fuera de límites (`VAL-003`)"
@@ -27499,7 +27499,7 @@
     },
     "/api/v1/users/{id}/broker-accounts" : {
       "get" : {
-        "description" : "**Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las cuentas de broker de esa persona: **broker, identificador\nde cuenta, nombre de usuario en el broker y estado**, ordenadas por\nnombre de broker e identificador de cuenta.\n\n**Quién puede consultarlas** (`RN-SP-046`): **su superior comercial\nvigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**\nsobre cualquiera. Es la primera lectura del sistema cuyo alcance sale\nde la estructura comercial, y **solo alcanza a esta**.\n\n**Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es\ndeliberado: el mismo `404` que si la persona no existiera. Un `403`\ndejaría a cualquier vendedor recorrer identificadores y averiguar\ncuáles corresponden a personas reales. Los dos cuerpos son idénticos.\n\n**Quien FUE su superior y ya no lo es recibe `404`**: el historial de\nla estructura no concede lectura.\n\n**El titular NO ve aquí sus propias cuentas** salvo que traiga el\npermiso: esta lectura se definió sobre el equipo. Las suyas están en\n`GET /api/v1/users/me/broker-accounts`.\n\n**Una persona sin cuentas devuelve `200` con la colección vacía**, no\n`404`: solo el registro por un enlace de beca obliga a declararlas.\n\n**Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve\nuna cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no\nexiste.\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**: su nulo significa «aún no\nconfirmado», no «sin nombre».\n\n**No se pagina**: una persona tiene unas pocas cuentas. El listado\npaginado es `GET /api/v1/users/me/team/broker-accounts`.\n",
+        "description" : "**Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).\n\nDevuelve las cuentas de broker de esa persona: **broker, identificador\nde cuenta, nombre de usuario en el broker y estado**, la más reciente\nprimero.\n\n**Quién puede consultarlas** (`RN-SP-046`): **su superior comercial\nvigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**\nsobre cualquiera. Es la primera lectura del sistema cuyo alcance sale\nde la estructura comercial, y **solo alcanza a esta**.\n\n**Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es\ndeliberado: el mismo `404` que si la persona no existiera. Un `403`\ndejaría a cualquier vendedor recorrer identificadores y averiguar\ncuáles corresponden a personas reales. Los dos cuerpos son idénticos.\n\n**Quien FUE su superior y ya no lo es recibe `404`**: el historial de\nla estructura no concede lectura.\n\n**El titular NO ve aquí sus propias cuentas** salvo que traiga el\npermiso: esta lectura se definió sobre el equipo. Las suyas están en\n`GET /api/v1/users/me/broker-accounts`.\n\n**Una persona sin cuentas devuelve `200` con la colección vacía**, no\n`404`: solo el registro por un enlace de beca obliga a declararlas.\n\n**Hoy el estado es siempre `REGISTER`**, y no es un fallo: quien mueve\nuna cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no\nexiste.\n\n**`brokerUsername` llega en nulo** mientras el broker no lo haya\nconfirmado, y el campo **está presente**: su nulo significa «aún no\nconfirmado», no «sin nombre».\n\n**No se pagina**: una persona tiene unas pocas cuentas. El listado\npaginado es `GET /api/v1/users/me/team/broker-accounts`.\n",
         "operationId" : "cuentasDeBrokerDe",
         "parameters" : [ {
           "in" : "path",
@@ -27519,7 +27519,7 @@
                 }
               }
             },
-            "description" : "Las cuentas de la persona, ordenadas. Vacía si no declaró ninguna."
+            "description" : "Las cuentas de la persona, la más reciente primero. Vacía si no declaró ninguna."
           },
           "400" : {
             "description" : "Identificador malformado (`VAL-001`)"

@@ -87,7 +87,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 
 **La fila es idéntica a la del listado del equipo**, campo por campo y a propósito: las dos pantallas pintan lo mismo con **un solo componente**.
 
-**El orden lo fija el servidor**: por nombre de usuario del titular, luego por nombre de broker y luego por identificador de cuenta. Determinista hasta el último desempate, que es lo que impide que dos páginas seguidas repitan u omitan una fila.
+**El orden lo fija el servidor**: **la cuenta más reciente primero** —por fecha de registro, descendente— y, a igual fecha, por el identificador de la fila. Determinista hasta el último desempate, que es lo que impide que dos páginas seguidas repitan u omitan una fila. Vale también para `RF-SP-083`, que reutiliza esta consulta. *(Enmendado el 15-10-2026, a petición del responsable del proyecto: antes era por titular, broker e identificador de cuenta.)*
 
 ### 6.3 El resumen (10-09-2026)
 

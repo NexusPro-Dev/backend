@@ -65,7 +65,7 @@ Ninguna. **La persona sale del token**: no hay identificador en la ruta y no lo 
 
 ### 6.2 Salida
 
-La de `RF-SP-055` §6.2, con su orden —por nombre de broker y, dentro de él, por identificador de cuenta— y con `brokerUsername` **presente y nulo** mientras el broker no lo confirme.
+La de `RF-SP-055` §6.2, con su orden —**la más reciente primero**, desde el 15-10-2026— y con `brokerUsername` **presente y nulo** mientras el broker no lo confirme.
 
 ## 7. Precondiciones y postcondiciones
 
@@ -101,7 +101,7 @@ Ninguna: no hay entrada.
 
 | ID | Criterio |
 |---|---|
-| `CA-SP-909` | Con el permiso, la persona obtiene **sus** cuentas —broker, identificador de cuenta, nombre de usuario en el broker y estado—, ordenadas por nombre de broker e identificador de cuenta, y **ninguna de otra persona**, tampoco las de quien depende de ella |
+| `CA-SP-909` | Con el permiso, la persona obtiene **sus** cuentas —broker, identificador de cuenta, nombre de usuario en el broker y estado—, la más reciente primero, y **ninguna de otra persona**, tampoco las de quien depende de ella |
 | `CA-SP-910` | `brokerUsername` llega **en nulo** mientras el broker no lo haya confirmado, y el campo **está presente** |
 | `CA-SP-911` | Quien no declaró ninguna cuenta recibe `200` con la colección vacía |
 | `CA-SP-912` | Sin `broker-accounts:read-own` responde `403`; sin token, `401` |

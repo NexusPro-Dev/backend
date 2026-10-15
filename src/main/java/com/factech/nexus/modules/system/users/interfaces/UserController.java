@@ -1556,8 +1556,8 @@ public class UserController {
     @ApiResponse(
         responseCode = "200",
         description =
-            "Página de cuentas del equipo directo, ordenada por titular, broker e identificador"
-                + " de cuenta. Vacía si el actor no tiene equipo."),
+            "Página de cuentas del equipo directo, la más reciente primero. Vacía si el actor no"
+                + " tiene equipo."),
     @ApiResponse(
         responseCode = "400",
         description =
@@ -1640,8 +1640,8 @@ public class UserController {
     @ApiResponse(
         responseCode = "200",
         description =
-            "Página de cuentas originadas por la red, ordenada por titular, broker y número, con"
-                + " su resumen. Vacía si no hay ninguna."),
+            "Página de cuentas originadas por la red, la más reciente primero, con su resumen."
+                + " Vacía si no hay ninguna."),
     @ApiResponse(
         responseCode = "400",
         description =
@@ -1679,8 +1679,8 @@ public class UserController {
       description =
           """
           Devuelve **las cuentas de broker del actor**: broker, identificador
-          de cuenta, nombre de usuario en el broker y estado, ordenadas por
-          nombre de broker e identificador de cuenta. Es la misma respuesta que
+          de cuenta, nombre de usuario en el broker y estado, la más reciente
+          primero. Es la misma respuesta que
           `GET /api/v1/users/{id}/broker-accounts`.
 
           **No hay identificador en la ruta**: la persona sale del token, y por
@@ -1697,7 +1697,8 @@ public class UserController {
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
-        description = "Las cuentas del actor, ordenadas. Vacía si no declaró ninguna.",
+        description =
+            "Las cuentas del actor, la más reciente primero. Vacía si no declaró ninguna.",
         content = @Content(schema = @Schema(implementation = BrokerAccountsResponse.class))),
     @ApiResponse(
         responseCode = "401",
@@ -2069,8 +2070,8 @@ public class UserController {
       description =
           """
           Devuelve las cuentas de broker de esa persona: **broker, identificador
-          de cuenta, nombre de usuario en el broker y estado**, ordenadas por
-          nombre de broker e identificador de cuenta.
+          de cuenta, nombre de usuario en el broker y estado**, la más reciente
+          primero.
 
           **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
           vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
@@ -2106,7 +2107,8 @@ public class UserController {
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
-        description = "Las cuentas de la persona, ordenadas. Vacía si no declaró ninguna.",
+        description =
+            "Las cuentas de la persona, la más reciente primero. Vacía si no declaró ninguna.",
         content = @Content(schema = @Schema(implementation = BrokerAccountsResponse.class))),
     @ApiResponse(
         responseCode = "400",

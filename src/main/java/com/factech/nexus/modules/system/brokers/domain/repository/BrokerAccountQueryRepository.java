@@ -26,10 +26,11 @@ import java.util.UUID;
 public interface BrokerAccountQueryRepository {
 
   /**
-   * Las cuentas de una persona, ordenadas por nombre de broker e identificador de cuenta.
+   * Las cuentas de una persona, la más reciente primero.
    *
-   * <p><b>El orden es determinista hasta el último desempate</b>: una persona con dos cuentas en el
-   * mismo broker las vería bailar entre llamadas si el orden lo eligiera el motor.
+   * <p><b>El orden es determinista hasta el último desempate</b> —el identificador de la fila—: dos
+   * cuentas registradas en el mismo instante bailarían entre llamadas si el orden lo eligiera el
+   * motor.
    *
    * <p><b>No comprueba autorización ni existencia</b>: eso es del servicio. Aquí, una persona que
    * no existe y una que no declaró nada devuelven lo mismo —la lista vacía—, y distinguirlas es

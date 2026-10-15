@@ -81,7 +81,7 @@ Ver de una sola vez **quiénes de mi equipo ya depositaron y quiénes siguen esp
 
 **El total cuenta lo filtrado**, con el mismo criterio que `RF-SP-042` aplica a su filtro por roles.
 
-**El orden lo fija el servidor**: por nombre de usuario del titular, luego por nombre de broker y luego por identificador de cuenta. Es determinista hasta el último desempate a propósito: sin eso, dos páginas consecutivas podrían repetir u omitir una fila.
+**El orden lo fija el servidor**: **la cuenta más reciente primero** —por fecha de registro, descendente— y, a igual fecha, por el identificador de la fila. Es determinista hasta el último desempate a propósito: sin eso, dos páginas consecutivas podrían repetir u omitir una fila. *(Enmendado el 15-10-2026, a petición del responsable del proyecto: antes era por titular, broker e identificador de cuenta.)*
 
 ## 7. Precondiciones y postcondiciones
 

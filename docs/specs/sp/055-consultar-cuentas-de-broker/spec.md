@@ -75,7 +75,7 @@ Saber qué cuentas de broker declaró una persona, en cuál las tiene y **en qu�
 |---|---|
 | Cuentas | Identificador, **broker** —identificador y nombre—, **identificador de cuenta**, **nombre de usuario en el broker** —puede ser nulo— y **estado** |
 
-**El orden lo fija el servidor**: por nombre de broker y, dentro de él, por identificador de cuenta. Es determinista a propósito — una persona con dos cuentas en el mismo broker las vería bailar entre llamadas si el orden dependiera del motor.
+**El orden lo fija el servidor**: **la cuenta más reciente primero** —por fecha de registro, descendente— y, a igual fecha, por el identificador de la fila. Es determinista a propósito — dos cuentas registradas en el mismo instante bailarían entre llamadas si el orden dependiera del motor. *(Enmendado el 15-10-2026, a petición del responsable del proyecto: antes era por nombre de broker e identificador de cuenta.)*
 
 **`brokerUsername` viaja en nulo y el nulo significa algo** (`RN-SP-040`): «el broker todavía no lo ha confirmado». No se omite el campo ni se sustituye por una cadena vacía: las dos cosas borrarían la distinción entre «no confirmado» y «confirmado sin nombre».
 
