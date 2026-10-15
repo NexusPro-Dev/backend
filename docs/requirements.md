@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.366.0 |
+| Versión | 0.367.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -368,6 +368,7 @@ Implementa el Art. III.1. Se actualiza **como parte del cambio**, no después (A
 | `RF-IN-007` | Consultar el resumen de lotes de comisiones | `IN` | [`specs/in/007-resumen-de-lotes-de-comisiones/`](specs/in/007-resumen-de-lotes-de-comisiones/tasks.md) | Pendiente de crear | `develop` | **Nace el 07-10-2026** ([`requirements/in.md`](requirements/in.md) v0.14.0, `RN-IN-012`): por estado de los lotes de comisiones, cuántos y por cuánto; de administración, sin alcance y sin periodo. Tripleta del mismo día, `tasks.md` aprobadas. **Construido** el 07-10-2026: `V79`, `CommissionBatchFigures`, `GET /indicators/commissions/batches/summary`; `CommissionBatchesSummaryIT` en verde | **En desarrollo** |
 | `RF-IN-008` | Consultar el resumen de mis comisiones | `IN` | [`specs/in/008-resumen-de-mis-comisiones/`](specs/in/008-resumen-de-mis-comisiones/tasks.md) | Pendiente de crear | `develop` | **Nace el 07-10-2026** ([`requirements/in.md`](requirements/in.md) v0.18.0, `RN-IN-013`): de mis comisiones, cuántas y cuánto por estado del lote y en total; solo lo propio, el estado de hoy con fechas opcionales. Tripleta del mismo día, `tasks.md` aprobadas. **Construido** el 07-10-2026: `V83`, `CommissionBatchFigures.commissionsByStatus`, `GET /indicators/commissions/mine/summary`; `OwnCommissionsSummaryIT` en verde | **En desarrollo** |
 | `RF-IN-009` | Consultar los indicadores de cuentas de broker de la red | `IN` | [`specs/in/009-indicadores-de-cuentas-de-broker/`](specs/in/009-indicadores-de-cuentas-de-broker/tasks.md) | Pendiente de crear | `develop` | **Nace el 10-10-2026** ([`requirements/in.md`](requirements/in.md) v0.21.0, `RN-IN-015`): sustituye a `RF-SP-058`, atribuido por el `afftrack`, con FTD por su fecha, operaciones, cuentas sin titular y desglose por broker; `V101` | **En desarrollo** |
+| `RF-IN-010` | Consultar el resumen de cuentas de broker y de mi personal | `IN` | [`specs/in/010-resumen-de-cuentas-de-broker/`](specs/in/010-resumen-de-cuentas-de-broker/tasks.md) | Pendiente de crear | `develop` | **Nace el 15-10-2026** ([`requirements/in.md`](requirements/in.md) v0.22.0): totales de cuentas de consumidor —registros, FTD, sin titular, sin vendedor, y de hoy— y el personal por rol con lo que originó cada uno; `V115` | **En desarrollo** |
 
 
 **Estados**, que reflejan las tres compuertas del Art. I.6:
@@ -845,3 +846,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.364.0 | 15-10-2026 | **La cuenta de broker de vendedor puede no tener número, y la consulta administrativa de cuentas trae solo las de consumidor** ([`requirements/sp.md`](requirements/sp.md) v1.130.0, `RN-SP-078` nueva, `RF-SP-053` y `RF-SP-057` enmendados, `V114`), a petición del responsable del proyecto. | Responsable del proyecto |
 | 0.365.0 | 15-10-2026 | **El registro por enlace se asocia cualquier cuenta de broker sin titular** ([`requirements/sp.md`](requirements/sp.md) v1.131.0, `RN-SP-072` enmendada): la usa en lugar de dar `409`, y su origen pasa al vendedor del enlace. Tripleta de `RF-SP-053` v0.4.0 (`CA-SP-1035`). | Responsable del proyecto |
 | 0.366.0 | 15-10-2026 | **La beca del primer depósito** ([`requirements/sp.md`](requirements/sp.md) v1.132.0, `RN-SP-079`; [`requirements/mv.md`](requirements/mv.md) v0.100.0, `RN-MV-079`): la cuenta asociada desde la plataforma registra, al llegar a `FIRST_DEPOSIT`, la venta `BECA → BECA` confirmada y entregada, con el vendedor de origen o sin él. Tripleta de `RF-SP-078` v0.8.0 (`CA-SP-1036` a `CA-SP-1043`). | Responsable del proyecto |
+| 0.367.0 | 15-10-2026 | **Nace `RF-IN-010`, el resumen de cuentas de broker y de mi personal** ([`requirements/in.md`](requirements/in.md) v0.22.0; [`security.md`](security.md) v0.142.0; `V115`), a petición del responsable del proyecto. | Responsable del proyecto |

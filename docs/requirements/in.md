@@ -5,7 +5,7 @@
 | Módulo | `IN` — Indicadores |
 | Paquete | `modules/indicators` |
 | Prefijo de permisos | `indicators:` |
-| Versión | 0.21.0 |
+| Versión | 0.22.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 06-10-2026 |
@@ -191,6 +191,7 @@ La migración que los siembre los da **por tipo de rol**, como los demás permis
 | `RF-IN-007` | Consultar el resumen de lotes de comisiones | Comisiones | Alta | `indicators:read-commission-batches-summary` | **En desarrollo** (07-10-2026) |
 | `RF-IN-008` | Consultar el resumen de mis comisiones | Comisiones | Alta | `indicators:read-own-commissions-summary` | **En desarrollo** (07-10-2026) |
 | `RF-IN-009` | Consultar los indicadores de cuentas de broker de la red | Cuentas de broker | **Crítica** | `indicators:read-broker-accounts-network` | **En desarrollo** (10-10-2026) |
+| `RF-IN-010` | Consultar el resumen de cuentas de broker y de mi personal | Cuentas de broker | Alta | `indicators:read-broker-accounts-summary` | **En desarrollo** (15-10-2026) |
 
 **Prioridades:** Crítica · Alta · Media · Baja.
 **Estados:** los de [`requirements.md` §4](../requirements.md#4-matriz-de-trazabilidad).
@@ -338,6 +339,23 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 
 ---
 
+#### `RF-IN-010` — Consultar el resumen de cuentas de broker y de mi personal
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Ver **cuántas cuentas de broker hay y cuántas depositaron**, en total y hoy, y **cuánto lleva cada persona de mi personal**, agrupada por rol |
+| Actor | Administración, **todo**; un vendedor, **lo de su red** (`RN-IN-002`) |
+| Permiso requerido | `indicators:read-broker-accounts-summary` (a `FUNCIONARIO` y `VENDEDOR` por su tipo, como `V101`) |
+| Prioridad | Alta |
+| Reglas aplicables | `RN-IN-001`, `RN-IN-002`, `RN-IN-006`, `RN-IN-015`, `RN-SP-068`, `RN-SP-070` |
+| Depende de | `RF-IN-009` —el mismo puerto, `BrokerAccountFigures`— |
+| Tripleta | [`docs/specs/in/010-resumen-de-cuentas-de-broker/`](../specs/in/010-resumen-de-cuentas-de-broker/spec.md) |
+| Estado | **En desarrollo** (15-10-2026) |
+
+**Nace a petición del responsable del proyecto** (15-10-2026): «1. Registros, FTDs, Registros sin usuarios, registros sin agentes, Registros de hoy (registros y ftd [a estos se les trae por la fecha de depósito]) 2. Listado de mi personal clasificado por roles, con total registros - total ftds - Registros hoy y FTDS hoy». `GET /api/v1/indicators/broker-accounts/summary`, sin parámetros: **los totales** —cuentas `CONSUMIDOR`, FTD, sin titular, sin vendedor de origen, creadas hoy y con primer depósito llegado hoy— y **el personal agrupado por rol**, de la cúspide hacia abajo, con las mismas cuatro cifras por persona. **Decisiones del mismo día**: el alcance es el de `RF-IN-009`; **cada persona cuenta lo que originó ella** por su `afftrack` (`RN-IN-015`), no lo de su red; **«sin agentes» es sin vendedor de origen** —lo no atribuido de `RF-IN-009`, y solo con el alcance entero—; **el registro se fecha por su creación en la plataforma** y **el FTD por la llegada del primer depósito**. «Hoy» es el día del calendario del negocio.
+
+---
+
 ## 7. Requerimientos no funcionales
 
 | ID | Requerimiento | Detalle en |
@@ -370,6 +388,7 @@ Lo **confirmado** en el periodo agrupado por **el vendedor de la línea**, de m�
 | `GET` | `/api/v1/indicators/commissions/batches/summary` | `RF-IN-007` | `indicators:read-commission-batches-summary` |
 | `GET` | `/api/v1/indicators/commissions/mine/summary` | `RF-IN-008` | `indicators:read-own-commissions-summary` |
 | `GET` | `/api/v1/indicators/broker-accounts/network` | `RF-IN-009` | `indicators:read-broker-accounts-network` |
+| `GET` | `/api/v1/indicators/broker-accounts/summary` | `RF-IN-010` | `indicators:read-broker-accounts-summary` |
 
 El contrato detallado de cada endpoint —parámetros, valores por defecto del periodo, topes— se define en el `plan.md` de su tripleta.
 
@@ -406,3 +425,4 @@ El contrato detallado de cada endpoint —parámetros, valores por defecto del p
 | 0.19.0 | 07-10-2026 | **`RF-IN-008` se filtra por cliente** (`spec.md` 0.2.0, `CA-IN-097`), a petición del responsable del proyecto, igual que `RF-CM-026` 0.2.0: solo las comisiones de ventas a nombre de esa persona. Sin migración ni permisos. | Responsable técnico |
 | 0.20.0 | 09-10-2026 | **Los indicadores de ventas se filtran por oficina** (`RN-IN-014` nueva; enmiendas a `RF-IN-001`, `RF-IN-002` y `RF-IN-006`), a petición del responsable del proyecto: `teamId` cuenta las líneas cuya oficina guardada es esa —el equipo del director del vendedor el día de la venta, `RN-MV-078` de [`requirements/mv.md`](mv.md) v0.97.0—, de modo que un traslado no mueve las cifras. Es filtro, no alcance. `SalesFigures.LineFilter` y el filtro del resumen y de la serie ganan la oficina. Sin migración propia ni permisos. | Responsable del proyecto |
 | 0.21.0 | 10-10-2026 | **Nace la cuarta tanda, cuentas de broker: `RF-IN-009`**, a petición del responsable del proyecto, que **muda aquí `RF-SP-058`** —se retira con su ruta y `broker-accounts:read-indicators`— y lo pone al día con las cuentas de broker de octubre: **atribución por el `afftrack`** y no por el principal del titular, **cuentas sin titular**, **FTD por la fecha de su primer depósito**, **operaciones** y **desglose por broker**. Nace **`RN-IN-015`**, con las cinco respuestas del responsable: a `IN`, por el `afftrack`, cada cifra por su fecha, administración el árbol y cada vendedor su rama, tramos solo en los totales. `SP` publica `BrokerAccountFigures`. Permiso `indicators:read-broker-accounts-network`, por tipo de rol, sembrado por `V101`. | Responsable del proyecto |
+| 0.22.0 | 15-10-2026 | **Nace `RF-IN-010`, el resumen de cuentas de broker y de mi personal**, a petición del responsable del proyecto: totales —registros, FTD, sin titular, sin vendedor de origen, y registros y FTD de hoy— y el personal por rol con sus cuatro cifras. Cada persona cuenta lo que originó ella (`RN-IN-015`); el alcance, `RN-IN-002`. Permiso `indicators:read-broker-accounts-summary` por `V115`. Criterios `CA-IN-111` a `CA-IN-115`. | Responsable del proyecto |

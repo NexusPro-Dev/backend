@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.141.0 |
+| Versión | 0.142.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -472,6 +472,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **El mismo día, `V108` siembra seis de otro recurso nuevo**, las señales de trading (`RN-AC-035`, `RF-AC-067` a `RF-AC-072`): **`signals:list`**, **`:create`**, **`:create-batch`**, **`:import`** y **`:delete`** a `SUPERADMIN` y `ADMIN` explícitos, y **`signals:view`** —las vigentes de quien mira— **donde está `live-sessions:learn`**. Catálogo **250**, `ADMIN` 248.
 
 **El 15-10-2026, `V112` siembra `brokers:update`** (`RF-SP-084`, `RN-SP-039` enmendada): editar el enlace y el modelo de un broker del catálogo, a `SUPERADMIN` y `ADMIN` explícitos. Es la primera escritura del recurso `brokers`, que hasta hoy solo se consultaba. Catálogo **251**, `ADMIN` 249.
+
+**El mismo día, `V115` siembra `indicators:read-broker-accounts-summary`** —el resumen de cuentas de broker y del personal por rol, `GET /api/v1/indicators/broker-accounts/summary` (`RF-IN-010`)—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como `V101`: el alcance lo pone `RN-IN-002`.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1150,3 +1152,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.139.0 | 14-10-2026 | **`V107`**: nacen `live-session-categories:list`, `create`, `update` y `delete` (`RF-AC-063` a `RF-AC-066`); las escrituras a `SUPERADMIN` y `ADMIN`, el listado también donde está `courses:teach` o `live-sessions:learn`. Catálogo **244**, `ADMIN` 242. | Responsable técnico |
 | 0.140.0 | 14-10-2026 | **`V108`**: nacen `signals:list`, `create`, `create-batch`, `import`, `delete` y `view` (`RF-AC-067` a `RF-AC-072`); las cinco de administración a `SUPERADMIN` y `ADMIN`, `view` donde está `live-sessions:learn`. Catálogo **250**, `ADMIN` 248. | Responsable técnico |
 | 0.141.0 | 15-10-2026 | **`V112`**: nace `brokers:update` (`RF-SP-084`) a `SUPERADMIN` y `ADMIN`. Catálogo 251, `ADMIN` 249. | Responsable técnico |
+| 0.142.0 | 15-10-2026 | **`V115`**: nace `indicators:read-broker-accounts-summary` (`RF-IN-010`) a `FUNCIONARIO` y `VENDEDOR` por su tipo. Catálogo 252. | Responsable técnico |

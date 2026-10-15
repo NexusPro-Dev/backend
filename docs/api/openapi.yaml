@@ -15505,6 +15505,51 @@ paths:
         "500":
           description: Fallo no controlado (`ERR-500`)
       x-required-permission: indicators:read-commission-batches-summary
+  /api/v1/indicators/broker-accounts/summary:
+    get:
+      tags:
+      - Indicadores
+      summary: Consultar el resumen de cuentas de broker y de mi personal
+      description: |
+        **Permiso requerido:** `indicators:read-broker-accounts-summary`. Sin él, `403` (`AUTH-002`).
+
+        **Las tarjetas y el listado del personal** (`RF-IN-010`). Solo
+        cuentan las cuentas `CONSUMIDOR`. Sin parámetros.
+
+        **`totals`**:
+
+        - `accounts` — todas; `ftd`, las que están en `FIRST_DEPOSIT`.
+        - `withoutHolder` — las que no tienen titular.
+        - `withoutSeller` — las sin vendedor de origen, o con un origen que no
+          es fuerza comercial. **Nulo** si quien pregunta no es
+          administración.
+        - `accountsToday` — **creadas** hoy; `ftdToday`, las de **primer
+          depósito llegado** hoy, aunque la cuenta sea de otro día.
+
+        **`staff`** — un grupo por rol, **de la cúspide hacia abajo**, con
+        sus personas por usuario. **Cada persona cuenta lo que originó ella**
+        por su `afftrack` (`RN-IN-015`), no lo de su red: la columna se
+        puede sumar. Las personas sin nada salen en cero.
+
+        **Alcance** (`RN-IN-002`): administración, todas las cuentas y toda
+        la fuerza comercial; un vendedor, lo originado por él y su red, y
+        esas personas —él incluido—. **Hoy** es el día del calendario del
+        negocio, `today`.
+      operationId: resumen_2
+      responses:
+        "200":
+          description: Los totales y el personal por rol.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/BrokerAccountsSummaryResponse"
+        "401":
+          description: Token ausente o inválido (`AUTH-001`)
+        "403":
+          description: Autenticado sin `indicators:read-broker-accounts-summary` (`AUTH-002`)
+        "500":
+          description: Fallo no controlado (`ERR-500`)
+      x-required-permission: indicators:read-broker-accounts-summary
   /api/v1/indicators/broker-accounts/network:
     get:
       tags:
@@ -24715,6 +24760,100 @@ components:
         total:
           $ref: "#/components/schemas/CommissionBatchesBlock"
           description: "Todos los lotes, sean cuales sean sus estados."
+    BrokerAccountsSummaryPerson:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/BrokerAccountsSummaryUser"
+        accounts:
+          type: integer
+          format: int64
+          description: Las que originó su afftrack.
+        ftd:
+          type: integer
+          format: int64
+        accountsToday:
+          type: integer
+          format: int64
+        ftdToday:
+          type: integer
+          format: int64
+    BrokerAccountsSummaryResponse:
+      type: object
+      properties:
+        today:
+          type: string
+          format: date
+          description: El día del calendario del negocio que se tomó como hoy.
+        totals:
+          $ref: "#/components/schemas/BrokerAccountsSummaryTotals"
+        staff:
+          type: array
+          description: "El personal del alcance, un grupo por rol de la cúspide hacia\
+            \ abajo."
+          items:
+            $ref: "#/components/schemas/BrokerAccountsSummaryRoleGroup"
+    BrokerAccountsSummaryRoleGroup:
+      type: object
+      properties:
+        roleCode:
+          type: string
+        accounts:
+          type: integer
+          format: int64
+        ftd:
+          type: integer
+          format: int64
+        accountsToday:
+          type: integer
+          format: int64
+        ftdToday:
+          type: integer
+          format: int64
+        people:
+          type: array
+          items:
+            $ref: "#/components/schemas/BrokerAccountsSummaryPerson"
+    BrokerAccountsSummaryTotals:
+      type: object
+      properties:
+        accounts:
+          type: integer
+          format: int64
+          description: Todas las cuentas de consumidor.
+        ftd:
+          type: integer
+          format: int64
+          description: Las que están en FIRST_DEPOSIT.
+        withoutHolder:
+          type: integer
+          format: int64
+          description: Las que no tienen titular.
+        withoutSeller:
+          type: integer
+          format: int64
+          description: "Las sin vendedor de origen, o con origen fuera de la fuerza\
+            \ comercial. Solo con el alcance entero; nulo en otro caso."
+        accountsToday:
+          type: integer
+          format: int64
+          description: Las creadas hoy.
+        ftdToday:
+          type: integer
+          format: int64
+          description: Las de primer depósito llegado hoy.
+    BrokerAccountsSummaryUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
     BrokerNetworkBroker:
       type: object
       properties:

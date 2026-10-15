@@ -61,10 +61,10 @@ class SignalsIT extends IntegrationTestBase {
   @Test
   @DisplayName(
       "`CA-AC-339` — V108: seis permisos; los cinco de administración solo a SUPERADMIN y ADMIN;"
-          + " signals:view donde está live-sessions:learn; catálogo de 250 (251 desde V112)")
+          + " signals:view donde está live-sessions:learn; catálogo de 250 (251 desde V112, 252 desde V115)")
   void permisos() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(251);
+        .isEqualTo(252);
     assertThat(
             jdbc.queryForList(
                 "SELECT code FROM permissions WHERE code LIKE 'signals:%' ORDER BY code",

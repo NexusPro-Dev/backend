@@ -422,6 +422,9 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "GET /api/v1/indicators/broker-accounts/network",
               "indicators:read-broker-accounts-network"),
+          Map.entry(
+              "GET /api/v1/indicators/broker-accounts/summary",
+              "indicators:read-broker-accounts-summary"),
           Map.entry("GET /api/v1/indicators/sales/series", "indicators:read-sales-series"),
           Map.entry("GET /api/v1/indicators/points/summary", "indicators:read-points-summary"),
           Map.entry(
