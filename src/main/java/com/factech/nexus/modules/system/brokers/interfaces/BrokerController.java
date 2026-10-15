@@ -44,6 +44,9 @@ public class BrokerController {
           dirección del broker a la que se manda a la persona para abrir su
           cuenta. **Es nulo mientras no se haya cargado.**
 
+          **Y su modelo** (`model`, 15-10-2026): texto libre, también nulo
+          mientras no se haya cargado.
+
           **Un broker se identifica de momento por su nombre**, y eso tiene una
           consecuencia que conviene conocer antes de integrarse: **el nombre es la
           clave de negocio**, no un texto descriptivo. No hay un `code` estable

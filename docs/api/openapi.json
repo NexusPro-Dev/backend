@@ -708,6 +708,9 @@
           "isActive" : {
             "type" : "boolean"
           },
+          "model" : {
+            "type" : "string"
+          },
           "name" : {
             "type" : "string"
           },
@@ -12745,7 +12748,7 @@
     },
     "/api/v1/brokers" : {
       "get" : {
-        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Cada broker trae su enlace de registro** (`url`, 09-10-2026): la\ndirección del broker a la que se manda a la persona para abrir su\ncuenta. **Es nulo mientras no se haya cargado.**\n\n**Un broker se identifica de momento por su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
+        "description" : "**Permiso requerido:** ninguno. Ruta pública: responde sin token.\n\nDevuelve los brokers con los que opera la plataforma, **ordenados por\nnombre**.\n\n**Cada broker trae su enlace de registro** (`url`, 09-10-2026): la\ndirección del broker a la que se manda a la persona para abrir su\ncuenta. **Es nulo mientras no se haya cargado.**\n\n**Y su modelo** (`model`, 15-10-2026): texto libre, también nulo\nmientras no se haya cargado.\n\n**Un broker se identifica de momento por su nombre**, y eso tiene una\nconsecuencia que conviene conocer antes de integrarse: **el nombre es la\nclave de negocio**, no un texto descriptivo. No hay un `code` estable\nfrente a un cambio de nombre comercial — quien necesite referenciar un\nbroker debe hacerlo por su **identificador**.\n\n**No se administra por API** (`RN-SP-039`): no hay alta, ni edición, ni\neliminación, ni cambio de estado. Se puebla por migración, igual que los\ncatálogos de monedas y de tipos de documento, y cada alta queda en el\nhistorial del repositorio en lugar de en una fila que alguien insertó.\n\n**Puede responder la colección vacía**, y eso no es un fallo: es el\nestado de un catálogo que todavía no se ha sembrado.\n\n**No se pagina**: son unos pocos elementos y partirlos obligaría a dos\nllamadas para pintar un desplegable.\n",
         "operationId" : "listar_17",
         "parameters" : [ {
           "in" : "query",

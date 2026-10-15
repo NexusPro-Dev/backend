@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.125.0 |
+| Versión | 1.126.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -1009,7 +1009,7 @@ Listado de tipos de documento, con su **nombre** y su **abreviación**. Se puebl
 | Tripleta | `docs/specs/sp/052-consultar-brokers/` |
 | Estado | **Tasks en revisión** (08-09-2026) |
 
-Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlace de registro** (`url`): la dirección del broker a la que se manda a la persona para abrir su cuenta. Nulo mientras no se cargue. Se puebla por migración y no se administra por API (`RN-SP-039`), igual que los catálogos de monedas y de tipos de documento.
+Listado de brokers **activos**, con su nombre y, desde el 09-10-2026, **su enlace de registro** (`url`): la dirección del broker a la que se manda a la persona para abrir su cuenta. Nulo mientras no se cargue. Desde el 15-10-2026 trae también **su modelo** (`model`), texto libre, nulo mientras no se cargue. Se puebla por migración y no se administra por API (`RN-SP-039`), igual que los catálogos de monedas y de tipos de documento.
 
 **De momento guarda solo el nombre**, por decisión del responsable del proyecto. No lleva código ni abreviación, y eso tiene una consecuencia que conviene tener escrita: **la clave de negocio es el nombre**, de modo que es él quien va con índice único y quien no puede repetirse. El día que un broker haga falta identificarlo por algo estable frente a un cambio de nombre comercial, se añade una columna `code` — y hasta entonces renombrar un broker es una migración, no una corrección.
 
@@ -2359,10 +2359,13 @@ Añadidos el 08-09-2026 (`RN-SP-035`, `RN-SP-037`), y `company_phone` el 10-09-2
 | `is_active` | `boolean` | No | No | No | `true` | — |
 | `created_at` | `timestamptz` | No | No | No | `now()` | — |
 | `url` | `varchar(500)` | No | No | **Sí** | — | — |
+| `model` | `varchar(120)` | No | No | **Sí** | — | — |
 | `advertiser` | `varchar(60)` | No | No | **Sí** | — | — |
 | `updated_at` | `timestamptz` | No | No | No | `now()` | — |
 
 **`url` es el enlace de registro del broker** (`RF-SP-052`, 09-10-2026): a dónde se manda a la persona para abrir su cuenta. Nulo es «todavía no se cargó»; con valor, empieza por `http://` o `https://` (`ck_brokers_url`). Se publica en el catálogo.
+
+**`model` es el modelo del broker** (`RF-SP-052`, 15-10-2026): texto libre, sin lista cerrada, por decisión del responsable del proyecto. Nulo es «todavía no se cargó»: no se inventa. Se publica en el catálogo (`CA-SP-1019`).
 
 **`advertiser` es cómo se nombra el broker en sus propios avisos** (`RN-SP-069`, 09-10-2026): `iq_option` para `IQOPTION`. Único sin distinguir mayúsculas (`uq_brokers_advertiser`), porque un aviso tiene que llevar a **un** broker. Nulo es «no se sabe todavía»: sus avisos se guardan sin broker y se le asocian cuando se cargue (`RN-SP-076`). **No se publica**: es un detalle de la integración.
 
@@ -2695,3 +2698,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.123.0 | 13-10-2026 | **Los avisos de los brokers, por una sola dirección y sin perder ninguno**, a petición del responsable del proyecto: «solo la ruta broker/notification, para capturar todas las notificaciones y desde ahí clasificarlas por el advertiser». Nace **`RN-SP-076`**: un aviso con el secreto correcto **se guarda siempre**; si su `advertiser` no es el de ningún broker activo, **sin broker y sin interpretar**, y **cuando una migración carga ese `advertiser`, el arranque se lo asocia y lo interpreta** en orden de llegada. **Se retira la ruta `/api/v1/brokers/{name}/notifications`** con sus tres secretos: `RN-SP-066` pasa a un solo secreto y `RN-SP-069` deja de rechazar (`404`). §10.25: `broker_id` admite nulo y nace `advertiser` (`V103`); §10.17 y §9 al día. Tripleta de `RF-SP-078` v0.6.0. | Responsable del proyecto |
 | 1.124.0 | 15-10-2026 | **Las cuentas de broker, la más reciente primero**, a petición del responsable del proyecto. Los cuatro listados —las de una persona (`RF-SP-055`), las mías (`RF-SP-079`), las del equipo (`RF-SP-056`) y todas (`RF-SP-057`, y con él las de mi red, `RF-SP-083`)— se ordenan por fecha de registro descendente, con el identificador de la fila como desempate único; antes iban por titular, broker e identificador de cuenta. Sin cambio de forma ni de permisos; el desglose `byBroker` sigue por nombre de broker. Specs de 055, 056, 057 y 079 enmendadas. | Responsable del proyecto |
 | 1.125.0 | 15-10-2026 | **La consulta administrativa de cuentas de broker filtra por vendedor de origen**, a petición del responsable del proyecto, que separó las dos consultas: **según la red** —`RF-SP-083`, «Mis FTD's» en el frontend, `broker-accounts:read-own-referred`— y **administrativa** —`RF-SP-057`, `broker-accounts:read`—, cada una con su permiso, como ya estaban. La administrativa filtra por estado, broker, número o usuario de broker (`search`, sin cambios), titular (`userId`, y `hasHolder=false` para las sin titular), fechas de declaración, y ahora **vendedor de origen**: `sellerId` y `hasReferrer` (`false` = sin vendedor de origen). Sin migración ni permiso nuevo. Tripleta de `RF-SP-057` v0.6.0. | Responsable del proyecto |
+| 1.126.0 | 15-10-2026 | **El catálogo de brokers gana el modelo**, a petición del responsable del proyecto («enlace y modelo»; el enlace es el `url` que ya existía). `brokers.model`, texto libre y nulo (`V111`), publicado en `RF-SP-052`; nace `CA-SP-1019`. Sin permiso nuevo: el catálogo sigue siendo público y se puebla por migración (`RN-SP-039`). | Responsable del proyecto |

@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.359.0 |
+| Versión | 0.360.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -837,3 +837,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.357.0 | 14-10-2026 | **`RF-AC-067` a `RF-AC-072` ganan la dirección de la señal** ([`requirements/ac.md`](requirements/ac.md) v0.31.0 §5.2.22, `RN-AC-035` enmendada; [`modelo-datos.md`](modelo-datos.md) v0.123.0): `direction` `UP` o `DOWN`, obligatoria al registrar, en el CSV y en las vigentes (`V109`). Sin requerimiento, ruta ni permiso nuevos; contadores sin cambio. | Responsable técnico |
 | 0.358.0 | 14-10-2026 | **`RF-AC-067` a `RF-AC-072`: la señal se ve el día en que se crea** ([`requirements/ac.md`](requirements/ac.md) v0.32.0 §5.2.23, `RN-AC-035` enmendada; [`modelo-datos.md`](modelo-datos.md) v0.124.0): `visibleUntil` es la medianoche de Bogotá del día de creación, aunque la hora ya haya pasado (`V110`). Contadores sin cambio. | Responsable técnico |
 | 0.359.0 | 15-10-2026 | **`RF-SP-057` filtra por vendedor de origen** ([`requirements/sp.md`](requirements/sp.md) v1.125.0): `sellerId` y `hasReferrer` en `GET /api/v1/broker-accounts`, separados del titular (`userId`, `hasHolder`). `RF-SP-083` es «Mis FTD's» en el frontend. Sin permiso nuevo. | Responsable del proyecto |
+| 0.360.0 | 15-10-2026 | **`RF-SP-052` publica el modelo del broker** ([`requirements/sp.md`](requirements/sp.md) v1.126.0): `model`, texto libre y nulo (`V111`). Sin permiso nuevo. | Responsable del proyecto |

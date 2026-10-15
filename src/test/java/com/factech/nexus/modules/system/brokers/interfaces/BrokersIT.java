@@ -117,6 +117,19 @@ class BrokersIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-1019` — cada broker trae su modelo, texto libre, nulo si no se cargó")
+  void elModelo() throws Exception {
+    jdbc.update("UPDATE brokers SET model = 'Opciones binarias' WHERE name = 'Exness'");
+
+    mvc.perform(get("/api/v1/brokers").with(lector()))
+        .andExpect(status().isOk())
+        .andExpect(
+            org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+                .string(org.hamcrest.Matchers.containsString("\"model\":null")))
+        .andExpect(jsonPath("$.content[1].model").value("Opciones binarias"));
+  }
+
+  @Test
   @DisplayName("`CA-SP-603` — los inactivos no aparecen salvo que se pidan, y entonces se AÑADEN")
   void inactivosBajoPeticion() throws Exception {
     mvc.perform(get("/api/v1/brokers").with(lector()))

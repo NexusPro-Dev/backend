@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.124.0 |
+| Versión | 0.125.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -379,6 +379,7 @@ erDiagram
         varchar name "120 · UK funcional sobre f_unaccent(lower(name)) · ES la clave de negocio"
         boolean is_active "default true · SOLO lo cambia una migracion · RN-SP-039"
         varchar url "500 · NULL · enlace de registro · RF-SP-052"
+        varchar model "120 · NULL · texto libre · RF-SP-052"
         varchar advertiser "60 · NULL · UK sin mayusculas · como se nombra en sus avisos · RN-SP-069"
         timestamptz created_at "now"
         timestamptz updated_at "now"
@@ -1279,3 +1280,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.122.0 | 14-10-2026 | **Las señales de trading** ([`requirements/ac.md`](requirements/ac.md) v0.30.0 §5.2.21, `RN-AC-035`, `V108`): nace **`signals`** (`currency_pair`, `signal_time`, `signal_type`, `subscription_type`, `visible_until`, `created_by`, `created_at`, `deleted_at`), sin `updated_at` porque no se corrige, y **`signal_memberships`**, las membresías de una `PERSONALIZED`. | Responsable técnico |
 | 0.123.0 | 14-10-2026 | **La dirección de la señal** ([`requirements/ac.md`](requirements/ac.md) v0.31.0 §5.2.22, `RN-AC-035` enmendada, `V109`): `signals` gana **`direction`** (`UP` o `DOWN`), vacía solo en una señal retirada (`ck_signals_direction`); las que existían se retiran al migrar. | Responsable técnico |
 | 0.124.0 | 14-10-2026 | **La señal se ve el día en que se crea** ([`requirements/ac.md`](requirements/ac.md) v0.32.0 §5.2.23, `RN-AC-035` enmendada, `V110`): `signals.visible_until` pasa a ser la medianoche de Bogotá que cierra el día de `created_at`; `V110` la recalcula en las existentes. | Responsable técnico |
+| 0.125.0 | 15-10-2026 | **El modelo del broker** ([`requirements/sp.md`](requirements/sp.md) v1.126.0, `RF-SP-052`, `V111`): `brokers` gana **`model`**, `varchar(120)` nulo, texto libre; lo publica el catálogo. | Responsable del proyecto |

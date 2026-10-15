@@ -16,4 +16,6 @@ public record BrokerItem(
     String name,
     boolean isActive,
     // Nulo y presente: «todavía no se cargó» (`RF-SP-052`, 09-10-2026).
-    String url) {}
+    String url,
+    // Texto libre; nulo y presente igual que `url` (15-10-2026).
+    String model) {}
