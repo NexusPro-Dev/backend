@@ -119,26 +119,59 @@ class UserBrokerAccountSchemaIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`RN-SP-040` — el nombre de usuario en el broker nace NULO, y eso significa algo")
-  void elNombreDeUsuarioLlegaDespues() {
+  @DisplayName("`RN-SP-040` retirada — el nombre de usuario en el broker ya no existe (`V113`)")
+  void elNombreDeUsuarioSeRetiro() {
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM information_schema.columns"
+                    + " WHERE table_name = 'user_brokers' AND column_name = 'broker_username'",
+                Integer.class))
+        .isZero();
+  }
+
+  @Test
+  @DisplayName("`RN-SP-077` — lo que traen los avisos: nace vacío y el total en cero")
+  void loQueTraenLosAvisosNaceVacio() {
     vincular(ana, broker, "12345");
 
-    // Nulo = «el broker todavía no lo ha confirmado». Lo rellenará el webhook
-    // de `RF-SP-054`. Con la columna obligatoria habría que inventar un valor
-    // en el alta, y el inventado sobreviviría a la confirmación.
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT broker_username FROM user_brokers WHERE external_id = '12345'",
-                String.class))
-        .isNull();
+    var fila =
+        jdbc.queryForMap(
+            "SELECT registered_at, country_code, first_deposit_amount, deposits_total,"
+                + " deposit_currency FROM user_brokers WHERE external_id = '12345'");
+    assertThat(fila.get("registered_at")).isNull();
+    assertThat(fila.get("country_code")).isNull();
+    assertThat(fila.get("first_deposit_amount")).isNull();
+    assertThat(((Number) fila.get("deposits_total")).longValue()).isZero();
+    assertThat(fila.get("deposit_currency")).isNull();
+  }
 
-    jdbc.update("UPDATE user_brokers SET broker_username = 'ana.ruiz' WHERE external_id = '12345'");
+  @Test
+  @DisplayName("`RN-SP-077` — país y moneda en mayúsculas, y el primer depósito solo con su fecha")
+  void lasReglasDeLoQueTraenLosAvisos() {
+    vincular(ana, broker, "12345");
+    String cuenta = "UPDATE user_brokers SET %s WHERE external_id = '12345'";
 
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT broker_username FROM user_brokers WHERE external_id = '12345'",
-                String.class))
-        .isEqualTo("ana.ruiz");
+    assertThatThrownBy(() -> jdbc.update(cuenta.formatted("country_code = 'co'")))
+        .hasMessageContaining("ck_user_brokers_pais");
+    assertThatThrownBy(() -> jdbc.update(cuenta.formatted("deposit_currency = 'US'")))
+        .hasMessageContaining("ck_user_brokers_moneda");
+    // El primero sin el momento del depósito: no hubo depósito.
+    assertThatThrownBy(() -> jdbc.update(cuenta.formatted("first_deposit_amount = 1000")))
+        .hasMessageContaining("ck_user_brokers_primer_deposito");
+    // El total no puede ser menor que el primero.
+    assertThatThrownBy(
+            () ->
+                jdbc.update(
+                    cuenta.formatted(
+                        "status = 'FIRST_DEPOSIT', first_deposit_at = now(),"
+                            + " first_deposit_amount = 1000, deposits_total = 500")))
+        .hasMessageContaining("ck_user_brokers_total_depositado");
+
+    jdbc.update(
+        cuenta.formatted(
+            "country_code = 'CO', deposit_currency = 'USD', status = 'FIRST_DEPOSIT',"
+                + " first_deposit_at = now(), first_deposit_amount = 1000,"
+                + " deposits_total = 2500"));
   }
 
   @Test

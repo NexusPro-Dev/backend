@@ -533,6 +533,11 @@ nexus:
       afftrack: ${BROKER_FIELD_AFFTRACK:afftrack}
       # El identificador del aviso: una reentrega no se aplica dos veces.
       event-id: ${BROKER_FIELD_EVENT_ID:event_id}
+      # Lo que se guarda en la cuenta (RN-SP-077, 15-10-2026): el país, y el
+      # importe y la moneda del depósito si llegan.
+      country: ${BROKER_FIELD_COUNTRY:country_code}
+      amount: ${BROKER_FIELD_AMOUNT:amount}
+      currency: ${BROKER_FIELD_CURRENCY:currency}
 
   payretailers:
     subscription-key: ${PAYRETAILERS_SUBSCRIPTION_KEY:}

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -47,6 +47,18 @@ El 08-10-2026 el responsable del proyecto fijó con qué brokers se empieza —*
 ### 2.2 Ningún aviso se pierde (13-10-2026)
 
 La dirección común reconoce al broker por el `advertiser` del aviso (`RN-SP-069`), y **solo `IQOPTION` lo tiene cargado**: los de `EXNOVA` y `EXOPTION` no se conocen porque nunca se ha visto un aviso suyo. Hasta el 13-10-2026, un aviso así se rechazaba **y se perdía**, y con él la única forma de saber cómo se nombra ese broker. El responsable del proyecto pidió lo contrario: **capturar todos y clasificarlos después por el `advertiser`** (`RN-SP-076`). El aviso que no se reconoce **se guarda sin broker y no se interpreta**; cuando el `advertiser` de su broker se cargue, **se le asocia y se interpreta**, como si acabara de llegar.
+
+### 2.3 Lo que trae el aviso se guarda en la cuenta (15-10-2026)
+
+El responsable del proyecto pidió: «de las cuentas de broker quita lo del broker_username, que ahí mismo se guarden la fecha de recibir el evento, el país de origen y el valor del depósito si llega» (`RN-SP-077`). **El nombre de usuario en el broker se retira** (`RN-SP-040`): ningún aviso lo trajo en una semana de avisos reales. En su lugar, la cuenta guarda:
+
+- **Cuándo llegó su aviso de registro**, una vez: ni una reentrega ni un segundo registro la mueven.
+- **Su país**, el del primer aviso de la cuenta que lo trae —registro, depósito u operación—, y no cambia después.
+- **Sus depósitos**: el importe del primero —el aviso que la pasa a `FIRST_DEPOSIT`— y el total de todos, en la moneda del primero que la trae. Un depósito en otra moneda no suma; uno sin importe se aplica igual (`RN-SP-073`) y no suma.
+
+**El aviso de operación contado se borra** (`RN-SP-074` enmendada): el contador de la cuenta es la constancia, y una reentrega cuenta otra vez, porque ya no queda el aviso con el que reconocerla. El que no se cuenta —un número sin cuenta, o sin broker todavía— se queda.
+
+**El nombre del campo del importe y el de la moneda se configuran**, como los demás: no ha llegado todavía ningún aviso real de depósito, y adivinar el nombre sería escribir una regla sobre un dato inventado. Lo que la cuenta no guarda sigue en el aviso, tal como llegó.
 
 ---
 
@@ -198,8 +210,8 @@ Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a en
 | `CA-SP-996` | El depósito de una cuenta **sin titular** la pasa a `FIRST_DEPOSIT`, con su momento, y no toca a nadie |
 | `CA-SP-997` | **Un segundo depósito no cambia nada**: ni el estado, ni el momento del primero, ni deja otra auditoría; y **a un titular que no está en `FTD_PENDIENTE`** —bloqueado, por ejemplo— el depósito no le cambia el estado ni le entrega nada |
 | `CA-SP-998` | El depósito de una **`VENDEDOR`** o de un **número sin cuenta** solo se guarda: no la mueve ni crea ninguna |
-| `CA-SP-999` | **Cada aviso de operación suma una** a la cuenta de ese número, sea del tipo que sea, con la primera y la última; operar **no** la mueve a `FIRST_DEPOSIT`; la de un número sin cuenta solo se guarda |
-| `CA-SP-1000` | **Una reentrega** —mismo `event_id`, mismo broker— **se guarda y no se aplica dos veces**; el mismo `event_id` en otro broker es otro aviso; sin `event_id`, cada aviso cuenta |
+| `CA-SP-999` | **Cada aviso de operación suma una** a la cuenta de ese número, sea del tipo que sea, con la primera y la última, **y se borra** (15-10-2026); operar **no** la mueve a `FIRST_DEPOSIT`; la de un número sin cuenta solo se guarda |
+| `CA-SP-1000` | **Una reentrega de depósito** —mismo `event_id`, mismo broker— **se guarda y no se aplica dos veces**; el mismo `event_id` en otro broker es otro aviso. **La de operación cuenta otra vez** desde el 15-10-2026: el aviso contado se borró |
 | `CA-SP-1001` | **Asociar una cuenta que ya tiene el depósito activa a su titular**: al registrarse por enlace con ese número —sale `ACTIVO`— y al asignarla administración |
 | `CA-SP-1002` | Las cuentas devuelven **lo que avisó el broker**: el momento del primer depósito y las operaciones, con la primera y la última |
 | ~~`CA-SP-908`~~ | ~~El broker se nombra en la dirección por su nombre, sin distinguir mayúsculas~~ — **retirado el 13-10-2026**: la ruta por nombre ya no existe |
@@ -210,6 +222,12 @@ Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a en
 | `CA-SP-1013` | **Al arrancar**, los avisos sin broker cuyo `advertiser` ya es el de un broker activo **se le asocian y se interpretan en el orden en que llegaron**: un registro crea la cuenta `CONSUMIDOR` y el depósito que llegó después la pasa a `FIRST_DEPOSIT`; **una reentrega con el mismo `event_id` no se aplica dos veces** |
 | `CA-SP-1014` | Al arrancar, los avisos cuyo `advertiser` **sigue sin conocerse** quedan sin broker, y **un aviso que ya tiene broker no se toca**, aunque otro broker tenga su mismo `advertiser` |
 | `CA-SP-1015` | **La ruta con el nombre del broker ya no recibe**: un aviso a `/brokers/iqoption/notifications`, con cualquier secreto, **no se guarda** |
+| `CA-SP-1026` | Un **aviso de registro** guarda en la cuenta **cuándo llegó y su país**, en mayúsculas; en una cuenta ya declarada en la plataforma los rellena; **una reentrega o un segundo registro no los cambian** |
+| `CA-SP-1027` | **El país lo fija el primer aviso de la cuenta que lo trae** —también un depósito o una operación—, y uno posterior con otro país no lo cambia; **un valor que no son dos letras no se guarda** |
+| `CA-SP-1028` | El depósito que pasa la cuenta a `FIRST_DEPOSIT` guarda **su importe como el del primer depósito**, con su moneda, y lo cuenta en el total |
+| `CA-SP-1029` | **Un segundo depósito suma al total** y no cambia el del primero; **una reentrega no suma**; **uno en otra moneda no suma** |
+| `CA-SP-1030` | **Un importe ausente, que no es un número, cero o negativo no se guarda**, y el depósito se aplica igual —estado y activación—; con más de dos decimales se redondea al céntimo |
+| `CA-SP-1031` | Las cuentas devuelven en `activity` **la fecha del registro, el país, el primer depósito, el total y la moneda**, y **ya no devuelven `brokerUsername`** |
 
 ---
 
@@ -242,3 +260,4 @@ Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a en
 | 0.4.0 | 09-10-2026 | **El aviso de registro crea la cuenta sin titular** (`RN-SP-070`, `RN-SP-072`): la primera interpretación de un aviso, y la única por ahora. Carga la parte de `RF-SP-054` que el responsable del proyecto pidió —«guardar ese registro pero sin usuario»—; el resto de `RF-SP-054` sigue pendiente. Criterios `CA-SP-964` a `CA-SP-968`. | Responsable del proyecto |
 | 0.5.0 | 10-10-2026 | **El depósito y la operación** (`RN-SP-073`, `RN-SP-074`), por decisión del responsable del proyecto: el depósito es el FTD entero —cuenta a `FIRST_DEPOSIT`, titular de `FTD_PENDIENTE` a `ACTIVO` con lo que compró—; la operación se cuenta; de un número sin cuenta, solo se guarda; una reentrega con el mismo identificador no se aplica dos veces. Responde la idempotencia que `FA-001` dejó a `RF-SP-054`. Criterios `CA-SP-995` a `CA-SP-1002`; `CA-SP-907` se acota a los eventos no configurados. | Responsable del proyecto |
 | 0.6.0 | 13-10-2026 | **Una sola dirección, y ningún aviso se pierde** (`RN-SP-076`), a petición del responsable del proyecto: «solo la ruta broker/notification, para capturar todas las notificaciones y desde ahí clasificarlas por el advertiser». El aviso que no se reconoce se guarda sin broker (`FA-002`) y se asocia e interpreta al arrancar cuando su `advertiser` se cargue (`FA-003`). Se retira la ruta por nombre con sus secretos por broker, y con ella `EX-003`, `CA-SP-901` a `CA-SP-903`, `CA-SP-908`, `CA-SP-948` y `CA-SP-952`. Criterios `CA-SP-1009` a `CA-SP-1015`. | Responsable del proyecto |
+| 0.7.0 | 15-10-2026 | **Lo que trae el aviso se guarda en la cuenta** (`RN-SP-077`, §2.3), a petición del responsable del proyecto: la fecha del registro, el país y los depósitos —el primero y el total—; **se retira el nombre de usuario en el broker** (`RN-SP-040`); y **el aviso de operación contado se borra** (`RN-SP-074` enmendada; `CA-SP-999` y `CA-SP-1000` enmendados). Criterios `CA-SP-1026` a `CA-SP-1031`. | Responsable del proyecto |

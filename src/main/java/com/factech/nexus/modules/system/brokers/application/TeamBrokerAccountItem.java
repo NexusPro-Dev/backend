@@ -31,7 +31,6 @@ public record TeamBrokerAccountItem(
     Holder user,
     BrokerAccountItem.BrokerRef broker,
     String accountId,
-    String brokerUsername,
     UserBrokerStatus status,
     BrokerAccountKind kind,
     String afftrack,

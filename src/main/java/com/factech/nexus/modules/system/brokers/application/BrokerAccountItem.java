@@ -14,10 +14,9 @@ import java.util.UUID;
  * saber que son el mismo dato con dos nombres, y esa clase de sinónimo es la que acaba produciendo
  * dos campos en un formulario.
  *
- * <p><b>{@code brokerUsername} se emite AUNQUE SEA NULO</b> ({@code Include.ALWAYS}), y por eso el
- * anotado está aquí y no se deja al ajuste global. Su nulo <b>significa algo</b> (`RN-SP-040`): «el
- * broker todavía no lo ha confirmado». Omitir el campo confundiría eso con «confirmado sin nombre»,
- * y una cadena vacía lo confundiría con «confirmado con el nombre vacío».
+ * <p><b>Los nulos se emiten</b> ({@code Include.ALWAYS}), y por eso el anotado está aquí y no se
+ * deja al ajuste global: una cuenta sin afftrack o sin origen lo dice con el campo en nulo. El
+ * nombre de usuario en el broker se retiró el 15-10-2026 (`RN-SP-040`): ningún aviso lo trajo.
  *
  * <p><b>{@code kind} dice si es la cuenta de un vendedor o de un consumidor</b> (`RN-SP-068`); la
  * de vendedor no tiene FTD.
@@ -32,7 +31,6 @@ public record BrokerAccountItem(
     UUID id,
     BrokerRef broker,
     String accountId,
-    String brokerUsername,
     UserBrokerStatus status,
     BrokerAccountKind kind,
     String afftrack,

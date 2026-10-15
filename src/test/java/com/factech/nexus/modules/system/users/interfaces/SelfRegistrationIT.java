@@ -604,20 +604,19 @@ class SelfRegistrationIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-610` — la cuenta queda declarada, con el usuario del broker EN NULO")
+  @DisplayName("`CA-SP-610` — la cuenta queda declarada, sin nada avisado por el broker")
   void laCuentaQuedaDeclarada() throws Exception {
     mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
         .andExpect(status().isCreated());
 
     Map<String, Object> fila =
         jdbc.queryForMap(
-            "SELECT ub.external_id, ub.broker_username, ub.kind FROM user_brokers ub"
+            "SELECT ub.external_id, ub.registered_at, ub.kind FROM user_brokers ub"
                 + " JOIN users u ON u.id = ub.user_id WHERE u.username = 'ana.ruiz'");
 
     assertThat(fila.get("external_id")).isEqualTo("12345678");
-    // Nulo significa «el broker todavía no lo ha confirmado» (`RN-SP-040`): lo
-    // rellenará el webhook de `RF-SP-054`.
-    assertThat(fila.get("broker_username")).isNull();
+    // Lo rellena el aviso de registro del broker (`RN-SP-077`), no el alta.
+    assertThat(fila.get("registered_at")).isNull();
     // `CA-SP-941`: el enlace registra clientes, y su cuenta es de consumidor (`RN-SP-068`).
     assertThat(fila.get("kind")).isEqualTo("CONSUMIDOR");
   }

@@ -1425,7 +1425,7 @@ paths:
         **Permiso requerido:** `broker-accounts:read-team-member`. Sin él, `403` (`AUTH-002`).
 
         Devuelve las cuentas de broker de esa persona: **broker, identificador
-        de cuenta, nombre de usuario en el broker y estado**, la más reciente
+        de cuenta, estado y lo que avisó el broker**, la más reciente
         primero.
 
         **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
@@ -1452,9 +1452,9 @@ paths:
         una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
         existe.
 
-        **`brokerUsername` llega en nulo** mientras el broker no lo haya
-        confirmado, y el campo **está presente**: su nulo significa «aún no
-        confirmado», no «sin nombre».
+        **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+        el país, el primer depósito y el total con su moneda, y las
+        operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
 
         **No se pagina**: una persona tiene unas pocas cuentas. El listado
         paginado es `GET /api/v1/users/me/team/broker-accounts`.
@@ -1497,8 +1497,8 @@ paths:
         Declara una cuenta de broker **a nombre de esa persona** (`RF-SP-053`). Es de administración: alcanza a cualquiera.
 
         Se envían **el broker y el identificador de la cuenta** en el broker.
-        La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
-        nombre de usuario y el estado los pone después el broker.
+        La cuenta nace en **`REGISTER`**: el estado lo mueve después el
+        broker con sus avisos.
 
         **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
         por quien sea— responde `409` (`EX-009`). Un broker inexistente o
@@ -1702,7 +1702,7 @@ paths:
         **Permiso requerido:** `broker-accounts:read-own`. Sin él, `403` (`AUTH-002`).
 
         Devuelve **las cuentas de broker del actor**: broker, identificador
-        de cuenta, nombre de usuario en el broker y estado, la más reciente
+        de cuenta, estado y lo que avisó el broker, la más reciente
         primero. Es la misma respuesta que
         `GET /api/v1/users/{id}/broker-accounts`.
 
@@ -1712,8 +1712,9 @@ paths:
 
         **Una persona sin cuentas recibe `200` con la colección vacía.**
 
-        **`brokerUsername` llega en nulo** mientras el broker no lo haya
-        confirmado, y el campo **está presente**.
+        **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+        el país, el primer depósito y el total con su moneda, y las
+        operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
 
         **No se pagina**: una persona tiene unas pocas cuentas.
       operationId: misCuentasDeBroker
@@ -1742,8 +1743,8 @@ paths:
         Declara una cuenta de broker **a nombre del actor** (`RF-SP-053`).
 
         Se envían **el broker y el identificador de la cuenta** en el broker.
-        La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
-        nombre de usuario y el estado los pone después el broker.
+        La cuenta nace en **`REGISTER`**: el estado lo mueve después el
+        broker con sus avisos.
 
         **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
         por quien sea— responde `409` (`EX-009`). Un broker inexistente o
@@ -8255,8 +8256,8 @@ paths:
         nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
         otro producto **se admiten igualmente** las que se envíen.
 
-        **El nombre de usuario en el broker no se pide**: lo rellena después el
-        webhook del propio broker.
+        **El estado de la cuenta no se pide**: lo mueven después los avisos
+        del propio broker.
 
         **Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,
         y no con el `409` del índice: ese mensaje diría «ya está declarada por
@@ -12872,9 +12873,9 @@ paths:
         broker, que todavía no existe. Mientras no exista, ninguna cuenta tiene
         depósito confirmado.
 
-        **`brokerUsername` llega en nulo** mientras el broker no lo haya
-        confirmado, y el campo **está presente**: su nulo significa «aún no
-        confirmado», no «sin nombre».
+        **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+        el país, el primer depósito y el total con su moneda, y las
+        operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
       operationId: cuentasDeBrokerDelEquipo
       parameters:
       - name: status
@@ -13015,9 +13016,8 @@ paths:
           cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
         - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
           demás.
-        - `search` — fragmento del **número de cuenta** o del **nombre de
-          usuario en el broker** (también del titular: usuario, correo o
-          nombre). Sin acentos y sin distinguir mayúsculas.
+        - `search` — fragmento del **número de cuenta** o del titular:
+          usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.
         - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
           rango semiabierto. `from` posterior a `to` es `400`.
 
@@ -16838,8 +16838,8 @@ paths:
           `true`, las que lo tienen. Con `sellerId`, `false` da la página
           vacía.
         - `brokerId` — un broker del catálogo.
-        - `search` — fragmento de **número de cuenta**, de **nombre de usuario
-          en el broker**, o del usuario, correo o nombre completo del titular.
+        - `search` — fragmento de **número de cuenta**, o del usuario,
+          correo o nombre completo del titular.
           Sin acentos y sin distinguir mayúsculas. Con `?kind=CONSUMIDOR`, solo
           las cuentas de consumidor.
 
@@ -18733,9 +18733,20 @@ components:
     BrokerAccountActivity:
       type: object
       properties:
+        registeredAt:
+          type: string
+          format: date-time
+        countryCode:
+          type: string
         firstDepositAt:
           type: string
           format: date-time
+        firstDepositAmount:
+          type: number
+        depositsTotal:
+          type: number
+        depositCurrency:
+          type: string
         operationsCount:
           type: integer
           format: int32
@@ -18754,8 +18765,6 @@ components:
         broker:
           $ref: "#/components/schemas/BrokerRef"
         accountId:
-          type: string
-        brokerUsername:
           type: string
         status:
           type: string
@@ -22609,8 +22618,6 @@ components:
         broker:
           $ref: "#/components/schemas/BrokerRef"
         accountId:
-          type: string
-        brokerUsername:
           type: string
         status:
           type: string

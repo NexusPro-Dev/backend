@@ -23,15 +23,14 @@ public interface BrokerAccountWriter {
       UUID brokerId,
       String brokerName,
       String accountId,
-      String brokerUsername,
       UserBrokerStatus status,
       BrokerAccountKind kind,
       String afftrack,
       UUID referrerAccountId) {}
 
   /**
-   * Declara la cuenta, en {@code REGISTER} y sin nombre de usuario, con su tipo, su {@code
-   * afftrack} —solo {@code VENDEDOR}— y su origen —solo {@code CONSUMIDOR}—.
+   * Declara la cuenta, en {@code REGISTER}, con su tipo, su {@code afftrack} —solo {@code
+   * VENDEDOR}— y su origen —solo {@code CONSUMIDOR}—.
    */
   void insert(
       UUID id,
@@ -109,4 +108,20 @@ public interface BrokerAccountWriter {
 
   /** Cuenta una operación más (`RN-SP-074`): el total, la primera y la última. */
   void countOperation(UUID brokerAccountId);
+
+  /**
+   * El aviso de registro de esta cuenta (`RN-SP-077`): su momento —el {@code received_at} del aviso
+   * {@code noticeId}— y su país, <b>cada uno solo si estaba vacío</b>.
+   */
+  void recordRegistration(UUID brokerAccountId, UUID noticeId, String countryCode);
+
+  /** El país de la cuenta, <b>solo si estaba vacío</b> (`RN-SP-077`). {@code null} no hace nada. */
+  void fillCountry(UUID brokerAccountId, String countryCode);
+
+  /**
+   * Un depósito avisado (`RN-SP-077`), en centésimas: fija la moneda si no la tenía, guarda el
+   * importe como el del primero si {@code first}, y lo suma al total <b>si su moneda no contradice
+   * la guardada</b>. Sin importe, solo fija la moneda.
+   */
+  void recordDeposit(UUID brokerAccountId, Long amountMinor, String currency, boolean first);
 }

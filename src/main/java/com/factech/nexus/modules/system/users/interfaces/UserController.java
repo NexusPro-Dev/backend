@@ -1543,9 +1543,9 @@ public class UserController {
           broker, que todavía no existe. Mientras no exista, ninguna cuenta tiene
           depósito confirmado.
 
-          **`brokerUsername` llega en nulo** mientras el broker no lo haya
-          confirmado, y el campo **está presente**: su nulo significa «aún no
-          confirmado», no «sin nombre».
+          **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+          el país, el primer depósito y el total con su moneda, y las
+          operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
           """)
   @ApiResponses({
     // SIN `@Schema(implementation = PageResponse.class)`, y la ausencia importa:
@@ -1626,9 +1626,8 @@ public class UserController {
             cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
           - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
             demás.
-          - `search` — fragmento del **número de cuenta** o del **nombre de
-            usuario en el broker** (también del titular: usuario, correo o
-            nombre). Sin acentos y sin distinguir mayúsculas.
+          - `search` — fragmento del **número de cuenta** o del titular:
+            usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.
           - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
             rango semiabierto. `from` posterior a `to` es `400`.
 
@@ -1679,7 +1678,7 @@ public class UserController {
       description =
           """
           Devuelve **las cuentas de broker del actor**: broker, identificador
-          de cuenta, nombre de usuario en el broker y estado, la más reciente
+          de cuenta, estado y lo que avisó el broker, la más reciente
           primero. Es la misma respuesta que
           `GET /api/v1/users/{id}/broker-accounts`.
 
@@ -1689,8 +1688,9 @@ public class UserController {
 
           **Una persona sin cuentas recibe `200` con la colección vacía.**
 
-          **`brokerUsername` llega en nulo** mientras el broker no lo haya
-          confirmado, y el campo **está presente**.
+          **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+          el país, el primer depósito y el total con su moneda, y las
+          operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
 
           **No se pagina**: una persona tiene unas pocas cuentas.
           """)
@@ -1729,8 +1729,8 @@ public class UserController {
           Declara una cuenta de broker **a nombre del actor** (`RF-SP-053`).
 
           Se envían **el broker y el identificador de la cuenta** en el broker.
-          La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
-          nombre de usuario y el estado los pone después el broker.
+          La cuenta nace en **`REGISTER`**: el estado lo mueve después el
+          broker con sus avisos.
 
           **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
           por quien sea— responde `409` (`EX-009`). Un broker inexistente o
@@ -1795,8 +1795,8 @@ public class UserController {
           Declara una cuenta de broker **a nombre de esa persona** (`RF-SP-053`). Es de administración: alcanza a cualquiera.
 
           Se envían **el broker y el identificador de la cuenta** en el broker.
-          La cuenta nace en **`REGISTER`** y con `brokerUsername` **nulo**: el
-          nombre de usuario y el estado los pone después el broker.
+          La cuenta nace en **`REGISTER`**: el estado lo mueve después el
+          broker con sus avisos.
 
           **Una cuenta ya declarada** —el mismo broker y el mismo identificador,
           por quien sea— responde `409` (`EX-009`). Un broker inexistente o
@@ -2070,7 +2070,7 @@ public class UserController {
       description =
           """
           Devuelve las cuentas de broker de esa persona: **broker, identificador
-          de cuenta, nombre de usuario en el broker y estado**, la más reciente
+          de cuenta, estado y lo que avisó el broker**, la más reciente
           primero.
 
           **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
@@ -2097,9 +2097,9 @@ public class UserController {
           una cuenta a `FIRST_DEPOSIT` es el webhook del broker, que todavía no
           existe.
 
-          **`brokerUsername` llega en nulo** mientras el broker no lo haya
-          confirmado, y el campo **está presente**: su nulo significa «aún no
-          confirmado», no «sin nombre».
+          **`activity` trae lo que avisó el broker**: cuándo llegó el registro y
+          el país, el primer depósito y el total con su moneda, y las
+          operaciones (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`).
 
           **No se pagina**: una persona tiene unas pocas cuentas. El listado
           paginado es `GET /api/v1/users/me/team/broker-accounts`.

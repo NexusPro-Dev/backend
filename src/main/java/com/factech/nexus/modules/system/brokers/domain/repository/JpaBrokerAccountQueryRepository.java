@@ -9,6 +9,7 @@ import com.factech.nexus.modules.system.brokers.application.TeamBrokerAccountIte
 import com.factech.nexus.modules.system.brokers.domain.models.BrokerAccountKind;
 import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
+import com.factech.nexus.shared.persistence.MinorUnits;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.persistence.Tuple;
@@ -49,7 +50,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
         em.createNativeQuery(
                 """
                 SELECT ub.id AS id, ub.external_id AS external_id,
-                       ub.broker_username AS broker_username, ub.status AS status,
+                       ub.status AS status,
                        ub.kind AS kind, ub.created_at AS created_at,
                        b.id AS broker_id, b.name AS broker_name,
                        ub.afftrack AS afftrack, r.id AS referrer_id,
@@ -57,7 +58,12 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                        ru.username AS referrer_username,
                        ru.first_name AS referrer_first_name,
                        ru.last_name AS referrer_last_name,
+                       ub.registered_at AS registered_at,
+                       ub.country_code AS country_code,
                        ub.first_deposit_at AS first_deposit_at,
+                       ub.first_deposit_amount AS first_deposit_amount,
+                       ub.deposits_total AS deposits_total,
+                       ub.deposit_currency AS deposit_currency,
                        ub.operations_count AS operations_count,
                        ub.first_operation_at AS first_operation_at,
                        ub.last_operation_at AS last_operation_at
@@ -79,7 +85,6 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
               (UUID) fila.get("id"),
               new BrokerRef((UUID) fila.get("broker_id"), (String) fila.get("broker_name")),
               (String) fila.get("external_id"),
-              (String) fila.get("broker_username"),
               estado(fila),
               tipo(fila),
               (String) fila.get("afftrack"),
@@ -99,7 +104,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
         em.createNativeQuery(
             """
             SELECT ub.id AS id, ub.external_id AS external_id,
-                   ub.broker_username AS broker_username, ub.status AS status,
+                   ub.status AS status,
                    ub.kind AS kind, ub.created_at AS created_at,
                    b.id AS broker_id, b.name AS broker_name,
                    u.id AS user_id, u.username AS username,
@@ -312,7 +317,11 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
       " ub.afftrack AS afftrack, r.id AS referrer_id, r.afftrack AS referrer_afftrack,"
           + " r.user_id AS referrer_user_id, ru.username AS referrer_username,"
           + " ru.first_name AS referrer_first_name, ru.last_name AS referrer_last_name,"
-          + " ub.first_deposit_at AS first_deposit_at, ub.operations_count AS operations_count,"
+          + " ub.registered_at AS registered_at, ub.country_code AS country_code,"
+          + " ub.first_deposit_at AS first_deposit_at,"
+          + " ub.first_deposit_amount AS first_deposit_amount,"
+          + " ub.deposits_total AS deposits_total, ub.deposit_currency AS deposit_currency,"
+          + " ub.operations_count AS operations_count,"
           + " ub.first_operation_at AS first_operation_at,"
           + " ub.last_operation_at AS last_operation_at ";
 
@@ -323,7 +332,7 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
   private static final String COLUMNAS =
       """
       SELECT ub.id AS id, ub.external_id AS external_id,
-             ub.broker_username AS broker_username, ub.status AS status,
+             ub.status AS status,
              ub.kind AS kind, ub.created_at AS created_at,
              b.id AS broker_id, b.name AS broker_name,
              u.id AS user_id, u.username AS username,
@@ -401,7 +410,6 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
       filtro.condicion(
           """
           (f_unaccent(lower(ub.external_id)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
-            OR f_unaccent(lower(ub.broker_username)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.username)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.email)) LIKE f_unaccent(lower(:termino)) ESCAPE '\\'
             OR f_unaccent(lower(u.first_name || ' ' || u.last_name))
@@ -481,7 +489,6 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
                       (String) fila.get("last_name")),
               new BrokerRef((UUID) fila.get("broker_id"), (String) fila.get("broker_name")),
               (String) fila.get("external_id"),
-              (String) fila.get("broker_username"),
               estado(fila),
               tipo(fila),
               (String) fila.get("afftrack"),
@@ -492,10 +499,18 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     return resultado;
   }
 
-  /** Lo que el broker avisó de la cuenta (`RN-SP-073`, `RN-SP-074`). */
+  /**
+   * Lo que el broker avisó de la cuenta (`RN-SP-073`, `RN-SP-074`, `RN-SP-077`). Los importes salen
+   * de centésimas aquí, al mapear (ADR-006).
+   */
   private static BrokerAccountActivity actividad(Tuple fila) {
     return new BrokerAccountActivity(
+        momento(fila.get("registered_at")),
+        (String) fila.get("country_code"),
         momento(fila.get("first_deposit_at")),
+        MinorUnits.fromMinor(fila.get("first_deposit_amount")),
+        MinorUnits.fromMinor(fila.get("deposits_total")),
+        (String) fila.get("deposit_currency"),
         ((Number) fila.get("operations_count")).intValue(),
         momento(fila.get("first_operation_at")),
         momento(fila.get("last_operation_at")));

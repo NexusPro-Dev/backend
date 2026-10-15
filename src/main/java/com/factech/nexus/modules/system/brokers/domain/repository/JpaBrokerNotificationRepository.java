@@ -135,4 +135,11 @@ public class JpaBrokerNotificationRepository implements BrokerNotificationReposi
         .setParameter("broker", brokerId)
         .executeUpdate();
   }
+
+  @Override
+  public void delete(UUID id) {
+    em.createNativeQuery("DELETE FROM broker_notifications WHERE id = CAST(:id AS uuid)")
+        .setParameter("id", id)
+        .executeUpdate();
+  }
 }

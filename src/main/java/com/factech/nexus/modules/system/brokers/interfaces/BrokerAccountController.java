@@ -126,8 +126,8 @@ public class BrokerAccountController {
             `true`, las que lo tienen. Con `sellerId`, `false` da la página
             vacía.
           - `brokerId` — un broker del catálogo.
-          - `search` — fragmento de **número de cuenta**, de **nombre de usuario
-            en el broker**, o del usuario, correo o nombre completo del titular.
+          - `search` — fragmento de **número de cuenta**, o del usuario,
+            correo o nombre completo del titular.
             Sin acentos y sin distinguir mayúsculas. Con `?kind=CONSUMIDOR`, solo
             las cuentas de consumidor.
 

@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.126.0 |
+| Versión | 0.127.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -390,7 +390,6 @@ erDiagram
         uuid user_id FK "de quien es la cuenta · NULL = sin titular, solo CONSUMIDOR · RN-SP-072"
         uuid broker_id FK "en que broker"
         varchar external_id "80 · el numero de cuenta EN EL BROKER"
-        varchar broker_username "120 · NULL = el broker aun no lo confirmo · RN-SP-040"
         varchar status "20 · REGISTER | FIRST_DEPOSIT · nace en REGISTER · RN-SP-045"
         varchar kind "20 · VENDEDOR | CONSUMIDOR · sin default · RN-SP-068"
         varchar afftrack "80 · NULL · solo VENDEDOR · UK (broker, lower) · RN-SP-071"
@@ -399,6 +398,11 @@ erDiagram
         integer operations_count "0 · operaciones avisadas · RN-SP-074"
         timestamptz first_operation_at "NULL · RN-SP-074"
         timestamptz last_operation_at "NULL · RN-SP-074"
+        timestamptz registered_at "NULL · cuando llego el aviso de registro · RN-SP-077"
+        varchar country_code "2 · NULL · pais del primer aviso que lo trajo · RN-SP-077"
+        bigint first_deposit_amount "NULL · centesimas · el del aviso del primer deposito · RN-SP-077"
+        bigint deposits_total "0 · centesimas · suma de depositos en su moneda · RN-SP-077"
+        varchar deposit_currency "3 · NULL · moneda del primer deposito que la trajo · RN-SP-077"
         timestamptz created_at "now"
         timestamptz updated_at "now"
     }
@@ -422,7 +426,7 @@ erDiagram
 - **`currencies.is_default`** exige un índice único parcial: exactamente una fila en `true`, declarado en el esquema y no solo en el dominio (Art. V.6).
 - **`document_types` es el primer catálogo cuyo CONTENIDO es una regla de negocio**, y por eso es el único que no se administra por API ni siquiera para desactivar (`RN-SP-036`). `countries` y `currencies` tienen su requerimiento para cambiar `is_active` —`RF-SP-022` y `RF-SP-023`—; este no, y no es un olvido: **añadir una fila a este catálogo es abrir la puerta a los menores de edad**, de modo que la operación no puede existir como llamada. Lo que se retira, se retira con una migración revisada. Su `is_active` **sí se lee** desde el primer día —el listado publica solo los activos— y por eso no es una columna dormida de las que `RF-SP-024` §2 advierte; y **existe porque sin ella no hay retirada posible**: `fk_users_document_type` bloquea el borrado en cuanto una persona la referencie.
 - **`user_brokers` es la primera tabla del sistema cuyo único NO incluye a la persona.** Va sobre `(broker_id, external_id)` y no sobre `(user_id, broker_id)`, y esa elección es el requerimiento entero (`RN-SP-038`): una persona puede tener **varias** cuentas en el mismo broker —lo normal en el ramo— y una cuenta **no puede ser de dos personas**. Con el único al revés se prohibiría lo primero y se permitiría lo segundo, que es exactamente el intercambio contrario al que hace falta.
-- **`user_brokers.broker_username` admite nulo y su nulo significa algo**: «el broker todavía no lo ha confirmado» (`RN-SP-040`). Lo rellena un webhook (`RF-SP-054`, sin construir), no el alta — declararlo obligatorio obligaría a inventar un valor que sobreviviría a la confirmación.
+- **`user_brokers` guarda lo que traen los avisos del broker** (`RN-SP-077`, `V113`, 15-10-2026): `registered_at` —el `received_at` del aviso de registro, una vez—, `country_code` —el del primer aviso que lo trajo, dos letras—, y del depósito `first_deposit_amount`, `deposits_total` y `deposit_currency`, en centésimas (ADR-006) y con sus `CHECK` (`ck_user_brokers_pais`, `ck_user_brokers_moneda`, `ck_user_brokers_primer_deposito`, `ck_user_brokers_total_depositado`). **`broker_username` se borró** con su índice de trigramas (`RN-SP-040` retirada): ningún aviso lo trajo.
 - **`user_brokers.status` es la segunda columna de esta tabla que espera al mismo webhook** (`RN-SP-045`, 10-09-2026), y por eso conviene leerla junto a la de arriba: `REGISTER` o `FIRST_DEPOSIT`, con `CHECK` en el motor, **nace en `REGISTER`** y hoy nada la mueve. La diferencia con `broker_username` es que **esta sí se lee desde el primer día** —`RF-SP-055` y `RF-SP-056`—, y lo que devuelve es cierto: sin webhook no hay depósito confirmado. **Sus dos valores van en inglés**, únicos en todo el modelo —`users.status`, `products.status` y `movements.status` van en castellano—, porque son el vocabulario del broker que los va a escribir.
 - **`user_supervisors` se lee por primera vez EN PROFUNDIDAD** (`RN-SP-047`, 10-09-2026). Hasta hoy toda consulta sobre esta tabla miraba **un nivel** —«quién está a cargo de esta persona», «quién depende de ella»—; `RF-SP-057` recorre la rama entera con una **recursiva**. Dos consecuencias de modelado que conviene tener escritas: **(1)** la terminación **no depende de que los datos sean acíclicos** —lo son, porque `RN-SP-020` ata esta cadena a la de roles, que sí lo es— sino de que la recursión acumule con **`UNION`** y no con `UNION ALL`, que es lo que impide reexpandir a quien ya se vio; **(2)** el recorrido entra por `ix_user_supervisors_supervisor_vigente`, el índice **parcial** de `V28`, y por eso el predicado `ended_at IS NULL` tiene que estar **en los dos brazos** de la recursiva — omitirlo en el recursivo haría descender por la estructura de ayer sin que nada fallara; **(3)** desde el 18-09-2026 la recursiva recorre **solo fuerza comercial**: el cliente no está en la tabla, y sus cuentas se cuelgan en la hoja del vendedor `REGISTRO` de `client_sellers` (`RN-SP-048`), que es un join fijo después del recorrido y no un caso especial dentro de él.
 - **`user_brokers.kind` separa las cuentas de vendedor de las de consumidor** (`RN-SP-068`, 09-10-2026). Lo pone el sistema según el tipo de rol del titular **al declararla** y no cambia después: es una **foto** del tipo y no una derivación viva de `user_roles`, de modo que un cliente que asciende a vendedor conserva sus cuentas de consumidor —y su FTD—. Va **sin `DEFAULT`**, para que ninguna escritura lo olvide en silencio, y con un segundo `CHECK` que ata dos columnas: **`kind = 'CONSUMIDOR' OR status = 'REGISTER'`** — la cuenta de un vendedor no tiene primer depósito.
@@ -1282,3 +1286,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.124.0 | 14-10-2026 | **La señal se ve el día en que se crea** ([`requirements/ac.md`](requirements/ac.md) v0.32.0 §5.2.23, `RN-AC-035` enmendada, `V110`): `signals.visible_until` pasa a ser la medianoche de Bogotá que cierra el día de `created_at`; `V110` la recalcula en las existentes. | Responsable técnico |
 | 0.125.0 | 15-10-2026 | **El modelo del broker** ([`requirements/sp.md`](requirements/sp.md) v1.126.0, `RF-SP-052`, `V111`): `brokers` gana **`model`**, `varchar(120)` nulo, texto libre; lo publica el catálogo. | Responsable del proyecto |
 | 0.126.0 | 15-10-2026 | **`brokers.url` y `brokers.model` se editan por API** (`RF-SP-084`, `RN-SP-039` enmendada), auditados como `UPDATE` sobre `brokers`. Sin cambio de esquema; `V112` solo siembra el permiso. | Responsable técnico |
+| 0.127.0 | 15-10-2026 | **`user_brokers` pierde `broker_username` y gana lo que traen los avisos** (`V113`, `RN-SP-077`, `RN-SP-040` retirada, [`requirements/sp.md`](requirements/sp.md) v1.129.0): `registered_at`, `country_code`, `first_deposit_amount`, `deposits_total` (`NOT NULL DEFAULT 0`) y `deposit_currency`, con cuatro `CHECK`. Con la columna cae `ix_user_brokers_busqueda_usuario` (`V100`). Sin relleno. | Responsable del proyecto |

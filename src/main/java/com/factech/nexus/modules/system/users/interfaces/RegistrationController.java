@@ -86,8 +86,8 @@ public class RegistrationController {
           nadie podrá atribuirle el depósito que la saca de `FTD_PENDIENTE`. Con
           otro producto **se admiten igualmente** las que se envíen.
 
-          **El nombre de usuario en el broker no se pide**: lo rellena después el
-          webhook del propio broker.
+          **El estado de la cuenta no se pide**: lo mueven después los avisos
+          del propio broker.
 
           **Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,
           y no con el `409` del índice: ese mensaje diría «ya está declarada por

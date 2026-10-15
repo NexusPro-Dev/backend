@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.6.0 |
+| Especificación | [`spec.md`](spec.md) v0.7.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.6.0 |
+| Versión | 0.7.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -265,3 +265,50 @@ Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros 
 **Riesgo**: un aviso nuevo de un broker recién reconocido puede llegar mientras el arranque todavía asocia los viejos, y se interpreta antes que ellos (`spec.md` §13). El depósito y la operación solo miran que la cuenta exista, así que el orden solo importaría si un depósito viejo llegara antes que el registro que crea su cuenta, y eso ya pasaba igual con los avisos en vivo.
 
 **Pruebas**, en `BrokerNotificationsIT`: `CA-SP-1009` a `CA-SP-1012` y `CA-SP-1015` por `MockMvc`; `CA-SP-1013` y `CA-SP-1014` guardan avisos de un `advertiser` desconocido, se lo cargan a `EXNOVA` con SQL, llaman a `BrokerNotificationClassifier.run(null)` y lo reponen a nulo al terminar —como `CA-SP-903` reponía el broker—. Se retiran las pruebas de `CA-SP-901` a `CA-SP-903`, `CA-SP-908`, `CA-SP-948` y `CA-SP-952`; **las que usaban la ruta por nombre para otros criterios pasan a la común**.
+
+## 17. Enmienda 0.7.0 — lo que trae el aviso, en la cuenta (`RN-SP-077`, 15-10-2026)
+
+**`V113`** cambia `user_brokers`: **borra `broker_username`** —y con ella `ix_user_brokers_busqueda_usuario`, el índice de trigramas de `V100`, que cae con la columna— y añade cinco columnas, todas nulas salvo el total:
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `registered_at` | `timestamptz` | El `received_at` del aviso de registro, **no `now()`**: un aviso que se clasifica al arrancar (`RN-SP-076`) se interpreta días después de llegar |
+| `country_code` | `varchar(2)` | `ck_user_brokers_pais`: `^[A-Z]{2}$` |
+| `first_deposit_amount` | `bigint` | Centésimas (ADR-006). `ck_user_brokers_primer_deposito`: mayor que cero, y solo con `first_deposit_at` |
+| `deposits_total` | `bigint NOT NULL DEFAULT 0` | Centésimas. `ck_user_brokers_total_depositado`: no negativo, y no menor que el primero |
+| `deposit_currency` | `varchar(3)` | `ck_user_brokers_moneda`: `^[A-Z]{3}$` |
+
+**Sin relleno**: los avisos de registro ya guardados podrían dar la fecha y el país de las cuentas que crearon, pero **reinterpretar lo ya aplicado** es otra decisión, y nadie la pidió.
+
+**La configuración** gana tres campos en `nexus.brokers.fields`: `country` (`country_code`), `amount` (`amount`) y `currency` (`currency`), con sus variables `BROKER_FIELD_COUNTRY`, `BROKER_FIELD_AMOUNT` y `BROKER_FIELD_CURRENCY`.
+
+**`interpretar`** lee el país una vez —el mismo `campo(...)` de siempre, en mayúsculas, y vacío si no son dos letras— y lo pasa a las tres ramas:
+
+- **Registro**: tras crear la cuenta o completar su origen, `lockByNumber` y `recordRegistration(cuenta, aviso, país)`: `registered_at = coalesce(registered_at, (SELECT received_at FROM broker_notifications WHERE id = :aviso))` y `country_code = coalesce(country_code, :pais)`.
+- **Depósito**: lee importe y moneda. El importe es un `BigDecimal` mayor que cero, redondeado `HALF_UP` a dos decimales y con tope en lo que cabe en un `bigint` de centésimas; si no, nulo. La moneda, tres letras en mayúsculas o nula. Tras `markFirstDeposit`, `recordDeposit(cuenta, centésimas, moneda, primero)` en **un solo `UPDATE`**: la moneda se fija con `coalesce`, el primero solo si `primero`, y el total suma si hay importe y **la moneda no contradice la guardada**. `fillCountry` antes.
+- **Operación**: `fillCountry(cuenta, país)` antes de contar, y **después `avisos.delete(aviso)`** (`RN-SP-074` enmendada): `BrokerNotificationRepository` gana `delete`. La operación **deja de mirar la reentrega**: con el aviso contado borrado ya no hay con qué compararla, y mirarla solo impediría contar un aviso que llegó cuando el número no tenía cuenta. En la clasificación al arrancar es la misma función, de modo que el aviso de operación se borra allí también al contarse.
+
+**Sin auditoría**: el aviso guardado es la constancia, como en `RN-SP-074`. La auditoría del alta por aviso sigue con lo que tenía.
+
+**El contrato**: `BrokerAccountActivity` gana `registeredAt`, `countryCode`, `firstDepositAmount`, `depositsTotal` y `depositCurrency`; `BrokerAccountItem` y `TeamBrokerAccountItem` **pierden `brokerUsername`**, y `search` deja de mirar la columna. **Es una ruptura del contrato** —un campo menos en cuatro respuestas—, admitida porque el campo nunca llevó un valor: siempre fue nulo.
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `db/migration` | `V113__sp_lo_que_traen_los_avisos_de_broker.sql` | Fuera `broker_username`; las cinco columnas y sus `CHECK` |
+| `infrastructure` | `BrokerNotificationSettings`, `application.yml`, `.env.example` | Tres campos más |
+| `domain/repository` | `BrokerAccountWriter`, `JpaBrokerAccountWriter` | Fuera `brokerUsername` de `LockedAccount`; `recordRegistration`, `fillCountry`, `recordDeposit` |
+| `domain/repository` | `JpaBrokerAccountQueryRepository` | Fuera la columna y su búsqueda; las cinco en `actividad` |
+| `domain/service` | `ReceiveBrokerNotificationService` | País, importe y moneda; las tres escrituras |
+| `domain/service` | `ManageBrokerAccountsService` | Fuera `broker_username` de la instantánea de auditoría |
+| `application` | `BrokerAccountActivity`, `BrokerAccountItem`, `TeamBrokerAccountItem` | Los campos |
+
+**Alternativas descartadas**
+
+| Alternativa | Por qué no |
+|---|---|
+| Una tabla de depósitos, una fila por aviso | Los avisos **ya son** esa tabla: cada uno guardado tal como llegó. La cuenta guarda la cifra que se consulta, y el detalle se reconstruye de los avisos |
+| Sumar al total aunque la moneda cambie | Una suma de dos monedas no es una cifra de ninguna |
+| Tomar el país del último aviso | El responsable eligió el primero: el país de origen de la cuenta, no dónde opera hoy |
+| Guardar el importe en `numeric` | Todo el dinero del sistema va en centésimas `bigint` (ADR-006) |
+
+**Pruebas**, en `BrokerNotificationsIT`: `CA-SP-1026` a `CA-SP-1030` por `MockMvc` contra la dirección común, leyendo la fila; `CA-SP-1031` en la respuesta de `RF-SP-057`. `UserBrokerAccountSchemaIT` afirma los `CHECK` nuevos y que la columna ya no existe; las demás suites pierden `brokerUsername`.

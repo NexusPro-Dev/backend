@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * Corregir una cuenta de broker (`RF-SP-080`): <b>solo el identificador</b>. El broker no se cambia
- * —se borra la cuenta y se declara otra—, y el nombre de usuario y el estado los pone el broker.
+ * —se borra la cuenta y se declara otra—, y el estado lo mueve el broker.
  */
 public record UpdateBrokerAccountRequest(
     @Schema(

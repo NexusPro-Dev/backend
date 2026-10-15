@@ -31,8 +31,8 @@ public interface BrokerNotificationRepository {
       String eventId);
 
   /**
-   * Si ese broker ya mandó OTRO aviso con ese {@code eventId} (`RN-SP-073`, `RN-SP-074`): una
-   * reentrega, que se guarda pero no se aplica dos veces.
+   * Si ese broker ya mandó OTRO aviso con ese {@code eventId} (`RN-SP-073`): una reentrega, que se
+   * guarda pero no se aplica dos veces. La operación ya no lo usa: su aviso se borra al contarse.
    */
   boolean otherWithEventId(UUID brokerId, String eventId, UUID exceptId);
 
@@ -50,6 +50,9 @@ public interface BrokerNotificationRepository {
 
   /** Le pone el broker a un aviso que no lo tenía. La única escritura sobre un aviso guardado. */
   void assignBroker(UUID id, UUID brokerId);
+
+  /** Borra el aviso: el de operación, una vez contado (`RN-SP-074`, 15-10-2026). */
+  void delete(UUID id);
 
   /** Lo guardado de un aviso, con el broker que le toca, para interpretarlo después. */
   record StoredNotice(

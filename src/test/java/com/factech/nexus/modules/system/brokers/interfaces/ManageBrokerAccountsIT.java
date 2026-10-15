@@ -6,7 +6,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -109,8 +108,7 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
             .andExpect(jsonPath("$.broker.name").value("EXNOVA"))
             .andExpect(jsonPath("$.status").value("REGISTER"))
             .andExpect(jsonPath("$.kind").value("CONSUMIDOR"))
-            .andExpect(
-                content().string(org.hamcrest.Matchers.containsString("\"brokerUsername\":null")))
+            .andExpect(jsonPath("$.brokerUsername").doesNotExist())
             .andReturn()
             .getResponse()
             .getContentAsString();
@@ -406,7 +404,7 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
   @DisplayName("`CA-SP-925` — administración corrige la de otra persona, también con depósito")
   void administracionCorrige() throws Exception {
     UUID cuenta = declarar(titular, exnova, "80000014", "FIRST_DEPOSIT");
-    jdbc.update("UPDATE user_brokers SET broker_username = 'cperez' WHERE id = ?", cuenta);
+    jdbc.update("UPDATE user_brokers SET country_code = 'CO' WHERE id = ?", cuenta);
 
     mvc.perform(
             patch("/api/v1/users/" + titular + "/broker-accounts/" + cuenta)
@@ -416,7 +414,8 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.accountId").value("80000015"))
         .andExpect(jsonPath("$.status").value("FIRST_DEPOSIT"))
-        .andExpect(jsonPath("$.brokerUsername").value("cperez"));
+        // Lo que avisó el broker no lo toca la corrección.
+        .andExpect(jsonPath("$.activity.countryCode").value("CO"));
   }
 
   @Test

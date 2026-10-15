@@ -88,12 +88,12 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
     UUID deAjeno = vendedora(ajeno, brokerA, "V-AJENO", "AFF-AJENO");
     UUID deExbase = vendedora(exbase, brokerA, "V-EXBASE", "AFF-EXBASE");
 
-    consumidora(cliente1, brokerA, "1001", deJefe, "REGISTER", null);
-    consumidora(null, brokerA, "1002", deMedio, "FIRST_DEPOSIT", "trader_maria");
-    consumidora(cliente2, brokerB, "1003", deBase, "REGISTER", null);
-    consumidora(null, brokerA, "1004", deAjeno, "REGISTER", null);
-    consumidora(null, brokerA, "1005", deExbase, "REGISTER", null);
-    consumidora(null, brokerA, "1006", null, "REGISTER", null);
+    consumidora(cliente1, brokerA, "1001", deJefe, "REGISTER");
+    consumidora(null, brokerA, "1002", deMedio, "FIRST_DEPOSIT");
+    consumidora(cliente2, brokerB, "1003", deBase, "REGISTER");
+    consumidora(null, brokerA, "1004", deAjeno, "REGISTER");
+    consumidora(null, brokerA, "1005", deExbase, "REGISTER");
+    consumidora(null, brokerA, "1006", null, "REGISTER");
   }
 
   /** {@code user_brokers} vacía: su clave foránea a {@code users} es {@code RESTRICT}. */
@@ -150,14 +150,13 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-1005` — status, brokerId, sellerId, hasHolder, search por número o por usuario del"
-          + " broker y fechas acotan la página y el resumen; un status desconocido es 400")
+      "`CA-SP-1005` — status, brokerId, sellerId, hasHolder, search por número y fechas acotan"
+          + " la página y el resumen; un status desconocido es 400")
   void losFiltros() throws Exception {
     unico("?status=FIRST_DEPOSIT", "1002");
     unico("?brokerId=" + brokerB, "1003");
     unico("?sellerId=" + base, "1003");
     unico("?hasHolder=false", "1002");
-    unico("?search=TRADER_MAR", "1002");
     unico("?search=1001", "1001");
 
     mvc.perform(get(RUTA + "?sellerId=" + ajeno).with(como(jefe)))
@@ -259,20 +258,18 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
     return id;
   }
 
-  private void consumidora(
-      UUID persona, UUID broker, String cuenta, UUID origen, String estado, String usuario) {
+  private void consumidora(UUID persona, UUID broker, String cuenta, UUID origen, String estado) {
     jdbc.update(
         """
         INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id,
-                                  status, broker_username)
-        VALUES (gen_random_uuid(), ?, ?, ?, 'CONSUMIDOR', ?, ?, ?)
+                                  status)
+        VALUES (gen_random_uuid(), ?, ?, ?, 'CONSUMIDOR', ?, ?)
         """,
         persona,
         broker,
         cuenta,
         origen,
-        estado,
-        usuario);
+        estado);
   }
 
   private UUID brokerAsegurado(String id, String nombre) {

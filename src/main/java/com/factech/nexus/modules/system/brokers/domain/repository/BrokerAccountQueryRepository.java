@@ -44,8 +44,7 @@ public interface BrokerAccountQueryRepository {
    * <p><b>Un solo nivel</b> (`RN-SP-046`): quienes reportan directamente. El árbol descendente
    * publicaría la estructura entera de la empresa por una lectura de cuentas de broker.
    *
-   * <p><b>Los dos filtros admiten nulo, y el nulo es «sin filtrar»</b> — al revés que el nulo de
-   * {@code broker_username}, que sí significa algo. Se combinan con Y.
+   * <p><b>Los dos filtros admiten nulo, y el nulo es «sin filtrar»</b>. Se combinan con Y.
    */
   List<TeamBrokerAccountItem> findByTeamOf(
       UUID supervisorId, UserBrokerStatus estado, UUID brokerId, int offset, int limit);

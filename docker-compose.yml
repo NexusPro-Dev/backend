@@ -125,6 +125,9 @@ services:
       BROKER_FIELD_ACCOUNT: ${BROKER_FIELD_ACCOUNT:-trader_id}
       BROKER_FIELD_AFFTRACK: ${BROKER_FIELD_AFFTRACK:-afftrack}
       BROKER_FIELD_EVENT_ID: ${BROKER_FIELD_EVENT_ID:-event_id}
+      BROKER_FIELD_COUNTRY: ${BROKER_FIELD_COUNTRY:-country_code}
+      BROKER_FIELD_AMOUNT: ${BROKER_FIELD_AMOUNT:-amount}
+      BROKER_FIELD_CURRENCY: ${BROKER_FIELD_CURRENCY:-currency}
       # La pasarela local, PayRetailers (RF-MV-048, deployment.md §6.5.2). La tienda
       # de cada país va en su conversión. Opcionales: sin las dos, PSE nace pendiente
       # y lo confirma una persona.

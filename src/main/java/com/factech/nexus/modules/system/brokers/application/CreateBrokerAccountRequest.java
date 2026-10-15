@@ -5,8 +5,7 @@ import java.util.UUID;
 
 /**
  * Declarar una cuenta de broker (`RF-SP-053`): <b>el broker y el identificador</b>, lo que la
- * persona conoce (`RN-SP-040`). El nombre de usuario en el broker y el estado no viajan: los pone
- * el broker.
+ * persona conoce. El estado no viaja: lo mueve el broker con sus avisos.
  *
  * <p>{@code accountId} se llama igual que en el registro por enlace y en la respuesta de
  * `RF-SP-055`: es el identificador <b>en el broker</b>, no el de la fila.

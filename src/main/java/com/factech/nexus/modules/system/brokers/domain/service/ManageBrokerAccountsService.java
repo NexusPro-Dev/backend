@@ -229,7 +229,6 @@ public class ManageBrokerAccountsService {
     instantanea.put("broker_id", cuenta.brokerId().toString());
     instantanea.put("broker_name", cuenta.brokerName());
     instantanea.put("external_id", cuenta.accountId());
-    instantanea.put("broker_username", cuenta.brokerUsername());
     instantanea.put("status", cuenta.status().name());
     instantanea.put("kind", cuenta.kind().name());
     instantanea.put("afftrack", cuenta.afftrack());

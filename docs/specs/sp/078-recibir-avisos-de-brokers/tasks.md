@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.6.0 |
-| Plan | [`plan.md`](plan.md) v0.6.0 |
+| Especificación | [`spec.md`](spec.md) v0.7.0 |
+| Plan | [`plan.md`](plan.md) v0.7.0 |
 | `plan.md` aprobado el | 08-10-2026 |
 | Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0); `T-15` y `T-16` `Hecha` el 09-10-2026 (enmienda 0.4.0); `T-17` a `T-19` `Hecha` el 10-10-2026 (enmienda 0.5.0); `T-20` a `T-23` `Hecha` el 13-10-2026 (enmienda 0.6.0) |
 | Issue | Pendiente de crear |
@@ -44,6 +44,10 @@
 | `T-21` | `receiveCommon` sin `EX-003`, con `advertiser` guardado; `classify`; `BrokerNotificationClassifier`; el repositorio; fuera la ruta por nombre, `findActiveByName`, `tokenOf`, `notification-tokens` y su ruta pública | `T-20` | | **Hecha** — 13-10-2026 |
 | `T-22` | `BrokerNotificationsIT`: `CA-SP-1009` a `CA-SP-1015`, las pruebas de la ruta por nombre retiradas o pasadas a la común; `IntegrationTestBase`; `EndpointPermissionsIT` | `T-21` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 13-10-2026 |
 | `T-23` | Contrato con la prosa; `api/index.md`, `deployment.md`, `.env.example`, `docker-compose.yml`, `modelo-datos.md` y `requirements.md` | `T-22` | | **Hecha** — 13-10-2026 |
+| `T-24` | `V113`; los tres campos en la configuración; `recordRegistration`, `fillCountry` y `recordDeposit`; país, importe y moneda en `interpretar` (`plan.md` §17) | — | Flyway aplica sobre una base limpia | **Hecha** — 15-10-2026 |
+| `T-25` | Fuera `brokerUsername` de las respuestas, de `LockedAccount`, de la búsqueda y de la auditoría; las cinco cifras en `activity` | `T-24` | | **Hecha** — 15-10-2026 |
+| `T-26` | `BrokerNotificationsIT`: `CA-SP-1026` a `CA-SP-1030`; `CA-SP-1031`; `UserBrokerAccountSchemaIT` y las suites que leían `brokerUsername` | `T-25` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 15-10-2026 |
+| `T-27` | Contrato con la prosa; `api/index.md`, `modelo-datos.md`, `requirements.md`, `deployment.md`, `.env.example` | `T-26` | | **Hecha** — 15-10-2026 |
 | `T-09` | Configurar el secreto común en el entorno desplegado (Dokploy, `ADR-007`) y la dirección común en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base, con su `advertiser` | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -67,6 +71,7 @@
 | `CA-SP-964` a `CA-SP-968` | `T-15`, `T-16` |
 | `CA-SP-995` a `CA-SP-1002` | `T-17` a `T-19` |
 | `CA-SP-1009` a `CA-SP-1015` | `T-20` a `T-22` |
+| `CA-SP-1026` a `CA-SP-1031` | `T-24` a `T-26` |
 
 ---
 

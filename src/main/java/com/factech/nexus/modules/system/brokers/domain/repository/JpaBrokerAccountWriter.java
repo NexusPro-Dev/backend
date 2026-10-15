@@ -45,7 +45,7 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
   private static final String COLUMNAS =
       """
       SELECT ub.id, ub.user_id, ub.broker_id, b.name AS broker_name, ub.external_id,
-             ub.broker_username, ub.status, ub.kind, ub.afftrack, ub.referrer_account_id
+             ub.status, ub.kind, ub.afftrack, ub.referrer_account_id
         FROM user_brokers ub
         JOIN brokers b ON b.id = ub.broker_id
       """;
@@ -313,6 +313,70 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
         .executeUpdate();
   }
 
+  @Override
+  public void recordRegistration(UUID brokerAccountId, UUID noticeId, String countryCode) {
+    em.createNativeQuery(
+            """
+            UPDATE user_brokers
+               SET registered_at = coalesce(registered_at,
+                                            (SELECT n.received_at FROM broker_notifications n
+                                              WHERE n.id = CAST(:aviso AS uuid))),
+                   country_code = coalesce(country_code, CAST(:pais AS varchar)),
+                   updated_at = now()
+             WHERE id = CAST(:id AS uuid)
+               AND (registered_at IS NULL
+                    OR (country_code IS NULL AND CAST(:pais AS varchar) IS NOT NULL))
+            """)
+        .setParameter("id", brokerAccountId)
+        .setParameter("aviso", noticeId)
+        .setParameter("pais", countryCode)
+        .executeUpdate();
+  }
+
+  @Override
+  public void fillCountry(UUID brokerAccountId, String countryCode) {
+    if (countryCode == null) {
+      return;
+    }
+    em.createNativeQuery(
+            """
+            UPDATE user_brokers SET country_code = :pais, updated_at = now()
+             WHERE id = CAST(:id AS uuid) AND country_code IS NULL
+            """)
+        .setParameter("id", brokerAccountId)
+        .setParameter("pais", countryCode)
+        .executeUpdate();
+  }
+
+  @Override
+  public void recordDeposit(
+      UUID brokerAccountId, Long amountMinor, String currency, boolean first) {
+    // Un solo UPDATE: la moneda se compara con la que la fila tiene AL
+    // escribir, no con la que se leyó antes. Sin importe no hay nada que
+    // sumar, y la moneda se fija igual.
+    em.createNativeQuery(
+            """
+            UPDATE user_brokers
+               SET deposit_currency = coalesce(deposit_currency, CAST(:moneda AS varchar)),
+                   first_deposit_amount = CASE WHEN CAST(:primero AS boolean) AND first_deposit_amount IS NULL
+                                               THEN CAST(:importe AS bigint)
+                                               ELSE first_deposit_amount END,
+                   deposits_total = deposits_total
+                       + CASE WHEN CAST(:importe AS bigint) IS NOT NULL
+                                   AND (CAST(:moneda AS varchar) IS NULL
+                                        OR deposit_currency IS NULL
+                                        OR deposit_currency = CAST(:moneda AS varchar))
+                              THEN CAST(:importe AS bigint) ELSE 0 END,
+                   updated_at = now()
+             WHERE id = CAST(:id AS uuid)
+            """)
+        .setParameter("id", brokerAccountId)
+        .setParameter("importe", amountMinor)
+        .setParameter("moneda", currency)
+        .setParameter("primero", first)
+        .executeUpdate();
+  }
+
   private void escribir(Query sentencia) {
     try {
       sentencia.executeUpdate();
@@ -338,7 +402,6 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
                     (UUID) f.get("broker_id"),
                     (String) f.get("broker_name"),
                     (String) f.get("external_id"),
-                    (String) f.get("broker_username"),
                     UserBrokerStatus.valueOf((String) f.get("status")),
                     BrokerAccountKind.valueOf((String) f.get("kind")),
                     (String) f.get("afftrack"),

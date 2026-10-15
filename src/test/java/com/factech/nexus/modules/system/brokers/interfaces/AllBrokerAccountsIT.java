@@ -137,19 +137,17 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-1007` — `search` encuentra también por el nombre de usuario en el broker, y con"
-          + " `?kind=CONSUMIDOR` acota a las de consumidor")
-  void buscaPorUsuarioDelBroker() throws Exception {
-    jdbc.update(
-        "UPDATE user_brokers SET broker_username = 'Trader_Pédro' WHERE external_id = '40000001'");
+      "`CA-SP-1007` — con `?kind=CONSUMIDOR` la búsqueda acota a las de consumidor; desde el"
+          + " 15-10-2026 sin nombre de usuario en el broker (`CA-SP-1031`)")
+  void buscaPorNumeroYTipo() throws Exception {
     jdbc.update("UPDATE user_brokers SET kind = 'VENDEDOR' WHERE external_id = '10000001'");
 
-    mvc.perform(get(RUTA + "?search=trader_pe&kind=CONSUMIDOR").with(administrador()))
+    mvc.perform(get(RUTA + "?search=40000001&kind=CONSUMIDOR").with(administrador()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].accountId").value("40000001"))
-        .andExpect(jsonPath("$.content[0].brokerUsername").value("Trader_Pédro"));
-    mvc.perform(get(RUTA + "?search=TRADER&kind=VENDEDOR").with(administrador()))
+        .andExpect(jsonPath("$.content[0].brokerUsername").doesNotExist());
+    mvc.perform(get(RUTA + "?search=40000001&kind=VENDEDOR").with(administrador()))
         .andExpect(jsonPath("$.totalElements").value(0));
   }
 

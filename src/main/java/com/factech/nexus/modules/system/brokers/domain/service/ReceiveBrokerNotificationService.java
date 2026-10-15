@@ -19,6 +19,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,8 +43,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Primero se comprueba que el aviso trae el secreto —en el orden de la spec §8, y <b>antes de
  * guardar nada</b>— y se guarda entero, sin el secreto, con su broker o sin él (`RN-SP-076`).
  * Luego, en la misma transacción y solo si tiene broker, el registro crea la cuenta sin titular
- * (`RN-SP-072`), el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`).
- * Cualquier otro aviso solo se guarda.
+ * (`RN-SP-072`), el depósito confirma el FTD (`RN-SP-073`) y la operación se cuenta (`RN-SP-074`);
+ * y los tres dejan en la cuenta lo que traen: la fecha del registro, el país y los depósitos
+ * (`RN-SP-077`). Cualquier otro aviso solo se guarda.
  */
 @Service
 public class ReceiveBrokerNotificationService {
@@ -57,6 +61,18 @@ public class ReceiveBrokerNotificationService {
 
   /** El {@code advertiser} más largo que se guarda; uno más largo cuenta como ausente. */
   private static final int MAX_ADVERTISER = 100;
+
+  /** El país: dos letras (`RN-SP-077`), como `ck_user_brokers_pais`. */
+  private static final Pattern PAIS = Pattern.compile("[A-Z]{2}");
+
+  /** La moneda: tres letras, como `ck_user_brokers_moneda`. */
+  private static final Pattern MONEDA = Pattern.compile("[A-Z]{3}");
+
+  /**
+   * El mayor importe que se guarda, en unidades: sus centésimas caben de sobra en un {@code
+   * bigint}, y el total puede sumar muchos sin desbordarlo. Uno mayor no es un depósito creíble.
+   */
+  private static final BigDecimal MAX_IMPORTE = new BigDecimal("1000000000000");
 
   private static final TypeReference<LinkedHashMap<String, List<String>>> CONSULTA =
       new TypeReference<>() {};
@@ -230,12 +246,42 @@ public class ReceiveBrokerNotificationService {
     if (numero.isEmpty()) {
       return;
     }
+    String pais =
+        campo(nombres.country(), consulta, cuerpo, tipo)
+            .map(valor -> valor.toUpperCase(Locale.ROOT))
+            .filter(valor -> PAIS.matcher(valor).matches())
+            .orElse(null);
     if (es(evento.get(), secretos.registration())) {
-      registrar(brokerId, numero.get(), consulta, cuerpo, tipo);
+      registrar(avisoId, brokerId, numero.get(), pais, consulta, cuerpo, tipo);
     } else if (es(evento.get(), secretos.deposit())) {
-      depositar(avisoId, brokerId, eventId, numero.get());
+      Long importe = importe(campo(nombres.amount(), consulta, cuerpo, tipo));
+      String moneda =
+          campo(nombres.currency(), consulta, cuerpo, tipo)
+              .map(valor -> valor.toUpperCase(Locale.ROOT))
+              .filter(valor -> MONEDA.matcher(valor).matches())
+              .orElse(null);
+      depositar(avisoId, brokerId, eventId, numero.get(), pais, importe, moneda);
     } else if (es(evento.get(), secretos.operation())) {
-      operar(avisoId, brokerId, eventId, numero.get());
+      operar(avisoId, brokerId, numero.get(), pais);
+    }
+  }
+
+  /**
+   * El importe del depósito en centésimas (`RN-SP-077`, ADR-006): un número mayor que cero,
+   * redondeado al céntimo. Cualquier otra cosa es nula, y el depósito se aplica igual.
+   */
+  static Long importe(Optional<String> texto) {
+    if (texto.isEmpty()) {
+      return null;
+    }
+    try {
+      BigDecimal valor = new BigDecimal(texto.get()).setScale(2, RoundingMode.HALF_UP);
+      if (valor.signum() <= 0 || valor.compareTo(MAX_IMPORTE) > 0) {
+        return null;
+      }
+      return valor.movePointRight(2).longValueExact();
+    } catch (NumberFormatException | ArithmeticException noEsUnImporte) {
+      return null;
     }
   }
 
@@ -246,17 +292,31 @@ public class ReceiveBrokerNotificationService {
   /**
    * El aviso de depósito (`RN-SP-073`): la primera vez, la `CONSUMIDOR` pasa a `FIRST_DEPOSIT`; y
    * si tiene titular en `FTD_PENDIENTE`, este pasa a `ACTIVO` con lo que compró. De un número sin
-   * cuenta, o de una `VENDEDOR`, el aviso solo se guarda. <b>Una reentrega no se aplica</b>, aunque
-   * aquí sería inocua: el orden es el mismo que en la operación, que no lo es.
+   * cuenta, o de una `VENDEDOR`, el aviso solo se guarda. <b>Una reentrega no se aplica</b>:
+   * sumaría dos veces el mismo importe al total.
+   *
+   * <p>Desde el 15-10-2026 deja también el país y el importe (`RN-SP-077`): el primero solo con el
+   * aviso que pasa la cuenta a {@code FIRST_DEPOSIT}, y el total con cada uno. Una reentrega ya
+   * salió arriba, de modo que no suma dos veces.
    */
-  private void depositar(UUID avisoId, UUID brokerId, String eventId, String numero) {
+  private void depositar(
+      UUID avisoId,
+      UUID brokerId,
+      String eventId,
+      String numero,
+      String pais,
+      Long importe,
+      String moneda) {
     Optional<LockedAccount> cuenta = cuentas.lockByNumber(brokerId, numero);
     if (cuenta.isEmpty()
         || cuenta.get().kind() != BrokerAccountKind.CONSUMIDOR
         || reentrega(avisoId, brokerId, eventId)) {
       return;
     }
-    if (cuentas.markFirstDeposit(cuenta.get().id())) {
+    cuentas.fillCountry(cuenta.get().id(), pais);
+    boolean primero = cuentas.markFirstDeposit(cuenta.get().id());
+    cuentas.recordDeposit(cuenta.get().id(), importe, moneda, primero);
+    if (primero) {
       Map<String, Object> cambios = new LinkedHashMap<>();
       cambios.put("status", Map.of("before", "REGISTER", "after", "FIRST_DEPOSIT"));
       auditoria.recordChange(
@@ -269,15 +329,19 @@ public class ReceiveBrokerNotificationService {
 
   /**
    * El aviso de operación (`RN-SP-074`): una más en la cuenta de ese número, sea del tipo que sea.
-   * <b>No se audita</b>: el aviso guardado es la constancia, y una fila de auditoría por operación
-   * enterraría las demás.
+   * <b>No se audita</b>, y desde el 15-10-2026 <b>el aviso contado se borra</b> en la misma
+   * transacción: el contador es la constancia, y las operaciones son la mayoría de los avisos. Por
+   * eso una reentrega cuenta otra vez —no queda el aviso anterior con el que reconocerla—, y el
+   * responsable del proyecto lo aceptó. El de un número sin cuenta no se cuenta y se queda.
    */
-  private void operar(UUID avisoId, UUID brokerId, String eventId, String numero) {
+  private void operar(UUID avisoId, UUID brokerId, String numero, String pais) {
     Optional<LockedAccount> cuenta = cuentas.lockByNumber(brokerId, numero);
-    if (cuenta.isEmpty() || reentrega(avisoId, brokerId, eventId)) {
+    if (cuenta.isEmpty()) {
       return;
     }
+    cuentas.fillCountry(cuenta.get().id(), pais);
     cuentas.countOperation(cuenta.get().id());
+    avisos.delete(avisoId);
   }
 
   /**
@@ -290,11 +354,15 @@ public class ReceiveBrokerNotificationService {
 
   /**
    * El aviso de registro (`RN-SP-070`, `RN-SP-072`): crea la cuenta `CONSUMIDOR` sin titular, con
-   * origen en la `VENDEDOR` de su `afftrack`; si el número ya existía sin origen, se lo pone.
+   * origen en la `VENDEDOR` de su `afftrack`; si el número ya existía sin origen, se lo pone. Y en
+   * los dos casos deja en la cuenta cuándo llegó el registro y su país, si no los tenía
+   * (`RN-SP-077`).
    */
   private void registrar(
+      UUID avisoId,
       UUID brokerId,
       String numero,
+      String pais,
       Map<String, List<String>> consulta,
       byte[] cuerpo,
       String tipo) {
@@ -316,8 +384,12 @@ public class ReceiveBrokerNotificationService {
       auditoria.recordChange(
           new ChangeEvent(
               "SP", "user_brokers", creada.get(), ChangeAction.CREATE, Map.of("after", despues)));
+      cuentas.recordRegistration(creada.get(), avisoId, pais);
       return;
     }
+    cuentas
+        .lockByNumber(brokerId, numero)
+        .ifPresent(existente -> cuentas.recordRegistration(existente.id(), avisoId, pais));
     if (origen != null) {
       UUID completada = origen;
       cuentas

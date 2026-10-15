@@ -136,19 +136,17 @@ class BrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-631`, `CA-SP-632` — nace en REGISTER, y `brokerUsername` está y es nulo")
-  void estadoInicialYNombreSinConfirmar() throws Exception {
+  @DisplayName(
+      "`CA-SP-631`, `CA-SP-632` — nace en REGISTER, sin nombre de usuario en el broker"
+          + " (`RN-SP-040` retirada) y sin nada avisado (`CA-SP-1031`)")
+  void estadoInicialYNadaAvisado() throws Exception {
     mvc.perform(get("/api/v1/users/" + medio + "/broker-accounts").with(comoPersona(jefe)))
         .andExpect(jsonPath("$.content[0].status").value("REGISTER"))
-        // PRESENTE y en nulo: su nulo significa «el broker no lo ha confirmado»
-        // (`RN-SP-040`), y omitir el campo lo confundiría con «confirmado sin
-        // nombre».
-        .andExpect(jsonPath("$.content[0].brokerUsername").value(org.hamcrest.Matchers.nullValue()))
-        // Y PRESENTE, que es lo que `jsonPath` sobre un nulo no distingue: se
-        // comprueba sobre el JSON crudo porque la diferencia entre «campo
-        // ausente» y «campo en nulo» ES el requisito de `RN-SP-040`.
-        .andExpect(
-            content().string(org.hamcrest.Matchers.containsString("\"brokerUsername\":null")));
+        .andExpect(jsonPath("$.content[0].brokerUsername").doesNotExist())
+        .andExpect(jsonPath("$.content[0].activity.depositsTotal").value(0.0))
+        // PRESENTES y en nulo: la cuenta no tiene aviso de registro todavía.
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("\"registeredAt\":null")))
+        .andExpect(content().string(org.hamcrest.Matchers.containsString("\"countryCode\":null")));
   }
 
   @Test
@@ -311,12 +309,17 @@ class BrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-910` — `brokerUsername` está y es nulo mientras el broker no lo confirma")
-  void nombreSinConfirmarEnLasPropias() throws Exception {
+  @DisplayName(
+      "`CA-SP-910` — las propias traen lo que avisó el broker, y ya no `brokerUsername`"
+          + " (`CA-SP-1031`)")
+  void loAvisadoEnLasPropias() throws Exception {
     mvc.perform(get("/api/v1/users/me/broker-accounts").with(comoTitular(base)))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].brokerUsername").doesNotExist())
         .andExpect(
-            content().string(org.hamcrest.Matchers.containsString("\"brokerUsername\":null")));
+            content().string(org.hamcrest.Matchers.containsString("\"firstDepositAmount\":null")))
+        .andExpect(
+            content().string(org.hamcrest.Matchers.containsString("\"depositCurrency\":null")));
   }
 
   @Test

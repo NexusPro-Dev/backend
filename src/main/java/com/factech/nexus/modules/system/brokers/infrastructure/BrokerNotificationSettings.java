@@ -21,7 +21,7 @@ public record BrokerNotificationSettings(
     Fields fields) {
 
   public BrokerNotificationSettings {
-    fields = fields == null ? new Fields(null, null, null, null) : fields;
+    fields = fields == null ? new Fields(null, null, null, null, null, null, null) : fields;
   }
 
   /**
@@ -46,13 +46,31 @@ public record BrokerNotificationSettings(
     return evento == null || evento.isBlank() ? Optional.empty() : Optional.of(evento.trim());
   }
 
-  /** Cómo llama el broker a cada dato del aviso. */
-  public record Fields(String event, String account, String afftrack, String eventId) {
+  /**
+   * Cómo llama el broker a cada dato del aviso. {@code country}, {@code amount} y {@code currency}
+   * desde el 15-10-2026 (`RN-SP-077`): el del importe se configura porque ningún aviso real de
+   * depósito lo ha mostrado todavía.
+   */
+  public record Fields(
+      String event,
+      String account,
+      String afftrack,
+      String eventId,
+      String country,
+      String amount,
+      String currency) {
     public Fields {
-      event = event == null || event.isBlank() ? "postback_name" : event.trim();
-      account = account == null || account.isBlank() ? "trader_id" : account.trim();
-      afftrack = afftrack == null || afftrack.isBlank() ? "afftrack" : afftrack.trim();
-      eventId = eventId == null || eventId.isBlank() ? "event_id" : eventId.trim();
+      event = nombre(event, "postback_name");
+      account = nombre(account, "trader_id");
+      afftrack = nombre(afftrack, "afftrack");
+      eventId = nombre(eventId, "event_id");
+      country = nombre(country, "country_code");
+      amount = nombre(amount, "amount");
+      currency = nombre(currency, "currency");
+    }
+
+    private static String nombre(String configurado, String porOmision) {
+      return configurado == null || configurado.isBlank() ? porOmision : configurado.trim();
     }
   }
 

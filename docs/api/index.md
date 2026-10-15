@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.139.0 |
+| Versión | 1.140.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -244,3 +244,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.137.0 | 15-10-2026 | **`GET /brokers` trae el modelo de cada broker** ([`requirements/sp.md`](../requirements/sp.md) v1.126.0, `RF-SP-052`): nace `model`, texto libre, `null` mientras no se cargue. Mismo permiso (público). | Responsable técnico |
 | 1.138.0 | 15-10-2026 | **Nace `PATCH /brokers/{id}`** ([`requirements/sp.md`](../requirements/sp.md) v1.127.0, `RF-SP-084`, `RN-SP-039` enmendada): edita **solo** `url` y `model` de un broker del catálogo, con `brokers:update`. Ausente o `null` no se toca, `""` vacía; otro campo es `400`. Responde la fila de `GET /brokers`. El `GET` sigue público. | Responsable técnico |
 | 1.139.0 | 15-10-2026 | **Equipos: `POST /teams/{id}/members` admite a cualquier vendedor menos el último eslabón** (hoy manager y director; el agente sigue en `422`), y **`GET /teams` y `GET /teams/{id}` traen `parentTeam`** (`id`, `name`; `null` = oficina principal) ([`requirements/sp.md`](../requirements/sp.md) v1.128.0, `RN-SP-051`). Cambian los textos de `422` y `409` («encargado» en lugar de «director»). Mismos permisos. | Responsable técnico |
+| 1.140.0 | 15-10-2026 | **Las cuentas de broker pierden `brokerUsername` y `activity` gana lo que traen los avisos** ([`requirements/sp.md`](../requirements/sp.md) v1.129.0, `RN-SP-077`, `RN-SP-040` retirada). **Ruptura admitida**: el campo sale de `BrokerAccountItem` y `TeamBrokerAccountItem` —`GET /users/me/broker-accounts`, `GET /users/{id}/broker-accounts`, `GET /users/{id}/team/broker-accounts`, `GET /broker-accounts`, `GET /users/me/referred-broker-accounts` y las respuestas de alta y edición—, y `search` ya no busca por él; **nunca llevó valor**. `activity` gana `registeredAt`, `countryCode`, `firstDepositAmount`, `depositsTotal` (cero sin depósitos) y `depositCurrency`, y **desde hoy emite sus nulos** (`Include.ALWAYS`), también `firstDepositAt` y las fechas de operación. Los avisos (`/brokers/notifications`) no cambian de forma: leen `country_code`, `amount` y `currency`, configurables. | Responsable del proyecto |
