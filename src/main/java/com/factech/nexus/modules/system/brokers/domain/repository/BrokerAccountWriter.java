@@ -115,6 +115,12 @@ public interface BrokerAccountWriter {
    */
   boolean markFirstDeposit(UUID brokerAccountId);
 
+  /**
+   * El usuario del dueño de la cuenta {@code VENDEDOR} de origen de esta cuenta, si la tiene
+   * (`RN-SP-079`): el vendedor de la beca del primer depósito.
+   */
+  Optional<String> referrerSellerUsername(UUID brokerAccountId);
+
   /** Cuenta una operación más (`RN-SP-074`): el total, la primera y la última. */
   void countOperation(UUID brokerAccountId);
 

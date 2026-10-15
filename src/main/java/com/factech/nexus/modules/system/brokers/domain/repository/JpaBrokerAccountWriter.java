@@ -324,6 +324,22 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
   }
 
   @Override
+  public Optional<String> referrerSellerUsername(UUID brokerAccountId) {
+    List<?> filas =
+        em.createNativeQuery(
+                """
+                SELECT u.username
+                  FROM user_brokers ub
+                  JOIN user_brokers r ON r.id = ub.referrer_account_id
+                  JOIN users u ON u.id = r.user_id
+                 WHERE ub.id = CAST(:id AS uuid)
+                """)
+            .setParameter("id", brokerAccountId)
+            .getResultList();
+    return filas.stream().findFirst().map(String.class::cast);
+  }
+
+  @Override
   public void countOperation(UUID brokerAccountId) {
     em.createNativeQuery(
             """

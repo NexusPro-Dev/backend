@@ -1359,6 +1359,30 @@ public class JpaMovementRepository implements MovementRepository {
     return Boolean.TRUE.equals(hay);
   }
 
+  @Override
+  public boolean hasSaleOfProducts(UUID userId, java.util.Set<UUID> productIds) {
+    if (productIds.isEmpty()) {
+      return false;
+    }
+    Object hay =
+        em.createNativeQuery(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                      FROM movements m
+                      JOIN movement_types t ON t.id = m.movement_type_id
+                      JOIN movement_details d ON d.movement_id = m.id
+                     WHERE m.user_id = CAST(:persona AS uuid)
+                       AND t.code = 'VENTA'
+                       AND m.status IN ('PENDIENTE', 'CONFIRMADA')
+                       AND d.product_id IN (:productos))
+                """)
+            .setParameter("persona", userId)
+            .setParameter("productos", productIds)
+            .getSingleResult();
+    return Boolean.TRUE.equals(hay);
+  }
+
   /**
    * <b>La cuenta de filas es la decisión.</b> Cero filas significa «no estaba pendiente» —o no
    * existe—, y se responde sin haber leído nada antes: dos confirmaciones simultáneas no pueden

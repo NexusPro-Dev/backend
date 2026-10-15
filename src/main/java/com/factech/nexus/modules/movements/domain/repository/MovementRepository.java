@@ -536,6 +536,12 @@ public interface MovementRepository {
   boolean hasPendingPayment(UUID movementId);
 
   /**
+   * ¿Tiene la persona una venta <b>pendiente o confirmada</b> con una línea de alguno de esos
+   * productos? Es la «una por persona» de la beca del primer depósito (`RN-MV-079`).
+   */
+  boolean hasSaleOfProducts(UUID userId, java.util.Set<UUID> productIds);
+
+  /**
    * ¿Hay ya un pago con esta clave? Lo pregunta una compra <b>antes</b> de registrar (`RF-MV-018` ·
    * `spec.md` §2.2): la misma compra repetida con la misma clave no registra otra venta.
    */

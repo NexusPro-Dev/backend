@@ -58,6 +58,14 @@ final class SaleAttribution {
     return new Atribucion(dueno, SaleTypeStatus.VALIDADO);
   }
 
+  /**
+   * La beca del primer depósito de una cuenta sin origen (`RN-MV-079`): la línea va sin vendedor y
+   * espera a que se le asigne (`RF-MV-016`).
+   */
+  static Atribucion sinVendedor() {
+    return new Atribucion(null, SaleTypeStatus.VALIDAR_COMISIONES);
+  }
+
   /** Cualquier otra entrada: la tienda, el funcionario y el alta por enlace. */
   Atribucion deQuienCompra(ClientView cliente) {
     List<SellerView> suyos = clientes.sellersOf(cliente.id());

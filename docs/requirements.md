@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.365.0 |
+| Versión | 0.366.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -844,3 +844,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.363.0 | 15-10-2026 | **Lo que traen los avisos de los brokers se guarda en la cuenta, y se retira el nombre de usuario en el broker** ([`requirements/sp.md`](requirements/sp.md) v1.129.0, `RN-SP-077`, `RN-SP-040` retirada), a petición del responsable del proyecto. `RF-SP-054` y la tripleta de `RF-SP-078` (v0.7.0, `CA-SP-1026` a `CA-SP-1031`); `V113`. `brokerUsername` sale de las respuestas de cuentas de broker y de `search`; `activity` gana cinco campos. Y `RN-SP-074` enmendada: **el aviso de operación contado se borra**, y su reentrega cuenta otra vez. Sin permiso nuevo. | Responsable del proyecto |
 | 0.364.0 | 15-10-2026 | **La cuenta de broker de vendedor puede no tener número, y la consulta administrativa de cuentas trae solo las de consumidor** ([`requirements/sp.md`](requirements/sp.md) v1.130.0, `RN-SP-078` nueva, `RF-SP-053` y `RF-SP-057` enmendados, `V114`), a petición del responsable del proyecto. | Responsable del proyecto |
 | 0.365.0 | 15-10-2026 | **El registro por enlace se asocia cualquier cuenta de broker sin titular** ([`requirements/sp.md`](requirements/sp.md) v1.131.0, `RN-SP-072` enmendada): la usa en lugar de dar `409`, y su origen pasa al vendedor del enlace. Tripleta de `RF-SP-053` v0.4.0 (`CA-SP-1035`). | Responsable del proyecto |
+| 0.366.0 | 15-10-2026 | **La beca del primer depósito** ([`requirements/sp.md`](requirements/sp.md) v1.132.0, `RN-SP-079`; [`requirements/mv.md`](requirements/mv.md) v0.100.0, `RN-MV-079`): la cuenta asociada desde la plataforma registra, al llegar a `FIRST_DEPOSIT`, la venta `BECA → BECA` confirmada y entregada, con el vendedor de origen o sin él. Tripleta de `RF-SP-078` v0.8.0 (`CA-SP-1036` a `CA-SP-1043`). | Responsable del proyecto |

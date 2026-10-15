@@ -314,7 +314,13 @@ public class RegisterSaleService {
   PurchaseResponse comprarPorElEnlace(
       RegisterSaleRequest peticion, SellerView duenoDelEnlace, IdempotencyKey clave) {
     VentaRegistrada hecha =
-        registrar(peticion, false, SaleChannel.HOTLINK, duenoDelEnlace, clave, null);
+        registrar(
+            peticion,
+            false,
+            SaleChannel.HOTLINK,
+            SaleAttribution.delEnlace(duenoDelEnlace),
+            clave,
+            null);
     PurchaseResponse compra =
         PurchaseResponse.de(
             hecha.venta(),
@@ -362,11 +368,34 @@ public class RegisterSaleService {
       SaleResponse pagada) {}
 
   /**
+   * La beca del primer depósito (`RN-MV-079`, `RN-SP-079`): la venta `BECA → BECA` de una persona
+   * cuya cuenta de broker acaba de recibir su primer depósito, <b>con la atribución fijada desde
+   * fuera</b> —el vendedor de la cuenta de origen, o ninguno— y por el canal hotlink, que es el que
+   * publica ese producto. <b>No la confirma</b>: eso lo hace quien llama, en la misma transacción.
+   *
+   * <p>De paquete, como {@link #comprarPorElEnlace}: solo la alcanza {@link
+   * PublishedFirstDepositSale}.
+   */
+  UUID registrarBecaDelDeposito(UUID clienteId, UUID productoId, SellerView vendedor) {
+    return registrar(
+            new RegisterSaleRequest(
+                clienteId, null, List.of(new RegisterSaleRequest.Line(productoId, 1)), null),
+            false,
+            SaleChannel.HOTLINK,
+            vendedor == null ? SaleAttribution.sinVendedor() : SaleAttribution.delEnlace(vendedor),
+            IdempotencyKey.generada(),
+            null)
+        .venta()
+        .getId();
+  }
+
+  /**
    * El registro, uno solo.
    *
-   * @param duenoDelEnlace nulo salvo en la compra por hotlink. Es lo único que las puertas no
-   *     comparten: con él, el vendedor de la línea es quien reparte el enlace (`RN-MV-025`); sin
-   *     él, se resuelve por los vendedores del cliente (`RN-MV-034`)
+   * @param fijada nula salvo en la compra por hotlink y en la beca del primer depósito. Es lo único
+   *     que las puertas no comparten: con ella, el vendedor de la línea es el que llega —quien
+   *     reparte el enlace (`RN-MV-025`), o el de la cuenta de origen, o ninguno (`RN-MV-079`)—; sin
+   *     ella, se resuelve por los vendedores del cliente (`RN-MV-034`)
    * @param quienRegistra el actor del registro de un funcionario; nulo en el alta por enlace y en
    *     el hotlink. Si es quien compra, la venta admite puntos (`RF-MV-030` `EX-003`)
    */
@@ -374,7 +403,7 @@ public class RegisterSaleService {
       RegisterSaleRequest peticion,
       boolean altaDelCliente,
       SaleChannel canal,
-      SellerView duenoDelEnlace,
+      SaleAttribution.Atribucion fijada,
       IdempotencyKey clave,
       UUID quienRegistra) {
     // LA CLAVE, PRIMERO (`RN-MV-040`): una compra repetida con la misma clave no
@@ -386,9 +415,7 @@ public class RegisterSaleService {
 
     ClientView cliente = verificarCliente(peticion.userId(), altaDelCliente);
     SaleAttribution.Atribucion atribucion =
-        duenoDelEnlace == null
-            ? atribuciones.deQuienCompra(cliente)
-            : SaleAttribution.delEnlace(duenoDelEnlace);
+        fijada == null ? atribuciones.deQuienCompra(cliente) : fijada;
     SellerView vendedor = atribucion.vendedor();
     // `RN-MV-078`: LA OFICINA, una vez por vendedor y con la estructura DEL DÍA DE
     // LA VENTA (`ocurrioEn`, no `ahora`): un traslado posterior no la mueve. Sin
@@ -426,7 +453,7 @@ public class RegisterSaleService {
     // la tienen, y se rechaza ANTES de escribir nada. Por el enlace de un vendedor
     // sí: quien compra es quien pide. Y el funcionario que registra a su propio
     // nombre también (`EX-003` precisada el 30-09-2026).
-    if (duenoDelEnlace == null && !cliente.id().equals(quienRegistra)) {
+    if (fijada == null && !cliente.id().equals(quienRegistra)) {
       PointsPayment.rechazarSiEsPuntos(metodo);
     }
 

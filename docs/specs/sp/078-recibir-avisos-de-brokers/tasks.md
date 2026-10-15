@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.7.0 |
-| Plan | [`plan.md`](plan.md) v0.7.0 |
+| Especificación | [`spec.md`](spec.md) v0.8.0 |
+| Plan | [`plan.md`](plan.md) v0.8.0 |
 | `plan.md` aprobado el | 08-10-2026 |
 | Estado | **En revisión** — `T-01` a `T-08` `Hecha` el 08-10-2026; `T-09` pendiente; `T-11` a `T-14` `Hecha` el 09-10-2026 (enmienda 0.3.0); `T-15` y `T-16` `Hecha` el 09-10-2026 (enmienda 0.4.0); `T-17` a `T-19` `Hecha` el 10-10-2026 (enmienda 0.5.0); `T-20` a `T-23` `Hecha` el 13-10-2026 (enmienda 0.6.0) |
 | Issue | Pendiente de crear |
@@ -48,6 +48,9 @@
 | `T-25` | Fuera `brokerUsername` de las respuestas, de `LockedAccount`, de la búsqueda y de la auditoría; las cinco cifras en `activity` | `T-24` | | **Hecha** — 15-10-2026 |
 | `T-26` | `BrokerNotificationsIT`: `CA-SP-1026` a `CA-SP-1030`; `CA-SP-1031`; `UserBrokerAccountSchemaIT` y las suites que leían `brokerUsername` | `T-25` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 15-10-2026 |
 | `T-27` | Contrato con la prosa; `api/index.md`, `modelo-datos.md`, `requirements.md`, `deployment.md`, `.env.example` | `T-26` | | **Hecha** — 15-10-2026 |
+| `T-28` | `MV`: `PublishedFirstDepositSale`, `registrarBecaDelDeposito`, la atribución fijada y `sinVendedor`, `hasSaleOfProducts` (`plan.md` §18) | — | | **Hecha** — 15-10-2026 |
+| `T-29` | `SP`: el puerto `FirstDepositSale`, `FirstDepositBeca`, `referrerSellerUsername` y las tres llamadas | `T-28` | | **Hecha** — 15-10-2026 |
+| `T-30` | `BrokerNotificationsIT` y `ManageBrokerAccountsIT`: `CA-SP-1036` a `CA-SP-1043` | `T-29` | Cada criterio afirmado en el cuerpo; `mvn verify` en verde | **Hecha** — 15-10-2026 |
 | `T-09` | Configurar el secreto común en el entorno desplegado (Dokploy, `ADR-007`) y la dirección común en el panel de afiliados de cada broker; disparar un aviso de prueba desde cada panel y verlo en la base, con su `advertiser` | `T-08` | Una fila por broker | Pendiente |
 
 ---
@@ -72,6 +75,7 @@
 | `CA-SP-995` a `CA-SP-1002` | `T-17` a `T-19` |
 | `CA-SP-1009` a `CA-SP-1015` | `T-20` a `T-22` |
 | `CA-SP-1026` a `CA-SP-1031` | `T-24` a `T-26` |
+| `CA-SP-1036` a `CA-SP-1043` | `T-28` a `T-30` |
 
 ---
 

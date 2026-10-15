@@ -88,6 +88,7 @@ public class ReceiveBrokerNotificationService {
   private final BrokerAccountWriter cuentas;
   private final AuditWriter auditoria;
   private final ConfirmFirstDepositService primerDeposito;
+  private final FirstDepositBeca beca;
 
   public ReceiveBrokerNotificationService(
       BrokerNotificationRepository avisos,
@@ -96,7 +97,8 @@ public class ReceiveBrokerNotificationService {
       ObjectMapper json,
       BrokerAccountWriter cuentas,
       AuditWriter auditoria,
-      ConfirmFirstDepositService primerDeposito) {
+      ConfirmFirstDepositService primerDeposito,
+      FirstDepositBeca beca) {
     this.avisos = avisos;
     this.secretos = secretos;
     this.ids = ids;
@@ -104,6 +106,7 @@ public class ReceiveBrokerNotificationService {
     this.cuentas = cuentas;
     this.auditoria = auditoria;
     this.primerDeposito = primerDeposito;
+    this.beca = beca;
   }
 
   /**
@@ -322,7 +325,14 @@ public class ReceiveBrokerNotificationService {
       auditoria.recordChange(
           new ChangeEvent("SP", "user_brokers", cuenta.get().id(), ChangeAction.UPDATE, cambios));
     }
-    if (cuenta.get().userId() != null) {
+    if (cuenta.get().userId() == null) {
+      return;
+    }
+    // `RN-SP-079`: el que la pasa a `FIRST_DEPOSIT` trae la beca a quien no la
+    // tiene; los siguientes solo pueden activar el alta por enlace, como antes.
+    if (primero) {
+      beca.apply(cuenta.get().id(), cuenta.get().userId());
+    } else {
       primerDeposito.confirm(cuenta.get().userId());
     }
   }

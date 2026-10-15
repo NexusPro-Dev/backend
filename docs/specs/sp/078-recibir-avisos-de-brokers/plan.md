@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | Requerimiento | `RF-SP-078` |
-| Especificación | [`spec.md`](spec.md) v0.7.0 |
+| Especificación | [`spec.md`](spec.md) v0.8.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -312,3 +312,40 @@ Integración, **`BrokerNotificationsIT`**, con `MockMvc` y la cadena de filtros 
 | Guardar el importe en `numeric` | Todo el dinero del sistema va en centésimas `bigint` (ADR-006) |
 
 **Pruebas**, en `BrokerNotificationsIT`: `CA-SP-1026` a `CA-SP-1030` por `MockMvc` contra la dirección común, leyendo la fila; `CA-SP-1031` en la respuesta de `RF-SP-057`. `UserBrokerAccountSchemaIT` afirma los `CHECK` nuevos y que la columna ya no existe; las demás suites pierden `brokerUsername`.
+
+## 18. Enmienda 0.8.0 — la beca del primer depósito (`RN-SP-079`, `RN-MV-079`, 15-10-2026)
+
+**Sin cambio de esquema.** `SP` no puede importar `MV` (`modules.md` §7), de modo que **el puerto se declara en `SP`** —`FirstDepositSale`, en `system/users/application`, junto a `FirstDepositActivation`— y **lo implementa `MV`** —`PublishedFirstDepositSale`, en `movements/domain/service`—. Una sola operación, `grantBeca(userId, sellerUsername)`, `MANDATORY`, que devuelve si registró la venta.
+
+**En `SP`**, un componente nuevo, `FirstDepositBeca` (`brokers/domain/service`): `apply(cuenta, persona)` llama primero a `ConfirmFirstDepositService.confirm` (`RN-SP-073`) y, **si no activó a nadie**, a `grantBeca` con el usuario del dueño de la `VENDEDOR` de origen (`BrokerAccountWriter.referrerSellerUsername`, una consulta) o nulo. Sustituye a la llamada directa a `confirm` en tres sitios:
+
+- `ReceiveBrokerNotificationService.depositar`: **solo cuando ese aviso pasó la cuenta a `FIRST_DEPOSIT`**. Los siguientes depósitos siguen llamando solo a `confirm`, como antes.
+- `ManageBrokerAccountsService.assignHolder` (`RF-SP-082`), si la cuenta está en `FIRST_DEPOSIT`.
+- `ManageBrokerAccountsService.create` (`RF-SP-053`), si la cuenta asociada ya tiene el depósito.
+
+El registro por enlace (`RF-SP-045`) no cambia: su persona tiene la venta del alta y la activa `confirm` al final del registro.
+
+**En `MV`**, `grantBeca` decide **antes de escribir nada**, para que un «no» no marque la transacción para deshacer: el cliente (`ClientCatalog.findClient`) está `ACTIVO`; su membresía vigente (`CurrentMembershipLookup`) es `BECA` o ninguna; el producto es el de `ProductCatalog.ftdProductIds()` que publica el hotlink (`publishedByHotlink`), y si no hay ninguno, `WARN` y no; y la persona no tiene una venta pendiente o confirmada de un producto FTD (`MovementRepository.hasSaleOfProducts`). El vendedor, `PublicSellerLookup.findSellerByUsername`: si no es fuerza comercial, **ninguno**.
+
+Luego registra con `RegisterSaleService.registrarBecaDelDeposito` —de paquete, como `comprarPorElEnlace`—, que llama a `registrar` con canal `HOTLINK` y **la atribución fijada**. `registrar` cambia su parámetro `SellerView duenoDelEnlace` por **`SaleAttribution.Atribucion fijada`**: el enlace pasa `delEnlace(dueño)` y la beca, `delEnlace(vendedor)` o **`sinVendedor()`** —nuevo, `VALIDAR_COMISIONES`—; nulo sigue siendo «la de quien compra». Y la confirma con `ConfirmSaleService.confirmInternal`: entrega la línea —`delivered_at`, el FTD— y publica `CommissionableLinesEvent`.
+
+| Capa | Componente | Cambio |
+|---|---|---|
+| `system/users/application` | `FirstDepositSale` (nuevo) | El puerto |
+| `system/brokers/domain/service` | `FirstDepositBeca` (nuevo) | `confirm`, y si no, `grantBeca` |
+| `system/brokers/domain/service` | `ReceiveBrokerNotificationService`, `ManageBrokerAccountsService` | Las tres llamadas |
+| `system/brokers/domain/repository` | `BrokerAccountWriter`, `JpaBrokerAccountWriter` | `referrerSellerUsername` |
+| `movements/domain/service` | `PublishedFirstDepositSale` (nuevo), `RegisterSaleService`, `SaleAttribution` | La venta, la atribución fijada, `sinVendedor` |
+| `movements/domain/repository` | `MovementRepository` y su adaptador | `hasSaleOfProducts` |
+
+**Alternativas descartadas**
+
+| Alternativa | Por qué no |
+|---|---|
+| Crear la venta al asignar el titular, sin esperar el depósito | El responsable lo descartó: «es al primer depósito» |
+| Registrarla pendiente y que la confirme administración | No hay cobro que esperar: lo que la origina es el depósito, que ya llegó |
+| Que `SP` escriba la venta en SQL | Dos definiciones de vender; la segunda se quedaría atrás (`RegistrationSaleRegistrar` ya lo descartó) |
+| Dejar que `MV` rechace con una excepción y capturarla en `SP` | La excepción cruza un `@Transactional` y marca la transacción del aviso para deshacer: se perdería el aviso entero |
+
+**Pruebas**, en `BrokerNotificationsIT` (`CA-SP-1036` a `CA-SP-1040`, `CA-SP-1042`, `CA-SP-1043`) y `ManageBrokerAccountsIT` (`CA-SP-1041`), leyendo la venta, su línea y la membresía de la persona.
+

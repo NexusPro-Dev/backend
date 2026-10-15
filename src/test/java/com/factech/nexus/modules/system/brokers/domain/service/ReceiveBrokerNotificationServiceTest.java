@@ -37,7 +37,8 @@ class ReceiveBrokerNotificationServiceTest {
             new ObjectMapper(),
             mock(BrokerAccountWriter.class),
             mock(AuditWriter.class),
-            mock(ConfirmFirstDepositService.class));
+            mock(ConfirmFirstDepositService.class),
+            mock(FirstDepositBeca.class));
 
     assertThatThrownBy(
             () ->

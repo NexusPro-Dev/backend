@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-078` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.7.0 |
+| Versión | 0.8.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -59,6 +59,10 @@ El responsable del proyecto pidió: «de las cuentas de broker quita lo del brok
 **El aviso de operación contado se borra** (`RN-SP-074` enmendada): el contador de la cuenta es la constancia, y una reentrega cuenta otra vez, porque ya no queda el aviso con el que reconocerla. El que no se cuenta —un número sin cuenta, o sin broker todavía— se queda.
 
 **El nombre del campo del importe y el de la moneda se configuran**, como los demás: no ha llegado todavía ningún aviso real de depósito, y adivinar el nombre sería escribir una regla sobre un dato inventado. Lo que la cuenta no guarda sigue en el aviso, tal como llegó.
+
+### 2.4 La beca del primer depósito (15-10-2026)
+
+El responsable del proyecto preguntó cómo asociar una persona a una cuenta de broker desde la plataforma «teniendo en cuenta la creación del movimiento de venta para registrar el producto beca», y respondió: **«es al primer depósito»** (`RN-SP-079`). Quien llega por enlace ya tiene su venta de la beca, que espera al depósito. Quien se asocia desde la plataforma no la tiene. Por eso, **cuando su cuenta llega a `FIRST_DEPOSIT`**, se registra esa venta **confirmada y entregada**, y con ella el FTD. El vendedor es **el dueño de la cuenta de origen**; sin origen, **ninguno**. **No se registra** si la persona tiene una membresía vigente superior a `BECA`, ni si ya tiene una venta de la beca.
 
 ---
 
@@ -228,6 +232,14 @@ Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a en
 | `CA-SP-1029` | **Un segundo depósito suma al total** y no cambia el del primero; **una reentrega no suma**; **uno en otra moneda no suma** |
 | `CA-SP-1030` | **Un importe ausente, que no es un número, cero o negativo no se guarda**, y el depósito se aplica igual —estado y activación—; con más de dos decimales se redondea al céntimo |
 | `CA-SP-1031` | Las cuentas devuelven en `activity` **la fecha del registro, el país, el primer depósito, el total y la moneda**, y **ya no devuelven `brokerUsername`** |
+| `CA-SP-1036` | **El depósito que pasa a `FIRST_DEPOSIT` la cuenta de una persona `ACTIVO` sin venta de la beca** registra una **venta `BECA → BECA` confirmada y entregada**: su línea con `delivered_at`, vendedor el dueño de la `VENDEDOR` de origen, la persona con la membresía `BECA` vigente, y el aviso a `CM` |
+| `CA-SP-1037` | **Sin cuenta de origen**, la venta se registra igual, con su línea **sin vendedor** |
+| `CA-SP-1038` | Con una **membresía vigente superior a `BECA`**, no se registra ninguna venta; la cuenta pasa a `FIRST_DEPOSIT` igual |
+| `CA-SP-1039` | **Una por persona**: si ya tiene una venta de la beca, pendiente o confirmada, no se registra otra, tampoco por el depósito de una segunda cuenta |
+| `CA-SP-1040` | Quien espera en **`FTD_PENDIENTE` con su venta del alta** sigue el camino de `RN-SP-073`: se activa con esa venta y no se registra otra |
+| `CA-SP-1041` | **El depósito de una cuenta sin titular no registra venta**; asignarle titular por administración la registra en ese acto, y también que su titular la declare y se le asocie |
+| `CA-SP-1042` | **Un segundo depósito no registra nada**, aunque la persona siga sin venta de la beca |
+| `CA-SP-1043` | **Sin producto `BECA → BECA` activo**, el depósito se aplica igual y no registra venta |
 
 ---
 
@@ -261,3 +273,4 @@ Una migración carga en el catálogo el `advertiser` de un broker, o vuelve a en
 | 0.5.0 | 10-10-2026 | **El depósito y la operación** (`RN-SP-073`, `RN-SP-074`), por decisión del responsable del proyecto: el depósito es el FTD entero —cuenta a `FIRST_DEPOSIT`, titular de `FTD_PENDIENTE` a `ACTIVO` con lo que compró—; la operación se cuenta; de un número sin cuenta, solo se guarda; una reentrega con el mismo identificador no se aplica dos veces. Responde la idempotencia que `FA-001` dejó a `RF-SP-054`. Criterios `CA-SP-995` a `CA-SP-1002`; `CA-SP-907` se acota a los eventos no configurados. | Responsable del proyecto |
 | 0.6.0 | 13-10-2026 | **Una sola dirección, y ningún aviso se pierde** (`RN-SP-076`), a petición del responsable del proyecto: «solo la ruta broker/notification, para capturar todas las notificaciones y desde ahí clasificarlas por el advertiser». El aviso que no se reconoce se guarda sin broker (`FA-002`) y se asocia e interpreta al arrancar cuando su `advertiser` se cargue (`FA-003`). Se retira la ruta por nombre con sus secretos por broker, y con ella `EX-003`, `CA-SP-901` a `CA-SP-903`, `CA-SP-908`, `CA-SP-948` y `CA-SP-952`. Criterios `CA-SP-1009` a `CA-SP-1015`. | Responsable del proyecto |
 | 0.7.0 | 15-10-2026 | **Lo que trae el aviso se guarda en la cuenta** (`RN-SP-077`, §2.3), a petición del responsable del proyecto: la fecha del registro, el país y los depósitos —el primero y el total—; **se retira el nombre de usuario en el broker** (`RN-SP-040`); y **el aviso de operación contado se borra** (`RN-SP-074` enmendada; `CA-SP-999` y `CA-SP-1000` enmendados). Criterios `CA-SP-1026` a `CA-SP-1031`. | Responsable del proyecto |
+| 0.8.0 | 15-10-2026 | **La beca del primer depósito** (`RN-SP-079`, §2.4), a petición del responsable del proyecto: la cuenta asociada desde la plataforma registra, al llegar a `FIRST_DEPOSIT`, la venta `BECA → BECA` confirmada y entregada, con el vendedor de origen o sin él; no con membresía superior ni si ya hay una. Criterios `CA-SP-1036` a `CA-SP-1043`. | Responsable del proyecto |

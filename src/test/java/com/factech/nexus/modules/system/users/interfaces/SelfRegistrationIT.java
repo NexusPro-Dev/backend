@@ -1592,6 +1592,210 @@ class SelfRegistrationIT extends IntegrationTestBase {
     assertThat(lineaDelAlta()).isEqualTo("ENTREGADA");
   }
 
+  // ---------------------------------------------------------------------------
+  // La beca del primer depósito (`RN-SP-079`, `RN-MV-079`, 15-10-2026)
+  // ---------------------------------------------------------------------------
+
+  /** Una cuenta CONSUMIDOR de esa persona —o sin titular, con {@code usuario} nulo—. */
+  private UUID cuentaConsumidora(String usuario, String numero, UUID origen) {
+    UUID id = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id)"
+            + " VALUES (?, (SELECT id FROM users WHERE username = ?), ?::uuid, ?, 'CONSUMIDOR', ?)",
+        id,
+        usuario,
+        BROKER,
+        numero,
+        origen);
+    return id;
+  }
+
+  /** Las ventas de esa persona, con su línea: estado, entrega, vendedor y producto. */
+  private List<Map<String, Object>> ventasConLinea(String usuario) {
+    return jdbc.queryForList(
+        "SELECT m.status, d.delivery_status, d.delivered_at, d.seller_id, p.code"
+            + " FROM movements m JOIN movement_details d ON d.movement_id = m.id"
+            + " JOIN products p ON p.id = d.product_id JOIN users u ON u.id = m.user_id"
+            + " WHERE u.username = ?",
+        usuario);
+  }
+
+  private String membresiaVigente(String usuario) {
+    List<String> codigos =
+        jdbc.queryForList(
+            "SELECT ms.code FROM user_products up JOIN memberships ms ON ms.id = up.membership_id"
+                + " JOIN users u ON u.id = up.user_id WHERE u.username = ? AND up.closed_at IS NULL",
+            String.class,
+            usuario);
+    return codigos.isEmpty() ? null : codigos.get(0);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1036` — el primer depósito de la cuenta de un cliente ACTIVO sin beca registra la"
+          + " venta BECA → BECA confirmada y entregada, con el vendedor de la cuenta de origen")
+  void elPrimerDepositoRegistraLaBeca() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+    cliente("reg-beca1");
+    cuentaConsumidora("reg-beca1", "71000001", origen);
+
+    avisoDelBroker("deposito-prueba", "71000001", "beca-1");
+
+    assertThat(estadoDeLaCuenta("71000001")).isEqualTo("FIRST_DEPOSIT");
+    List<Map<String, Object>> ventas = ventasConLinea("reg-beca1");
+    assertThat(ventas).hasSize(1);
+    Map<String, Object> venta = ventas.get(0);
+    assertThat(venta.get("status")).isEqualTo("CONFIRMADA");
+    assertThat(venta.get("delivery_status")).isEqualTo("ENTREGADA");
+    assertThat(venta.get("delivered_at")).isNotNull();
+    assertThat(venta.get("code")).isEqualTo("REG_FREE");
+    assertThat(venta.get("seller_id").toString()).isEqualTo(idDe("reg-agente"));
+    assertThat(membresiaVigente("reg-beca1")).isEqualTo("BECA");
+    assertThat(eventos.stream(CommissionableLinesEvent.class)).isNotEmpty();
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1037` — sin cuenta de origen, la beca se registra con la línea sin vendedor")
+  void sinOrigenLaBecaVaSinVendedor() throws Exception {
+    cliente("reg-beca2");
+    cuentaConsumidora("reg-beca2", "71000002", null);
+
+    avisoDelBroker("deposito-prueba", "71000002", "beca-2");
+
+    List<Map<String, Object>> ventas = ventasConLinea("reg-beca2");
+    assertThat(ventas).hasSize(1);
+    assertThat(ventas.get(0).get("status")).isEqualTo("CONFIRMADA");
+    assertThat(ventas.get(0).get("delivery_status")).isEqualTo("ENTREGADA");
+    assertThat(ventas.get(0).get("seller_id")).isNull();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1038` — con una membresía vigente superior a BECA no se registra la beca, y la"
+          + " cuenta pasa a FIRST_DEPOSIT igual")
+  void conMembresiaSuperiorNoHayBeca() throws Exception {
+    cliente("reg-beca3");
+    jdbc.update(
+        "INSERT INTO user_products (id, user_id, membership_id)"
+            + " VALUES (gen_random_uuid(), (SELECT id FROM users WHERE username = 'reg-beca3'), ?)",
+        oro);
+    cuentaConsumidora("reg-beca3", "71000003", cuentaVendedora("AFF-REG"));
+
+    avisoDelBroker("deposito-prueba", "71000003", "beca-3");
+
+    assertThat(estadoDeLaCuenta("71000003")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(ventasConLinea("reg-beca3")).isEmpty();
+    assertThat(membresiaVigente("reg-beca3")).isEqualTo("ORO");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1039` — una por persona: el primer depósito de una segunda cuenta no registra otra"
+          + " beca")
+  void unaBecaPorPersona() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+    cliente("reg-beca4");
+    cuentaConsumidora("reg-beca4", "71000041", origen);
+    cuentaConsumidora("reg-beca4", "71000042", origen);
+
+    avisoDelBroker("deposito-prueba", "71000041", "beca-41");
+    avisoDelBroker("deposito-prueba", "71000042", "beca-42");
+
+    assertThat(estadoDeLaCuenta("71000042")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(ventasConLinea("reg-beca4")).hasSize(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1040` — quien se registró por enlace se activa con su venta del alta y no se le"
+          + " registra otra")
+  void elAltaPorEnlaceNoDuplicaLaBeca() throws Exception {
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+
+    avisoDelBroker("deposito-prueba", "12345678", "beca-5");
+
+    assertThat(estadoDe("ana.ruiz")).isEqualTo("ACTIVO");
+    List<Map<String, Object>> ventas = ventasConLinea("ana.ruiz");
+    assertThat(ventas).hasSize(1);
+    assertThat(ventas.get(0).get("delivery_status")).isEqualTo("ENTREGADA");
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1041` — el depósito de una cuenta sin titular no registra la beca; asignarle titular"
+          + " por administración, o que la declare su titular y se le asocie, sí")
+  void laBecaNaceAlAsociarUnaCuentaDepositada() throws Exception {
+    UUID origen = cuentaVendedora("AFF-REG");
+    UUID sinTitular = cuentaConsumidora(null, "71000006", origen);
+    avisoDelBroker("deposito-prueba", "71000006", "beca-6");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM movements m JOIN movement_details d ON d.movement_id = m.id"
+                    + " JOIN products p ON p.id = d.product_id WHERE p.code = 'REG_FREE'",
+                Integer.class))
+        .isZero();
+
+    cliente("reg-beca6");
+    mvc.perform(
+            patch("/api/v1/broker-accounts/" + sinTitular + "/holder")
+                .with(user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:assign-user"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"userId\":\"" + idDe("reg-beca6") + "\"}"))
+        .andExpect(status().isOk());
+    assertThat(ventasConLinea("reg-beca6")).hasSize(1);
+    assertThat(ventasConLinea("reg-beca6").get(0).get("seller_id").toString())
+        .isEqualTo(idDe("reg-agente"));
+
+    // Por la propia declaración (`RF-SP-053`): su vendedor principal es el de la
+    // cuenta de origen, y la cuenta ya depositada se le asocia.
+    cuentaConsumidora(null, "71000007", origen);
+    avisoDelBroker("deposito-prueba", "71000007", "beca-7");
+    cliente("reg-beca7");
+    jdbc.update(
+        "INSERT INTO client_sellers (client_id, seller_id, origin)"
+            + " VALUES (?::uuid, ?::uuid, 'REGISTRO')",
+        idDe("reg-beca7"),
+        idDe("reg-agente"));
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(user(idDe("reg-beca7")).authorities(() -> "broker-accounts:create-own"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"brokerId\":\"" + BROKER + "\",\"accountId\":\"71000007\"}"))
+        .andExpect(status().isCreated());
+    assertThat(ventasConLinea("reg-beca7")).hasSize(1);
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1042` — un segundo depósito no registra la beca, aunque la persona siga sin ella")
+  void elSegundoDepositoNoRegistraLaBeca() throws Exception {
+    cliente("reg-beca8");
+    jdbc.update("UPDATE users SET status = 'BLOQUEADO' WHERE username = 'reg-beca8'");
+    cuentaConsumidora("reg-beca8", "71000008", cuentaVendedora("AFF-REG"));
+    avisoDelBroker("deposito-prueba", "71000008", "beca-81");
+    assertThat(ventasConLinea("reg-beca8")).isEmpty();
+
+    jdbc.update("UPDATE users SET status = 'ACTIVO' WHERE username = 'reg-beca8'");
+    avisoDelBroker("deposito-prueba", "71000008", "beca-82");
+
+    assertThat(ventasConLinea("reg-beca8")).isEmpty();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1043` — sin producto BECA → BECA activo, el depósito se aplica y no registra venta")
+  void sinProductoNoHayBeca() throws Exception {
+    jdbc.update("UPDATE products SET status = 'INACTIVO' WHERE code = 'REG_FREE'");
+    cliente("reg-beca9");
+    cuentaConsumidora("reg-beca9", "71000009", cuentaVendedora("AFF-REG"));
+
+    avisoDelBroker("deposito-prueba", "71000009", "beca-9");
+
+    assertThat(estadoDeLaCuenta("71000009")).isEqualTo("FIRST_DEPOSIT");
+    assertThat(ventasConLinea("reg-beca9")).isEmpty();
+  }
+
   private void limpiar() {
     jdbc.update("DELETE FROM broker_notifications");
     // Los movimientos ANTES que los productos y las personas: sus claves
