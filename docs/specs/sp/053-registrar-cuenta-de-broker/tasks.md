@@ -32,6 +32,7 @@
 | `T-14` | `vendorAccount`, `claim` y las traducciones nuevas; el alta y el registro por enlace con origen y asociación | `T-13` | | **Hecha** — 09-10-2026 |
 | `T-15` | `afftrack` al registrar y al editar; `EX-012` al borrar; `afftrack` y `referrer` en las filas | `T-13` | | **Hecha** — 09-10-2026 |
 | `T-16` | `ManageBrokerAccountsIT`, `SelfRegistrationIT`, `UserBrokerAccountSchemaIT`: `CA-SP-954` a `CA-SP-963`; contrato | `T-14`, `T-15` | `mvn verify` en verde | **Hecha** — 09-10-2026 |
+| `T-17` | `claimFromLink` y su uso en el registro por enlace; `SelfRegistrationIT`: `CA-SP-1035` (`plan.md` §14) | `T-16` | `mvn verify` de la suite en verde | **Hecha** — 15-10-2026 |
 
 ---
 
@@ -49,6 +50,7 @@
 | `CA-SP-937` | `T-01`, `T-02` |
 | `CA-SP-938` a `CA-SP-945` | `T-08` a `T-12` |
 | `CA-SP-954` a `CA-SP-963` | `T-13` a `T-16` |
+| `CA-SP-1035` | `T-17` |
 
 ## 4. Bloqueos
 

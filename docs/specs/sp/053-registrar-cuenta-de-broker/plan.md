@@ -5,7 +5,7 @@
 | Requerimiento | `RF-SP-053` |
 | Especificación | [`spec.md`](spec.md) v0.3.0 |
 | `spec.md` aprobada el | 08-10-2026 |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobado** |
 | Autor | Responsable técnico |
 | Aprobado por | Responsable del proyecto |
@@ -151,4 +151,12 @@ Guardas: ninguna `VENDEDOR` repetida por vendedor y broker antes de crear el ín
 **Editar** (`RF-SP-080`): `UpdateBrokerAccountRequest` gana `afftrack`; los dos son opcionales y al menos uno es obligatorio. `afftrack` vacío lo borra. En una `CONSUMIDOR`, `VAL-016`.
 
 **Las salidas**: `BrokerAccountItem` y `TeamBrokerAccountItem` ganan `afftrack` y `referrer` (`BrokerAccountReferrer`: `id`, `afftrack`, titular). Las consultas por persona no cambian de alcance: una cuenta sin titular no es de nadie.
+
+## 14. Enmienda 0.4.0 — el enlace se asocia cualquier cuenta sin titular (`RN-SP-072`, 15-10-2026)
+
+`JpaBrokerAccountRegistrar.declare` (`RF-SP-045`) deja de llamar a `claim` —que exige que el origen sea del vendedor— y llama a **`claimFromLink(broker, número, persona, origen)`**, con el origen ya resuelto: la `VENDEDOR` del vendedor del enlace en ese broker, o nulo. **Un solo `UPDATE`**: `user_id = :persona`, `referrer_account_id = coalesce(:origen, referrer_account_id)`, `WHERE broker_id, external_id, user_id IS NULL AND kind = 'CONSUMIDOR'`, `RETURNING id`. Comprobar y luego escribir dejaría que dos registros se asociaran la misma cuenta. La clave foránea compuesta del origen no se rompe: la `VENDEDOR` buscada es del mismo broker.
+
+Si no asocia nada, el alta sigue como antes: insertar, y `EX-009` si el número ya tiene titular. **La declaración propia no cambia**: `ManageBrokerAccountsService.create` sigue con `claim`. La activación por depósito previo (`RN-SP-073`) ya ocurre al final del registro, sin cambios.
+
+**Pruebas**: `SelfRegistrationIT`, `CA-SP-1035` —cuenta sin titular con origen de otro vendedor, sin origen, y con titular—.
 

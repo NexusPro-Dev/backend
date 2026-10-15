@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-053` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.3.0 |
+| Versión | 0.4.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -140,7 +140,8 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 | `CA-SP-958` | La cuenta `CONSUMIDOR` nace con **origen**: la `VENDEDOR` de su vendedor principal en ese broker; si el vendedor no tiene, **sin origen**, y se registra igual |
 | `CA-SP-959` | El registro por enlace (`RF-SP-045`) declara la cuenta con origen en la `VENDEDOR` del vendedor del enlace |
 | `CA-SP-960` | Si el número ya existe **sin titular** y su origen es la `VENDEDOR` del vendedor de quien declara, la cuenta **se asocia** a quien declara —por las dos rutas de alta y por el registro por enlace—, y queda auditado |
-| `CA-SP-961` | Si existe sin titular pero su origen es de **otro** vendedor, o no tiene, es `409` (`EX-009`) y la cuenta **sigue sin titular** |
+| `CA-SP-961` | **Por las dos rutas de alta** (no por el enlace, desde el 15-10-2026): si existe sin titular pero su origen es de **otro** vendedor, o no tiene, es `409` (`EX-009`) y la cuenta **sigue sin titular** |
+| `CA-SP-1035` | **Al registrarse por enlace**, una cuenta `CONSUMIDOR` **sin titular** con ese número **se asocia** a quien se registra aunque su origen sea de otro vendedor o no tenga, y su origen pasa a la `VENDEDOR` del vendedor del enlace —si no tiene, conserva el que había—; no se crea otra. **Con titular**, sigue siendo `409` (`EX-009`) |
 | `CA-SP-962` | Una cuenta `VENDEDOR` que originó cuentas **no se borra** (`409`, `EX-012`), ni por su titular ni por administración |
 | `CA-SP-963` | Toda fila de las consultas trae `afftrack` y `referrer` —la cuenta de origen: identificador, `afftrack` y su titular— |
 | `CA-SP-937` | `V90` siembra los seis permisos: `create-own`, `update-own` y `delete-own` a **todo rol por su tipo**, y `create`, `update` y `delete` a `SUPERADMIN` y `ADMIN`. Catálogo **216**, `ADMIN` 214, `CLIENTE` 40 |
@@ -168,3 +169,4 @@ Las de §10, **todas en la misma respuesta** cuando hay varias.
 | 0.1.0 | 08-10-2026 | Redacción inicial. Cierra el «por decidir» del 08-09-2026: el titular con `broker-accounts:create-own` y administración con `broker-accounts:create`. Nace `RN-SP-067`. Criterios `CA-SP-915` a `CA-SP-922` y `CA-SP-937` (la siembra de los tres requerimientos). | Responsable del proyecto |
 | 0.2.0 | 09-10-2026 | **Dos tipos de cuenta** (`RN-SP-068`), a petición del responsable del proyecto: el alta fija `kind` por el tipo de rol del titular, `EX-011` para quien no es vendedor ni consumidor, la de vendedor sin FTD. Criterios `CA-SP-938` a `CA-SP-945`. | Responsable del proyecto |
 | 0.3.0 | 09-10-2026 | **`afftrack`, cuenta de origen y cuentas sin titular** (`RN-SP-070` a `RN-SP-072`), con los dos casos del responsable del proyecto: la cuenta que nace en la plataforma toma como origen la `VENDEDOR` del vendedor principal, y la que llegó antes del broker se asocia sola si el número y el vendedor coinciden. Criterios `CA-SP-954` a `CA-SP-963`. Cubre también lo que cambia en `RF-SP-080` (editar el `afftrack`) y `RF-SP-081` (no borrar un origen). | Responsable del proyecto |
+| 0.4.0 | 15-10-2026 | **El registro por enlace se asocia cualquier cuenta sin titular** (`RN-SP-072` enmendada), a petición del responsable del proyecto: sin mirar el origen, y con el origen pasado al vendedor del enlace. `CA-SP-961` queda para las dos rutas de alta; nace `CA-SP-1035`. | Responsable del proyecto |

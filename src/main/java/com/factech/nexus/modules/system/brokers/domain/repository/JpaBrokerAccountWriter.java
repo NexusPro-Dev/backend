@@ -156,6 +156,30 @@ public class JpaBrokerAccountWriter implements BrokerAccountWriter {
   }
 
   @Override
+  public Optional<UUID> claimFromLink(
+      UUID brokerId, String accountId, UUID userId, UUID referrerAccountId) {
+    // Un solo UPDATE, por lo mismo que `claim`: dos registros simultáneos con el
+    // mismo número no pueden quedarse los dos con la cuenta.
+    List<?> filas =
+        em.createNativeQuery(
+                """
+                UPDATE user_brokers
+                   SET user_id = CAST(:persona AS uuid),
+                       referrer_account_id = coalesce(CAST(:origen AS uuid), referrer_account_id),
+                       updated_at = now()
+                 WHERE broker_id = CAST(:broker AS uuid) AND external_id = :cuenta
+                   AND user_id IS NULL AND kind = 'CONSUMIDOR'
+                RETURNING id
+                """)
+            .setParameter("persona", userId)
+            .setParameter("origen", referrerAccountId)
+            .setParameter("broker", brokerId)
+            .setParameter("cuenta", accountId)
+            .getResultList();
+    return primero(filas);
+  }
+
+  @Override
   public Optional<LockedAccount> lock(UUID brokerAccountId, UUID userId) {
     return bloqueada(
         em.createNativeQuery(

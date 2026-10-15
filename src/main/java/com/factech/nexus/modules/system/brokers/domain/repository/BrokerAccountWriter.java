@@ -64,6 +64,15 @@ public interface BrokerAccountWriter {
   Optional<UUID> claim(UUID brokerId, String accountId, UUID userId, UUID sellerId);
 
   /**
+   * El registro por enlace (`RF-SP-045`, `RN-SP-072` enmendada el 15-10-2026): asocia a {@code
+   * userId} la cuenta {@code CONSUMIDOR} <b>sin titular</b> de ese número, <b>sea cual sea su
+   * origen</b>, y le pone de origen {@code referrerAccountId} —la {@code VENDEDOR} del vendedor del
+   * enlace—; si es nulo, conserva el que tenía. Devuelve la cuenta asociada, o vacío.
+   */
+  Optional<UUID> claimFromLink(
+      UUID brokerId, String accountId, UUID userId, UUID referrerAccountId);
+
+  /**
    * La cuenta <b>de esa persona</b>, bloqueada hasta el fin de la transacción.
    *
    * <p>Vacío si no existe <b>o si es de otra persona</b>: las dos cosas responden igual.

@@ -64,13 +64,15 @@ public class JpaBrokerAccountRegistrar implements BrokerAccountRegistrar {
   @Transactional
   public void declare(
       UUID accountId, UUID userId, UUID brokerId, String externalId, UUID sellerId) {
-    // `RN-SP-072`: llegó antes por el broker, con el origen de este vendedor.
-    if (cuentas.claim(brokerId, externalId, userId, sellerId).isPresent()) {
+    // Su origen, la `VENDEDOR` del vendedor del enlace en ese broker (`RN-SP-070`).
+    UUID origen = cuentas.vendorAccount(sellerId, brokerId).orElse(null);
+    // `RN-SP-072`, enmendada el 15-10-2026: si llegó antes por el broker y no
+    // tiene titular, es esta, venga de quien venga; y su origen pasa a ser el
+    // vendedor del enlace.
+    if (cuentas.claimFromLink(brokerId, externalId, userId, origen).isPresent()) {
       return;
     }
     // `CONSUMIDOR` sin consultar los roles (`RN-SP-068`): el enlace registra clientes.
-    // Su origen, la `VENDEDOR` del vendedor del enlace en ese broker (`RN-SP-070`).
-    UUID origen = cuentas.vendorAccount(sellerId, brokerId).orElse(null);
     try {
       cuentas.insert(
           accountId, userId, brokerId, externalId, BrokerAccountKind.CONSUMIDOR, null, origen);

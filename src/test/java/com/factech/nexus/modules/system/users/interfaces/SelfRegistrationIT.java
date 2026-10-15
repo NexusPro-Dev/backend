@@ -15,6 +15,7 @@ import com.factech.nexus.modules.system.users.application.FirstDepositActivation
 import com.factech.nexus.shared.persistence.MinorUnits;
 import com.factech.nexus.testing.CommissionCleanup;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -663,6 +664,64 @@ class SelfRegistrationIT extends IntegrationTestBase {
             jdbc.queryForObject(
                 "SELECT count(*) FROM user_brokers WHERE external_id = '12345678'", Integer.class))
         .isOne();
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1035` — por enlace, una cuenta sin titular se asocia aunque su origen sea de otro"
+          + " vendedor o no tenga, y su origen pasa al vendedor del enlace; con titular, 409")
+  void elEnlaceSeAsociaCualquierCuentaSinTitular() throws Exception {
+    // Otro vendedor, con su VENDEDOR en el mismo broker.
+    vendedor("reg-otro");
+    UUID deOtro = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, afftrack)"
+            + " SELECT ?, u.id, ?::uuid, 'V-OTRO', 'VENDEDOR', 'AFF-OTRO' FROM users u"
+            + " WHERE u.username = 'reg-otro'",
+        deOtro,
+        BROKER);
+    String sinTitular =
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind, referrer_account_id)"
+            + " VALUES (gen_random_uuid(), NULL, ?::uuid, ?, 'CONSUMIDOR', ?)";
+
+    // El vendedor del enlace aún no tiene VENDEDOR: se asocia y conserva el origen que había.
+    jdbc.update(sinTitular, BROKER, "12345678", deOtro);
+    mvc.perform(registro(cuerpo("ana.ruiz", "ana@ejemplo.com", "12345678")))
+        .andExpect(status().isCreated());
+    assertThat(titularYOrigen("12345678")).containsExactly("ana.ruiz", deOtro);
+
+    // Con VENDEDOR: el origen pasa a ser la suya, venga de otro o de ninguno.
+    UUID delEnlace = cuentaVendedora("AFF-REG");
+    jdbc.update(sinTitular, BROKER, "87654321", null);
+    mvc.perform(registro(cuerpo("beto.paz", "beto@ejemplo.com", "87654321")))
+        .andExpect(status().isCreated());
+    assertThat(titularYOrigen("87654321")).containsExactly("beto.paz", delEnlace);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_brokers WHERE external_id IN ('12345678', '87654321')",
+                Integer.class))
+        .isEqualTo(2);
+
+    // Con titular sigue siendo de quien es.
+    cliente("reg-dueno");
+    jdbc.update(
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " SELECT gen_random_uuid(), u.id, ?::uuid, '55556666', 'CONSUMIDOR' FROM users u"
+            + " WHERE u.username = 'reg-dueno'",
+        BROKER);
+    mvc.perform(registro(cuerpo("otra.persona", "otra@ejemplo.com", "55556666")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.errors[0].code").value("EX-009"));
+    assertThat(titularYOrigen("55556666").get(0)).isEqualTo("reg-dueno");
+  }
+
+  private List<Object> titularYOrigen(String numero) {
+    Map<String, Object> fila =
+        jdbc.queryForMap(
+            "SELECT u.username, ub.referrer_account_id FROM user_brokers ub"
+                + " JOIN users u ON u.id = ub.user_id WHERE ub.external_id = ?",
+            numero);
+    return java.util.Arrays.asList(fila.get("username"), fila.get("referrer_account_id"));
   }
 
   /** La cuenta VENDEDOR del vendedor del enlace en el broker del registro (`RN-SP-070`). */

@@ -89,6 +89,11 @@ public class RegistrationController {
           **El estado de la cuenta no se pide**: lo mueven después los avisos
           del propio broker.
 
+          **Una cuenta que el broker ya avisó y no tiene titular se usa, no se
+          duplica** (`RN-SP-072`): se asocia a quien se registra, y su origen
+          pasa a la cuenta de vendedor del vendedor del enlace. Solo es `409`
+          si la cuenta ya es de otra persona.
+
           **Dos cuentas iguales en la misma petición se rechazan** con `VAL-014`,
           y no con el `409` del índice: ese mensaje diría «ya está declarada por
           otra persona», y la otra persona sería ella misma.

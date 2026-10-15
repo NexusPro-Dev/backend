@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.141.0 |
+| Versión | 1.142.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -246,3 +246,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.139.0 | 15-10-2026 | **Equipos: `POST /teams/{id}/members` admite a cualquier vendedor menos el último eslabón** (hoy manager y director; el agente sigue en `422`), y **`GET /teams` y `GET /teams/{id}` traen `parentTeam`** (`id`, `name`; `null` = oficina principal) ([`requirements/sp.md`](../requirements/sp.md) v1.128.0, `RN-SP-051`). Cambian los textos de `422` y `409` («encargado» en lugar de «director»). Mismos permisos. | Responsable técnico |
 | 1.140.0 | 15-10-2026 | **Las cuentas de broker pierden `brokerUsername` y `activity` gana lo que traen los avisos** ([`requirements/sp.md`](../requirements/sp.md) v1.129.0, `RN-SP-077`, `RN-SP-040` retirada). **Ruptura admitida**: el campo sale de `BrokerAccountItem` y `TeamBrokerAccountItem` —`GET /users/me/broker-accounts`, `GET /users/{id}/broker-accounts`, `GET /users/{id}/team/broker-accounts`, `GET /broker-accounts`, `GET /users/me/referred-broker-accounts` y las respuestas de alta y edición—, y `search` ya no busca por él; **nunca llevó valor**. `activity` gana `registeredAt`, `countryCode`, `firstDepositAmount`, `depositsTotal` (cero sin depósitos) y `depositCurrency`, y **desde hoy emite sus nulos** (`Include.ALWAYS`), también `firstDepositAt` y las fechas de operación. Los avisos (`/brokers/notifications`) no cambian de forma: leen `country_code`, `amount` y `currency`, configurables. | Responsable del proyecto |
 | 1.141.0 | 15-10-2026 | **`GET /api/v1/broker-accounts` trae solo cuentas `CONSUMIDOR` y pierde `kind`**, y **el alta de una cuenta `VENDEDOR` admite `accountId` ausente si trae `afftrack`** ([`requirements/sp.md`](../requirements/sp.md) v1.130.0, `RN-SP-078`, `RF-SP-053` y `RF-SP-057`). **Ruptura admitida**: `?kind=` se ignora en lugar de filtrar o dar `400`, y `accountId` puede llegar nulo en una cuenta de vendedor. | Responsable del proyecto |
+| 1.142.0 | 15-10-2026 | **`POST /api/v1/auth/registration` usa la cuenta de broker sin titular en lugar de dar `409`** ([`requirements/sp.md`](../requirements/sp.md) v1.131.0, `RN-SP-072` enmendada): si el número ya llegó por un aviso del broker y no tiene titular, se asocia a quien se registra —venga de otro vendedor o de ninguno— y su origen pasa a la `VENDEDOR` del vendedor del enlace. `409` (`EX-009`) solo si la cuenta ya es de otra persona. Sin cambio de forma; solo la prosa. | Responsable del proyecto |
