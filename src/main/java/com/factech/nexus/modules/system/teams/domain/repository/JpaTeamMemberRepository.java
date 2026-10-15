@@ -32,7 +32,7 @@ public class JpaTeamMemberRepository implements TeamMemberRepository {
 
   /** El mismo texto de `EX-005` que da la comprobación previa del caso de uso. */
   static final String EQUIPO_CON_DIRECTOR =
-      "El equipo ya tiene un director vigente. Retírelo antes de asignar otro.";
+      "El equipo ya tiene un encargado vigente. Retírelo antes de asignar otro.";
 
   private final EntityManager em;
 

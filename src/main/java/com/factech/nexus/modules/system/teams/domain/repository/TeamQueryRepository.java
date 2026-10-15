@@ -59,7 +59,10 @@ public interface TeamQueryRepository {
    */
   List<UUID> findAllMemberIdsEver(UUID teamId);
 
-  /** Un equipo como sale de la tabla, con su cuenta de miembros vigentes ya hecha. */
+  /**
+   * Un equipo como sale de la tabla, con su cuenta de miembros vigentes ya hecha y su oficina
+   * madre, si la tiene ({@code parentTeamId} nulo = principal).
+   */
   record TeamRow(
       UUID id,
       String name,
@@ -68,7 +71,9 @@ public interface TeamQueryRepository {
       long memberCount,
       OffsetDateTime createdAt,
       OffsetDateTime updatedAt,
-      OffsetDateTime deletedAt) {
+      OffsetDateTime deletedAt,
+      UUID parentTeamId,
+      String parentTeamName) {
 
     public boolean eliminado() {
       return deletedAt != null;

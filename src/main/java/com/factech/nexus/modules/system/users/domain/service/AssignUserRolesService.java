@@ -3,6 +3,7 @@ package com.factech.nexus.modules.system.users.domain.service;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
+import com.factech.nexus.modules.system.users.application.LastLinkRoles;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
@@ -73,7 +74,7 @@ public class AssignUserRolesService {
 
   private static final String MODULO = "SP";
 
-  private static final String MOTIVO_RN_SP_055 = "Deja de tener el rango de director (RN-SP-055).";
+  private static final String MOTIVO_RN_SP_055 = "Deja de poder encabezar una oficina (RN-SP-055).";
 
   private final UserRepository usuarios;
   private final RoleCatalog roles;
@@ -85,6 +86,7 @@ public class AssignUserRolesService {
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
   private final TeamMembershipRetirement equipos;
+  private final LastLinkRoles ultimoEslabon;
   private final Clock reloj;
 
   @Autowired
@@ -97,7 +99,8 @@ public class AssignUserRolesService {
       UuidV7Generator ids,
       AssignableCountry paises,
       AssignableDocumentType documentos,
-      TeamMembershipRetirement equipos) {
+      TeamMembershipRetirement equipos,
+      LastLinkRoles ultimoEslabon) {
     this(
         usuarios,
         roles,
@@ -108,6 +111,7 @@ public class AssignUserRolesService {
         paises,
         documentos,
         equipos,
+        ultimoEslabon,
         Clock.systemUTC());
   }
 
@@ -121,9 +125,11 @@ public class AssignUserRolesService {
       AssignableCountry paises,
       AssignableDocumentType documentos,
       TeamMembershipRetirement equipos,
+      LastLinkRoles ultimoEslabon,
       Clock reloj) {
     this.usuarios = usuarios;
     this.equipos = equipos;
+    this.ultimoEslabon = ultimoEslabon;
     this.roles = roles;
     this.paises = paises;
     this.documentos = documentos;
@@ -211,7 +217,7 @@ public class AssignUserRolesService {
     // `RevokeUserRolesService`: el puerto no escribe si no hay pertenencia, y así
     // tampoco queda abierta una heredada de antes de `V99`. No abre nada:
     // ascender a director no da equipo, eso es `RF-SP-069`.
-    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esDirector).isEmpty()) {
+    if (!estructura.encabezaOficina(catalogoResultante, ultimoEslabon.ids())) {
       equipos.retire(userId, MOTIVO_RN_SP_055);
     }
 

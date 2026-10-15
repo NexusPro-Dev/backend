@@ -27,15 +27,15 @@ public record TeamDetailResponse(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt,
-    @JsonInclude(JsonInclude.Include.NON_NULL) String deletionReason) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) String deletionReason,
+    // Nula y presente: oficina principal (`RN-SP-051`, 15-10-2026).
+    ParentTeam parentTeam) {
 
   /**
    * Un miembro dentro de su equipo: quién es, en qué estado está y desde cuándo pertenece.
    *
-   * <p><b>Sin sus roles</b>, al contrario que `RF-SP-042`: a un equipo solo pertenecen managers
-   * (`RN-SP-051`) y publicar el rol en cada fila sería repetir la regla. <b>Sin su red</b>: los
-   * directores y agentes que cuelgan de cada manager se consultan con `RF-SP-042` sobre esa
-   * persona.
+   * <p><b>Sin sus roles</b>, al contrario que `RF-SP-042`. <b>Sin su red</b>: quienes cuelgan del
+   * encargado se consultan con `RF-SP-042` sobre esa persona.
    */
   @JsonInclude(JsonInclude.Include.ALWAYS)
   public record TeamMemberItem(
@@ -68,6 +68,7 @@ public record TeamDetailResponse(
         fila.createdAt(),
         fila.updatedAt(),
         fila.deletedAt(),
-        motivo);
+        motivo,
+        ParentTeam.de(fila.parentTeamId(), fila.parentTeamName()));
   }
 }

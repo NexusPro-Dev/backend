@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.361.0 |
+| Versión | 0.362.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -840,3 +840,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.359.0 | 15-10-2026 | **`RF-SP-057` filtra por vendedor de origen** ([`requirements/sp.md`](requirements/sp.md) v1.125.0): `sellerId` y `hasReferrer` en `GET /api/v1/broker-accounts`, separados del titular (`userId`, `hasHolder`). `RF-SP-083` es «Mis FTD's» en el frontend. Sin permiso nuevo. | Responsable del proyecto |
 | 0.360.0 | 15-10-2026 | **`RF-SP-052` publica el modelo del broker** ([`requirements/sp.md`](requirements/sp.md) v1.126.0): `model`, texto libre y nulo (`V111`). Sin permiso nuevo. | Responsable del proyecto |
 | 0.361.0 | 15-10-2026 | **Nace `RF-SP-084` — editar el enlace y el modelo de un broker** ([`requirements/sp.md`](requirements/sp.md) v1.127.0, `RN-SP-039` enmendada; [`security.md`](security.md) v0.141.0): `PATCH /api/v1/brokers/{id}`, `brokers:update` a `SUPERADMIN` y `ADMIN` (`V112`). | Responsable del proyecto |
+| 0.362.0 | 15-10-2026 | **Equipos: cualquier vendedor menos el último eslabón, y principal o suboficina** ([`requirements/sp.md`](requirements/sp.md) v1.128.0, `RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas; [`requirements/mv.md`](requirements/mv.md) v0.99.0, `RN-MV-078`): `parentTeam` en el listado y el detalle de equipos. Sin migración ni permiso nuevo. | Responsable del proyecto |

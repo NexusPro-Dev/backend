@@ -54,8 +54,24 @@ final class TeamTestSupport {
       jdbc.update(
           "DELETE FROM user_roles WHERE user_id IN (SELECT id FROM users WHERE username = ?)",
           usuario);
+      // Y sus superiores, en los dos sentidos: `fk_user_supervisors_*` también restringen.
+      jdbc.update(
+          "DELETE FROM user_supervisors WHERE user_id IN (SELECT id FROM users WHERE username = ?)"
+              + " OR supervisor_id IN (SELECT id FROM users WHERE username = ?)",
+          usuario,
+          usuario);
       jdbc.update("DELETE FROM users WHERE username = ?", usuario);
     }
+  }
+
+  /** {@code subordinado} reporta a {@code superior} desde ahora. */
+  static void reportaA(JdbcTemplate jdbc, UUID subordinado, UUID superior) {
+    jdbc.update(
+        "INSERT INTO user_supervisors (id, user_id, supervisor_id, started_at)"
+            + " VALUES (?, ?, ?, now())",
+        IDS.next(),
+        subordinado,
+        superior);
   }
 
   /** Un equipo directo en la tabla, vivo y activo. */

@@ -210,9 +210,9 @@ class TeamMembershipRetirementIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-990` — el ASCENSO de un director a manager cierra su pertenencia con la correlación"
-          + " de la sustitución, sin borrar la fila, y su equipo queda sin director")
-  void elAscensoCierra() throws Exception {
+      "`CA-SP-990` — el ASCENSO de un director a manager CONSERVA su pertenencia: el manager"
+          + " también encabeza una oficina (RN-SP-051, 15-10-2026)")
+  void elAscensoConserva() throws Exception {
     UUID correlacion = UUID.randomUUID();
 
     mvc.perform(
@@ -223,10 +223,8 @@ class TeamMembershipRetirementIT extends IntegrationTestBase {
                 .with(quienAdministraLaFuerzaComercial()))
         .andExpect(status().isOk());
 
-    assertThat(vigente(ascendido)).isFalse();
-    assertThat(filasDe(ascendido)).isEqualTo(1);
-    assertThat(auditadasCon(ascendido, correlacion)).isEqualTo(1);
-    assertThat(vigentesDelEquipoDe(ascendido)).isZero();
+    assertThat(vigente(ascendido)).isTrue();
+    assertThat(auditadasCon(ascendido, correlacion)).isZero();
   }
 
   @Test

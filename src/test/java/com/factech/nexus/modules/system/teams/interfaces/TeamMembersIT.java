@@ -60,9 +60,9 @@ class TeamMembersIT extends IntegrationTestBase {
   };
   private static final String MOTIVO = "Reorganizacion de la region norte.";
   private static final String NO_ES_DIRECTOR =
-      "Solo pueden pertenecer a un equipo quienes tienen el rango de director.";
+      "Solo pueden pertenecer a un equipo los vendedores que no son del último eslabón.";
   private static final String EQUIPO_CON_DIRECTOR =
-      "El equipo ya tiene un director vigente. Retírelo antes de asignar otro.";
+      "El equipo ya tiene un encargado vigente. Retírelo antes de asignar otro.";
 
   private UUID norte;
   private UUID sur;
@@ -238,10 +238,10 @@ class TeamMembersIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-982` — 422 al manager, al agente, al cliente y a quien no tiene rol comercial,"
+      "`CA-SP-982` — 422 al agente (último eslabón), al cliente y a quien no tiene rol comercial,"
           + " citando RN-SP-051 e informándolo")
-  void rechazaAQuienNoEsDirector() throws Exception {
-    for (UUID persona : List.of(manager, agente, cliente, sinRol)) {
+  void rechazaAlUltimoEslabon() throws Exception {
+    for (UUID persona : List.of(agente, cliente, sinRol)) {
       mvc.perform(asignar(norte, MOTIVO, persona))
           .andExpect(status().isUnprocessableEntity())
           .andExpect(jsonPath("$.detail").value(NO_ES_DIRECTOR))
@@ -254,14 +254,48 @@ class TeamMembersIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-982` — el manager pedido sobre un equipo OCUPADO recibe el 422 de quien nunca podrá"
+      "`CA-SP-982` — el agente pedido sobre un equipo OCUPADO recibe el 422 de quien nunca podrá"
           + " entrar, no el 409 del sitio tomado")
   void elRangoSeInformaAntesQueElEquipoOcupado() throws Exception {
     mvc.perform(asignar(norte, MOTIVO, directorLibre)).andExpect(status().isOk());
 
-    mvc.perform(asignar(norte, MOTIVO, manager))
+    mvc.perform(asignar(norte, MOTIVO, agente))
         .andExpect(status().isUnprocessableEntity())
         .andExpect(jsonPath("$.errors[0].code").value("RN-SP-051"));
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1024` — el manager también encabeza una oficina (RN-SP-051, 15-10-2026)")
+  void elManagerEntra() throws Exception {
+    mvc.perform(asignar(norte, MOTIVO, manager))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.members[0].id").value(manager.toString()));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1025` — la oficina del director es SUBOFICINA de la de su manager, y PRINCIPAL si su"
+          + " manager no tiene equipo; el listado lo dice igual")
+  void principalOSuboficina() throws Exception {
+    TeamTestSupport.reportaA(jdbc, directorLibre, manager);
+    UUID oeste = equipo(jdbc, "Equipo Oeste Miembros");
+
+    mvc.perform(asignar(norte, MOTIVO, directorLibre))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.parentTeam").value(org.hamcrest.Matchers.nullValue()));
+
+    mvc.perform(asignar(oeste, MOTIVO, manager))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.parentTeam").value(org.hamcrest.Matchers.nullValue()));
+
+    mvc.perform(get("/api/v1/teams/" + norte).with(con("teams:read")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.parentTeam.id").value(oeste.toString()))
+        .andExpect(jsonPath("$.parentTeam.name").value("Equipo Oeste Miembros"));
+
+    mvc.perform(get("/api/v1/teams").param("q", "Norte Miembros").with(con("teams:list")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[0].parentTeam.id").value(oeste.toString()));
   }
 
   @Test

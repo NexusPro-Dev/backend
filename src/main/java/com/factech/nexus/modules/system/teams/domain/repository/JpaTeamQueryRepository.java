@@ -38,8 +38,40 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
           + CUENTA_DE_MIEMBROS
           + """
            AS member_count,
-          t.created_at AS created_at, t.updated_at AS updated_at, t.deleted_at AS deleted_at
+          t.created_at AS created_at, t.updated_at AS updated_at, t.deleted_at AS deleted_at,
+          padre.id AS parent_team_id, padre.name AS parent_team_name
           """;
+
+  /**
+   * La oficina madre (`RN-SP-051`, 15-10-2026): se sube desde el encargado vigente por sus
+   * superiores vigentes y se para en el primero que encabeza otro equipo. <b>Se calcula, no se
+   * guarda</b>: así no puede contradecir a `user_supervisors`, y vale para cualquier número de
+   * rangos. Las dos guardas de `JpaSellerTeamLookup`: la ruta corta un ciclo y 64 niveles de tope.
+   */
+  private static final String DESDE =
+      """
+       FROM teams t
+       LEFT JOIN LATERAL (
+           WITH RECURSIVE cadena (user_id, nivel, ruta) AS (
+               SELECT us.supervisor_id, 1, ARRAY[m.user_id, us.supervisor_id]
+                 FROM team_members m
+                 JOIN user_supervisors us ON us.user_id = m.user_id AND us.ended_at IS NULL
+                WHERE m.team_id = t.id AND m.ended_at IS NULL
+               UNION ALL
+               SELECT us.supervisor_id, c.nivel + 1, c.ruta || us.supervisor_id
+                 FROM cadena c
+                 JOIN user_supervisors us ON us.user_id = c.user_id AND us.ended_at IS NULL
+                WHERE NOT us.supervisor_id = ANY (c.ruta)
+                  AND c.nivel < 64
+           )
+           SELECT pt.id, pt.name
+             FROM cadena c
+             JOIN team_members pm ON pm.user_id = c.user_id AND pm.ended_at IS NULL
+             JOIN teams pt ON pt.id = pm.team_id
+            ORDER BY c.nivel
+            LIMIT 1
+       ) padre ON true
+      """;
 
   private final EntityManager em;
 
@@ -57,7 +89,7 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
     // con su motivo, porque el listado ya lo enseña con `includeDeleted` y
     // abrirlo desde ahí para recibir un 404 sería incoherente (`RF-SP-065`).
     List<Tuple> filas =
-        em.createNativeQuery("SELECT " + COLUMNAS + " FROM teams t WHERE t.id = :id", Tuple.class)
+        em.createNativeQuery("SELECT " + COLUMNAS + DESDE + " WHERE t.id = :id", Tuple.class)
             .setParameter("id", id)
             .getResultList();
     return filas.stream().map(JpaTeamQueryRepository::equipo).findFirst();
@@ -71,7 +103,8 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
         em.createNativeQuery(
             "SELECT "
                 + COLUMNAS
-                + " FROM teams t WHERE "
+                + DESDE
+                + " WHERE "
                 + predicado(filtros)
                 + " ORDER BY "
                 + ordenamiento,
@@ -206,7 +239,9 @@ public class JpaTeamQueryRepository implements TeamQueryRepository {
         ((Number) fila.get("member_count")).longValue(),
         momento(fila.get("created_at")),
         momento(fila.get("updated_at")),
-        momento(fila.get("deleted_at")));
+        momento(fila.get("deleted_at")),
+        (UUID) fila.get("parent_team_id"),
+        (String) fila.get("parent_team_name"));
   }
 
   private static TeamMemberRow miembro(Tuple fila) {

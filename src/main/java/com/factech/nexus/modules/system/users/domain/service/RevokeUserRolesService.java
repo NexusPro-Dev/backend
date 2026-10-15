@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.users.domain.service;
 
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
+import com.factech.nexus.modules.system.users.application.LastLinkRoles;
 import com.factech.nexus.modules.system.users.application.RevokeRolesRequest;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
@@ -84,9 +85,10 @@ public class RevokeUserRolesService {
   private final SessionRevoker sesiones;
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
-  private static final String MOTIVO_RN_SP_055 = "Deja de tener el rango de director (RN-SP-055).";
+  private static final String MOTIVO_RN_SP_055 = "Deja de poder encabezar una oficina (RN-SP-055).";
 
   private final TeamMembershipRetirement equipos;
+  private final LastLinkRoles ultimoEslabon;
   private final Clock reloj;
 
   @Autowired
@@ -100,7 +102,8 @@ public class RevokeUserRolesService {
       AuditWriter auditoria,
       AssignableCountry paises,
       AssignableDocumentType documentos,
-      TeamMembershipRetirement equipos) {
+      TeamMembershipRetirement equipos,
+      LastLinkRoles ultimoEslabon) {
     this(
         usuarios,
         roles,
@@ -112,6 +115,7 @@ public class RevokeUserRolesService {
         paises,
         documentos,
         equipos,
+        ultimoEslabon,
         Clock.systemUTC());
   }
 
@@ -126,6 +130,7 @@ public class RevokeUserRolesService {
       AssignableCountry paises,
       AssignableDocumentType documentos,
       TeamMembershipRetirement equipos,
+      LastLinkRoles ultimoEslabon,
       Clock reloj) {
     this.usuarios = usuarios;
     this.roles = roles;
@@ -137,6 +142,7 @@ public class RevokeUserRolesService {
     this.actor = actor;
     this.auditoria = auditoria;
     this.equipos = equipos;
+    this.ultimoEslabon = ultimoEslabon;
     this.reloj = reloj;
   }
 
@@ -214,7 +220,7 @@ public class RevokeUserRolesService {
     // Se pregunta por el ESTADO RESULTANTE y no por el cambio, y el puerto no falla
     // si no hay nada que cerrar: así la condición se lee como la invariante que es
     // —«quien no es director no está en un equipo»— en lugar de como una cascada.
-    if (estructura.rolDeMayorRango(catalogoResultante).filter(estructura::esDirector).isEmpty()) {
+    if (!estructura.encabezaOficina(catalogoResultante, ultimoEslabon.ids())) {
       equipos.retire(userId, MOTIVO_RN_SP_055);
     }
 

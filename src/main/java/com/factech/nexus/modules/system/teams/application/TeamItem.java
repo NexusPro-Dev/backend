@@ -29,7 +29,9 @@ public record TeamItem(
     String status,
     long memberCount,
     OffsetDateTime createdAt,
-    @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) OffsetDateTime deletedAt,
+    // Nula y presente: oficina principal (`RN-SP-051`, 15-10-2026).
+    ParentTeam parentTeam) {
 
   public static TeamItem from(TeamRow fila) {
     return new TeamItem(
@@ -38,6 +40,7 @@ public record TeamItem(
         fila.status(),
         fila.memberCount(),
         fila.createdAt(),
-        fila.deletedAt());
+        fila.deletedAt(),
+        ParentTeam.de(fila.parentTeamId(), fila.parentTeamName()));
   }
 }

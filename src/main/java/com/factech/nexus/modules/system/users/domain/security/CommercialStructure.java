@@ -91,12 +91,14 @@ public class CommercialStructure {
   }
 
   /**
-   * <b>El rango de director</b> (`RN-SP-051`, 09-10-2026): el rol cuyo rol exigido al superior
-   * existe y es la cúspide. Por la <b>forma</b> de la jerarquía y no por el código `DIRECTOR`, con
-   * el mismo criterio que {@link #esCuspide}: si el rol se renombra, sigue siendo director.
+   * <b>Quién puede encabezar una oficina</b> (`RN-SP-051`, enmendada el 15-10-2026): quien tiene un
+   * rol vendedor de mayor rango que <b>no es del último eslabón</b> —hoy, manager y director—. Por
+   * la <b>forma</b> de la jerarquía y no por el código: un rango nuevo entra sin tocar nada.
+   *
+   * @param ultimoEslabon los roles de los que no cuelga ningún vendedor ({@code LastLinkRoles})
    */
-  public boolean esDirector(AssignableRole rol) {
-    return rolExigidoAlSuperior(rol).filter(this::esCuspide).isPresent();
+  public boolean encabezaOficina(Collection<AssignableRole> conjunto, Set<UUID> ultimoEslabon) {
+    return rolDeMayorRango(conjunto).filter(rol -> !ultimoEslabon.contains(rol.id())).isPresent();
   }
 
   /**

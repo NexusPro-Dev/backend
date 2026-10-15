@@ -16,16 +16,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * `RN-SP-051` aislada (`RF-SP-069` · `T-13`, enmendada el 09-10-2026): <b>a un equipo solo
- * pertenece un director</b>.
+ * `RN-SP-051` aislada (`RF-SP-069` · `T-13`, enmendada el 15-10-2026): <b>a un equipo pertenece
+ * cualquier vendedor menos el último eslabón</b>.
  *
  * <p><b>Sin Spring y sin base de datos.</b> El catálogo de roles es un doble en memoria con la
  * forma de la jerarquía real —`ADMIN` administrativo, `MANAGER` colgando de él, `DIRECTOR` de
- * `MANAGER`, `AGENTE` de `DIRECTOR` y `CLIENTE` consumidor—, que es lo único que la regla mira: el
- * director es el rol cuyo rol exigido al superior es la cúspide.
- *
- * <p>Por eso esta prueba dice algo que la de integración no puede decir tan claro: la regla no
- * nombra a `DIRECTOR` en ninguna parte, y un rol renombrado sigue siendo director.
+ * `MANAGER`, `AGENTE` de `DIRECTOR` y `CLIENTE` consumidor—, y el último eslabón es `AGENTE`.
  */
 class TeamMembershipRulesTest {
 
@@ -46,12 +42,12 @@ class TeamMembershipRulesTest {
       rol(CLIENTE, "CLIENTE", RoleType.CONSUMIDOR, ADMIN);
 
   private final TeamMembershipRules reglas =
-      new TeamMembershipRules(new CommercialStructure(new CatalogoEnMemoria()));
+      new TeamMembershipRules(new CommercialStructure(new CatalogoEnMemoria()), Set.of(AGENTE));
 
   @Test
   @DisplayName(
-      "`CA-SP-982` — el director entra; el manager, el agente, el cliente y quien no tiene rol, no")
-  void soloElDirector() {
+      "`CA-SP-982` — el manager y el director entran; el agente, el cliente y quien no tiene rol, no")
+  void todosMenosElUltimoEslabon() {
     UUID manager = UUID.randomUUID();
     UUID director = UUID.randomUUID();
     UUID agente = UUID.randomUUID();
@@ -67,8 +63,8 @@ class TeamMembershipRulesTest {
     TeamMembershipRules.Veredicto veredicto =
         reglas.evaluar(List.of(manager, director, agente, cliente, sinRol), roles);
 
-    assertThat(veredicto.admitidos()).containsExactly(director);
-    assertThat(veredicto.rechazados()).containsExactly(manager, agente, cliente, sinRol);
+    assertThat(veredicto.admitidos()).containsExactly(manager, director);
+    assertThat(veredicto.rechazados()).containsExactly(agente, cliente, sinRol);
     assertThat(veredicto.todosAdmitidos()).isFalse();
   }
 
@@ -86,34 +82,26 @@ class TeamMembershipRulesTest {
 
   @Test
   @DisplayName(
-      "se mira el rol de MAYOR RANGO y no «alguno»: quien porta AGENTE además de DIRECTOR entra, y"
-          + " quien porta DIRECTOR además de MANAGER no")
+      "se mira el rol de MAYOR RANGO y no «alguno»: quien porta AGENTE además de DIRECTOR entra")
   void miraElDeMayorRango() {
     UUID esDirector = UUID.randomUUID();
-    UUID sigueSiendoManager = UUID.randomUUID();
 
     TeamMembershipRules.Veredicto veredicto =
-        reglas.evaluar(
-            List.of(esDirector, sigueSiendoManager),
-            Map.of(
-                esDirector,
-                List.of(ROL_AGENTE, ROL_DIRECTOR),
-                sigueSiendoManager,
-                List.of(ROL_DIRECTOR, ROL_MANAGER)));
+        reglas.evaluar(List.of(esDirector), Map.of(esDirector, List.of(ROL_AGENTE, ROL_DIRECTOR)));
 
     assertThat(veredicto.admitidos()).containsExactly(esDirector);
-    assertThat(veredicto.rechazados()).containsExactly(sigueSiendoManager);
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-982` — la regla no nombra a DIRECTOR: el rol renombrado, con la misma forma, sigue"
+      "`CA-SP-982` — la regla no nombra roles: el director renombrado, con la misma forma, sigue"
           + " entrando")
-  void elDirectorEsLaFormaDeLaJerarquia() {
+  void esLaFormaDeLaJerarquia() {
     AssignableRole renombrado = rol(DIRECTOR, "JEFE_DE_OFICINA", RoleType.VENDEDOR, MANAGER);
     CatalogoEnMemoria catalogo = new CatalogoEnMemoria();
     catalogo.agregar(renombrado);
-    TeamMembershipRules conRenombre = new TeamMembershipRules(new CommercialStructure(catalogo));
+    TeamMembershipRules conRenombre =
+        new TeamMembershipRules(new CommercialStructure(catalogo), Set.of(AGENTE));
 
     UUID jefe = UUID.randomUUID();
     TeamMembershipRules.Veredicto veredicto =
@@ -123,29 +111,34 @@ class TeamMembershipRulesTest {
   }
 
   @Test
-  @DisplayName(
-      "si nace un rango por encima de MANAGER, el director pasa a ser el MANAGER: el que está justo"
-          + " debajo de la cúspide")
-  void unRangoNuevoMueveAlDirector() {
+  @DisplayName("si nace un rango por encima de MANAGER, entra también, sin tocar la regla")
+  void unRangoNuevoEntra() {
     UUID regionalId = UUID.randomUUID();
-    AssignableRole regional = rol(regionalId, "REGIONAL", RoleType.VENDEDOR, ADMIN);
+    AssignableRole regionalRol = rol(regionalId, "REGIONAL", RoleType.VENDEDOR, ADMIN);
     AssignableRole managerBajoRegional = rol(MANAGER, "MANAGER", RoleType.VENDEDOR, regionalId);
 
     CatalogoEnMemoria catalogo = new CatalogoEnMemoria();
-    catalogo.agregar(regional);
+    catalogo.agregar(regionalRol);
     catalogo.agregar(managerBajoRegional);
-    TeamMembershipRules conRegional = new TeamMembershipRules(new CommercialStructure(catalogo));
+    TeamMembershipRules conRegional =
+        new TeamMembershipRules(new CommercialStructure(catalogo), Set.of(AGENTE));
 
+    UUID regional = UUID.randomUUID();
     UUID manager = UUID.randomUUID();
     UUID director = UUID.randomUUID();
 
     TeamMembershipRules.Veredicto veredicto =
         conRegional.evaluar(
-            List.of(manager, director),
-            Map.of(manager, List.of(managerBajoRegional), director, List.of(ROL_DIRECTOR)));
+            List.of(regional, manager, director),
+            Map.of(
+                regional,
+                List.of(regionalRol),
+                manager,
+                List.of(managerBajoRegional),
+                director,
+                List.of(ROL_DIRECTOR)));
 
-    assertThat(veredicto.admitidos()).containsExactly(manager);
-    assertThat(veredicto.rechazados()).containsExactly(director);
+    assertThat(veredicto.admitidos()).containsExactly(regional, manager, director);
   }
 
   private static AssignableRole rol(UUID id, String codigo, RoleType tipo, UUID padre) {

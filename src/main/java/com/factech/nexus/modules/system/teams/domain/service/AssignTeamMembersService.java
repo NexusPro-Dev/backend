@@ -6,6 +6,7 @@ import com.factech.nexus.modules.system.teams.domain.models.Team;
 import com.factech.nexus.modules.system.teams.domain.models.TeamMember;
 import com.factech.nexus.modules.system.teams.domain.repository.TeamMemberRepository;
 import com.factech.nexus.modules.system.teams.domain.repository.TeamRepository;
+import com.factech.nexus.modules.system.users.application.LastLinkRoles;
 import com.factech.nexus.modules.system.users.application.UserCatalog;
 import com.factech.nexus.modules.system.users.application.UserCatalog.UserView;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableRole;
@@ -35,12 +36,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Caso de uso `RF-SP-069`: asignar el director de un equipo.
+ * Caso de uso `RF-SP-069`: asignar el encargado de un equipo.
  *
- * <p><b>Desde el 09-10-2026 un equipo es la oficina de UN director</b> (`RN-SP-051` y `RN-SP-052`
- * enmendadas): entra quien tiene el rango de director, una persona por petición, y un equipo con
- * otro director vigente responde `409`. Cambiar de encargado son dos decisiones con su motivo:
- * retirar al actual (`RF-SP-070`) y asignar al nuevo.
+ * <p><b>Un equipo es la oficina de UN encargado</b> (`RN-SP-051` y `RN-SP-052`, enmendadas el
+ * 15-10-2026): entra cualquier vendedor menos el último eslabón, una persona por petición, y un
+ * equipo con otro encargado vigente responde `409`. Cambiar de encargado son dos decisiones con su
+ * motivo: retirar al actual (`RF-SP-070`) y asignar al nuevo.
  *
  * <p><b>Es la operación que da sentido a las cinco anteriores.</b> Hasta ahora los equipos
  * existían, se listaban, se abrían, se corregían y se eliminaban, y estaban todos vacíos: aquí es
@@ -73,14 +74,15 @@ public class AssignTeamMembersService {
       "El equipo está inactivo y no admite miembros nuevos. Actívelo antes de asignar.";
   static final String ENTIDAD = "team_members";
   static final String NO_ES_DIRECTOR =
-      "Solo pueden pertenecer a un equipo quienes tienen el rango de director.";
+      "Solo pueden pertenecer a un equipo los vendedores que no son del último eslabón.";
   static final String EQUIPO_CON_DIRECTOR =
-      "El equipo ya tiene un director vigente. Retírelo antes de asignar otro.";
+      "El equipo ya tiene un encargado vigente. Retírelo antes de asignar otro.";
 
   private final TeamRepository equipos;
   private final TeamMemberRepository pertenencias;
   private final UserCatalog personas;
   private final RoleCatalog roles;
+  private final LastLinkRoles ultimoEslabon;
   private final AuditWriter auditoria;
   private final TeamDetailReader detalle;
   private final UuidV7Generator ids;
@@ -92,10 +94,20 @@ public class AssignTeamMembersService {
       TeamMemberRepository pertenencias,
       UserCatalog personas,
       RoleCatalog roles,
+      LastLinkRoles ultimoEslabon,
       AuditWriter auditoria,
       TeamDetailReader detalle,
       UuidV7Generator ids) {
-    this(equipos, pertenencias, personas, roles, auditoria, detalle, ids, Clock.systemUTC());
+    this(
+        equipos,
+        pertenencias,
+        personas,
+        roles,
+        ultimoEslabon,
+        auditoria,
+        detalle,
+        ids,
+        Clock.systemUTC());
   }
 
   AssignTeamMembersService(
@@ -103,6 +115,7 @@ public class AssignTeamMembersService {
       TeamMemberRepository pertenencias,
       UserCatalog personas,
       RoleCatalog roles,
+      LastLinkRoles ultimoEslabon,
       AuditWriter auditoria,
       TeamDetailReader detalle,
       UuidV7Generator ids,
@@ -111,6 +124,7 @@ public class AssignTeamMembersService {
     this.pertenencias = pertenencias;
     this.personas = personas;
     this.roles = roles;
+    this.ultimoEslabon = ultimoEslabon;
     this.auditoria = auditoria;
     this.detalle = detalle;
     this.ids = ids;
@@ -140,8 +154,8 @@ public class AssignTeamMembersService {
     }
 
     verificarQueExisten(solicitados);
-    verificarQueSonDirectores(solicitados);
-    verificarQueElEquipoNoTieneOtroDirector(equipo.getId(), solicitados);
+    verificarQuePuedenEncabezarOficina(solicitados);
+    verificarQueElEquipoNoTieneOtroEncargado(equipo.getId(), solicitados);
 
     OffsetDateTime ahora = OffsetDateTime.now(reloj);
     Map<UUID, TeamMember> vigentePorPersona = new HashMap<>();
@@ -230,16 +244,16 @@ public class AssignTeamMembersService {
   }
 
   /**
-   * `EX-005` / `RN-SP-052` (09-10-2026): un director vigente por equipo. <b>Va después de las
-   * comprobaciones del cuerpo</b>: un manager pedido sobre un equipo ocupado tiene que saber que
-   * nunca podrá entrar, no que el sitio está tomado. Pedir al director que ya es el de este equipo
+   * `EX-005` / `RN-SP-052` (09-10-2026): un encargado vigente por equipo. <b>Va después de las
+   * comprobaciones del cuerpo</b>: un agente pedido sobre un equipo ocupado tiene que saber que
+   * nunca podrá entrar, no que el sitio está tomado. Pedir al encargado que ya es el de este equipo
    * no es conflicto: es `FA-001`.
    *
    * <p>Dos asignaciones al mismo equipo ya las ordena el bloqueo del equipo; para cualquier camino
    * que no lo tome, la respalda {@code uq_team_members_equipo_vigente}, que el repositorio traduce
    * a este mismo `409`.
    */
-  private void verificarQueElEquipoNoTieneOtroDirector(UUID equipo, List<UUID> solicitados) {
+  private void verificarQueElEquipoNoTieneOtroEncargado(UUID equipo, List<UUID> solicitados) {
     boolean ocupadoPorOtro =
         pertenencias.findActiveOfTeam(equipo).stream()
             .anyMatch(vigente -> !solicitados.contains(vigente.getUserId()));
@@ -252,18 +266,20 @@ public class AssignTeamMembersService {
   }
 
   /**
-   * `EX-004` / `RN-SP-051`: solo directores. La decisión la toma {@link TeamMembershipRules} sobre
-   * {@link CommercialStructure}, que es la <b>única</b> definición del rango del sistema.
+   * `EX-004` / `RN-SP-051`: cualquier vendedor menos el último eslabón. La decisión la toma {@link
+   * TeamMembershipRules} sobre {@link CommercialStructure}, que es la <b>única</b> definición del
+   * rango del sistema.
    */
-  private void verificarQueSonDirectores(List<UUID> solicitados) {
+  private void verificarQuePuedenEncabezarOficina(List<UUID> solicitados) {
     Map<UUID, Set<UUID>> rolesPorPersona = roles.roleIdsOfAll(new LinkedHashSet<>(solicitados));
 
     // El catálogo se memoriza DURANTE esta comprobación, y no es un adorno:
-    // `CommercialStructure.esDirector` pregunta por el rol padre, de modo que sin
+    // `CommercialStructure.rolDeMayorRango` pregunta por el rol padre, de modo que sin
     // memoria un lote de cien personas son cien lecturas del mismo puñado de
     // roles. La regla no cambia; cambia cuántas veces se lee lo mismo.
     MemoizingRoleCatalog memorizado = new MemoizingRoleCatalog(roles);
-    TeamMembershipRules reglas = new TeamMembershipRules(new CommercialStructure(memorizado));
+    TeamMembershipRules reglas =
+        new TeamMembershipRules(new CommercialStructure(memorizado), ultimoEslabon.ids());
 
     Set<UUID> todosLosRoles = new LinkedHashSet<>();
     rolesPorPersona.values().forEach(todosLosRoles::addAll);
@@ -292,7 +308,7 @@ public class AssignTeamMembersService {
                     new FieldError(
                         "memberIds",
                         "RN-SP-051",
-                        "La persona '" + persona + "' no tiene el rango de director."))
+                        "La persona '" + persona + "' no puede encabezar una oficina."))
             .toList();
 
     throw new UnprocessableEntityException("RN-SP-051", NO_ES_DIRECTOR, rechazados);
