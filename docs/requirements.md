@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.363.0 |
+| Versión | 0.364.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -842,3 +842,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.361.0 | 15-10-2026 | **Nace `RF-SP-084` — editar el enlace y el modelo de un broker** ([`requirements/sp.md`](requirements/sp.md) v1.127.0, `RN-SP-039` enmendada; [`security.md`](security.md) v0.141.0): `PATCH /api/v1/brokers/{id}`, `brokers:update` a `SUPERADMIN` y `ADMIN` (`V112`). | Responsable del proyecto |
 | 0.362.0 | 15-10-2026 | **Equipos: cualquier vendedor menos el último eslabón, y principal o suboficina** ([`requirements/sp.md`](requirements/sp.md) v1.128.0, `RN-SP-051`, `RN-SP-052` y `RN-SP-055` enmendadas; [`requirements/mv.md`](requirements/mv.md) v0.99.0, `RN-MV-078`): `parentTeam` en el listado y el detalle de equipos. Sin migración ni permiso nuevo. | Responsable del proyecto |
 | 0.363.0 | 15-10-2026 | **Lo que traen los avisos de los brokers se guarda en la cuenta, y se retira el nombre de usuario en el broker** ([`requirements/sp.md`](requirements/sp.md) v1.129.0, `RN-SP-077`, `RN-SP-040` retirada), a petición del responsable del proyecto. `RF-SP-054` y la tripleta de `RF-SP-078` (v0.7.0, `CA-SP-1026` a `CA-SP-1031`); `V113`. `brokerUsername` sale de las respuestas de cuentas de broker y de `search`; `activity` gana cinco campos. Y `RN-SP-074` enmendada: **el aviso de operación contado se borra**, y su reentrega cuenta otra vez. Sin permiso nuevo. | Responsable del proyecto |
+| 0.364.0 | 15-10-2026 | **La cuenta de broker de vendedor puede no tener número, y la consulta administrativa de cuentas trae solo las de consumidor** ([`requirements/sp.md`](requirements/sp.md) v1.130.0, `RN-SP-078` nueva, `RF-SP-053` y `RF-SP-057` enmendados, `V114`), a petición del responsable del proyecto. | Responsable del proyecto |

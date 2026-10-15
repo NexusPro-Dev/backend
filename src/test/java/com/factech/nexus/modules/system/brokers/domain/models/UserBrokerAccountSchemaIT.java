@@ -175,6 +175,27 @@ class UserBrokerAccountSchemaIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-1034` — sin número solo la de vendedor, y dos de vendedor sin número no chocan")
+  void sinNumeroSoloVendedor() {
+    String sql =
+        "INSERT INTO user_brokers (id, user_id, broker_id, external_id, kind)"
+            + " VALUES (gen_random_uuid(), ?, ?, NULL, ?)";
+
+    assertThatThrownBy(() -> jdbc.update(sql, ana, broker, "CONSUMIDOR"))
+        .isInstanceOf(DataIntegrityViolationException.class)
+        .hasMessageContaining("ck_user_brokers_numero_solo_vendedor");
+
+    UUID otroBroker = broker("Otro sin número");
+    assertThatCode(
+            () -> {
+              jdbc.update(sql, ana, broker, "VENDEDOR");
+              jdbc.update(sql, ana, otroBroker, "VENDEDOR");
+            })
+        .doesNotThrowAnyException();
+  }
+
+  @Test
   @DisplayName("una cuenta no puede apuntar a un broker que no existe")
   void elBrokerTieneQueExistir() {
     assertThatThrownBy(() -> vincular(ana, UUID.randomUUID(), "12345"))

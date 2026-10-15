@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.factech.nexus.IntegrationTestBase;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -116,38 +117,35 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
-  @DisplayName("`CA-SP-943` — `kind` en cada fila, `?kind=` filtra y el resumen lo respeta")
-  void filtraPorTipo() throws Exception {
+  @DisplayName(
+      "`CA-SP-943` enmendado, `CA-SP-1032` — solo cuentas de consumidor; `kind` ya no filtra")
+  void soloConsumidor() throws Exception {
     // Las cinco se siembran como de consumidor; una pasa a ser de vendedor.
     jdbc.update("UPDATE user_brokers SET kind = 'VENDEDOR' WHERE external_id = '10000001'");
 
-    mvc.perform(get(RUTA + "?kind=VENDEDOR").with(administrador()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(1))
-        .andExpect(jsonPath("$.content[0].accountId").value("10000001"))
-        .andExpect(jsonPath("$.content[0].kind").value("VENDEDOR"))
-        .andExpect(jsonPath("$.summary.accounts.total").value(1));
-    mvc.perform(get(RUTA + "?kind=CONSUMIDOR").with(administrador()))
-        .andExpect(jsonPath("$.totalElements").value(4))
-        .andExpect(jsonPath("$.content[0].kind").value("CONSUMIDOR"));
-    mvc.perform(get(RUTA + "?kind=consumidor").with(administrador()))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.errors[0].field").value("kind"));
+    // `?kind=` se retiró el 15-10-2026: se ignora, también con un valor inválido.
+    for (String consulta : List.of("", "?kind=VENDEDOR", "?kind=consumidor")) {
+      mvc.perform(get(RUTA + consulta).with(administrador()))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.totalElements").value(4))
+          .andExpect(jsonPath("$.summary.accounts.total").value(4))
+          .andExpect(jsonPath("$.content[?(@.kind != 'CONSUMIDOR')]").isEmpty());
+    }
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-1007` — con `?kind=CONSUMIDOR` la búsqueda acota a las de consumidor; desde el"
+      "`CA-SP-1007` — la búsqueda por número no trae una cuenta de vendedor; desde el"
           + " 15-10-2026 sin nombre de usuario en el broker (`CA-SP-1031`)")
   void buscaPorNumeroYTipo() throws Exception {
     jdbc.update("UPDATE user_brokers SET kind = 'VENDEDOR' WHERE external_id = '10000001'");
 
-    mvc.perform(get(RUTA + "?search=40000001&kind=CONSUMIDOR").with(administrador()))
+    mvc.perform(get(RUTA + "?search=40000001").with(administrador()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].accountId").value("40000001"))
         .andExpect(jsonPath("$.content[0].brokerUsername").doesNotExist());
-    mvc.perform(get(RUTA + "?search=40000001&kind=VENDEDOR").with(administrador()))
+    mvc.perform(get(RUTA + "?search=10000001").with(administrador()))
         .andExpect(jsonPath("$.totalElements").value(0));
   }
 
@@ -197,9 +195,10 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   void conYSinVendedorDeOrigen() throws Exception {
     originarDesdeJefe("20000001", "40000001");
 
+    // Dos y no tres: la 10000001 pasó a ser de vendedor y ya no se lista.
     mvc.perform(get(RUTA + "?hasReferrer=false").with(administrador()))
-        .andExpect(jsonPath("$.totalElements").value(3))
-        .andExpect(jsonPath("$.summary.accounts.total").value(3));
+        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.summary.accounts.total").value(2));
 
     mvc.perform(get(RUTA + "?hasReferrer=true").with(administrador()))
         .andExpect(jsonPath("$.totalElements").value(2))

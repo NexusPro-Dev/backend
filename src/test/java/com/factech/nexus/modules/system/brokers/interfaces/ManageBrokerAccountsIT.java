@@ -186,6 +186,42 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
+      "`CA-SP-1033` — la de vendedor se declara sin número con su afftrack; sin ninguno de los"
+          + " dos, o la de consumidor sin número, es 400")
+  void vendedorSinNumero() throws Exception {
+    mvc.perform(
+            post("/api/v1/users/" + otra + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"brokerId\":\"" + iqoption + "\",\"afftrack\":\"SINNUMERO\"}"))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.kind").value("VENDEDOR"))
+        .andExpect(jsonPath("$.accountId").isEmpty())
+        .andExpect(jsonPath("$.afftrack").value("SINNUMERO"));
+
+    mvc.perform(
+            post("/api/v1/users/" + otra + "/broker-accounts")
+                .with(comoAdmin("broker-accounts:create"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"brokerId\":\"" + exnova + "\",\"accountId\":\"  \"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"));
+    mvc.perform(
+            post("/api/v1/users/me/broker-accounts")
+                .with(comoTitular())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"brokerId\":\"" + exnova + "\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("VAL-013"));
+
+    assertThat(
+            jdbc.queryForList(
+                "SELECT coalesce(external_id, '-') || ':' || kind FROM user_brokers", String.class))
+        .containsExactly("-:VENDEDOR");
+  }
+
+  @Test
+  @DisplayName(
       "`CA-SP-940` — sin rol vendedor ni consumidor es 422 por las dos rutas, y nada queda")
   void sinTipoEs422() throws Exception {
     // El superadministrador solo porta un rol FUNCIONARIO.
@@ -742,7 +778,9 @@ class ManageBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].user").doesNotExist());
     mvc.perform(
             get("/api/v1/broker-accounts?hasHolder=true").with(comoAdmin("broker-accounts:read")))
-        .andExpect(jsonPath("$.totalElements").value(1));
+        // Cero: la única con titular es la de vendedor, y el listado es de consumidores
+        // (`RF-SP-057`).
+        .andExpect(jsonPath("$.totalElements").value(0));
 
     mvc.perform(
             patch("/api/v1/broker-accounts/" + cuenta + "/holder")

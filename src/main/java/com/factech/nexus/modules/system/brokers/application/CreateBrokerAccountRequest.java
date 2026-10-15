@@ -16,7 +16,8 @@ public record CreateBrokerAccountRequest(
     @Schema(
             description =
                 "El identificador de la cuenta en el broker. Se guarda sin espacios a los lados;"
-                    + " entre 1 y 80 caracteres.",
+                    + " entre 1 y 80 caracteres. Opcional solo en una cuenta de VENDEDOR que"
+                    + " traiga `afftrack` (`RN-SP-078`).",
             example = "70000001")
         String accountId,
     @Schema(

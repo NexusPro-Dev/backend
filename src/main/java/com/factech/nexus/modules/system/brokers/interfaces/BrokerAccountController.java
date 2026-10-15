@@ -86,9 +86,12 @@ public class BrokerAccountController {
       summary = "Consultar y filtrar todas las cuentas de broker",
       description =
           """
-          Devuelve **todas** las cuentas de broker del sistema, paginadas y con
-          su titular en cada fila. **Sin ningún filtro devuelve el sistema
-          entero**: es lo que `broker-accounts:read` significa.
+          Devuelve **todas** las cuentas de broker **de consumidor** del
+          sistema, paginadas y con su titular en cada fila. **Sin ningún filtro
+          devuelve el sistema entero**: es lo que `broker-accounts:read`
+          significa. **Las cuentas `VENDEDOR` no salen aquí** (`RN-SP-068`,
+          15-10-2026): se consultan en las de cada persona. El parámetro
+          `kind` se retiró ese día.
 
           **`supervisorId` devuelve LA RED ENTERA de esa persona, en
           profundidad** (`RN-SP-047`): sus subordinados, los subordinados de
@@ -115,8 +118,6 @@ public class BrokerAccountController {
           - `userId` — una persona concreta.
           - `status` — `REGISTER` o `FIRST_DEPOSIT`. **Cualquier otro valor es
             `400`**, no una página vacía.
-          - `kind` — `VENDEDOR` o `CONSUMIDOR` (`RN-SP-068`): la cuenta de un
-            vendedor o la de un consumidor. Cualquier otro valor es `400`.
           - `hasHolder` — `false`, las cuentas **sin titular**, que llegaron del
             broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
             titular, `user` va nulo.
@@ -128,8 +129,7 @@ public class BrokerAccountController {
           - `brokerId` — un broker del catálogo.
           - `search` — fragmento de **número de cuenta**, o del usuario,
             correo o nombre completo del titular.
-            Sin acentos y sin distinguir mayúsculas. Con `?kind=CONSUMIDOR`, solo
-            las cuentas de consumidor.
+            Sin acentos y sin distinguir mayúsculas.
 
           **Cada fila trae su titular (`user`) y su origen (`referrer`)**: la
           cuenta `VENDEDOR` que la originó, su `afftrack` y el vendedor —
@@ -205,8 +205,7 @@ public class BrokerAccountController {
     @ApiResponse(
         responseCode = "400",
         description =
-            "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `kind` fuera de `VENDEDOR`/`CONSUMIDOR`,"
-                + " `from` posterior a `to`, identificador"
+            "`status` fuera de `REGISTER`/`FIRST_DEPOSIT`, `from` posterior a `to`, identificador"
                 + " malformado (`VAL-001`) o paginación fuera de límites (`VAL-003`)"),
     @ApiResponse(responseCode = "401", description = "Token ausente o inválido (`AUTH-001`)"),
     @ApiResponse(

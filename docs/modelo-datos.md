@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Versión | 0.127.0 |
+| Versión | 0.128.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 21-08-2026 |
@@ -389,7 +389,7 @@ erDiagram
         uuid id PK "v7"
         uuid user_id FK "de quien es la cuenta · NULL = sin titular, solo CONSUMIDOR · RN-SP-072"
         uuid broker_id FK "en que broker"
-        varchar external_id "80 · el numero de cuenta EN EL BROKER"
+        varchar external_id "80 · el numero de cuenta EN EL BROKER · NULL solo en VENDEDOR"
         varchar status "20 · REGISTER | FIRST_DEPOSIT · nace en REGISTER · RN-SP-045"
         varchar kind "20 · VENDEDOR | CONSUMIDOR · sin default · RN-SP-068"
         varchar afftrack "80 · NULL · solo VENDEDOR · UK (broker, lower) · RN-SP-071"
@@ -1287,3 +1287,4 @@ Los documentos que citan una migración vieja por su número —specs, controles
 | 0.125.0 | 15-10-2026 | **El modelo del broker** ([`requirements/sp.md`](requirements/sp.md) v1.126.0, `RF-SP-052`, `V111`): `brokers` gana **`model`**, `varchar(120)` nulo, texto libre; lo publica el catálogo. | Responsable del proyecto |
 | 0.126.0 | 15-10-2026 | **`brokers.url` y `brokers.model` se editan por API** (`RF-SP-084`, `RN-SP-039` enmendada), auditados como `UPDATE` sobre `brokers`. Sin cambio de esquema; `V112` solo siembra el permiso. | Responsable técnico |
 | 0.127.0 | 15-10-2026 | **`user_brokers` pierde `broker_username` y gana lo que traen los avisos** (`V113`, `RN-SP-077`, `RN-SP-040` retirada, [`requirements/sp.md`](requirements/sp.md) v1.129.0): `registered_at`, `country_code`, `first_deposit_amount`, `deposits_total` (`NOT NULL DEFAULT 0`) y `deposit_currency`, con cuatro `CHECK`. Con la columna cae `ix_user_brokers_busqueda_usuario` (`V100`). Sin relleno. | Responsable del proyecto |
+| 0.128.0 | 15-10-2026 | **`user_brokers.external_id` admite nulo, solo en una cuenta `VENDEDOR`** (`V114`, `RN-SP-078`, [`requirements/sp.md`](requirements/sp.md) v1.130.0): `ck_user_brokers_numero_solo_vendedor`. Los únicos no cambian —`(broker_id, external_id)` y `(broker_id, lower(afftrack))`— y dos nulos no chocan. | Responsable del proyecto |

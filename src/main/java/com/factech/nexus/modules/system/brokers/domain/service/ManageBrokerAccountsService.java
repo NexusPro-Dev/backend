@@ -103,13 +103,19 @@ public class ManageBrokerAccountsService {
 
   @Transactional
   public BrokerAccountItem create(UUID userId, CreateBrokerAccountRequest peticion) {
-    String cuenta = validarAlta(peticion);
-    String afftrack = afftrack(peticion.afftrack());
     existe(userId);
     BrokerAccountKind tipo =
         cuentas.kindFor(userId).orElseThrow(ManageBrokerAccountsService::sinTipo);
+    String cuenta = validarAlta(peticion, tipo);
+    String afftrack = afftrack(peticion.afftrack());
     if (afftrack != null && tipo != BrokerAccountKind.VENDEDOR) {
       throw afftrackSoloVendedor();
+    }
+    // `RN-SP-078`: la de vendedor puede ir sin número, pero no sin nada que la identifique.
+    if (cuenta == null && afftrack == null) {
+      String mensaje = "Debe indicar el identificador de la cuenta o el afftrack.";
+      throw new ValidationException(
+          "VAL-013", mensaje, List.of(new FieldError("accountId", "VAL-013", mensaje)));
     }
     brokers
         .find(peticion.brokerId())
@@ -310,12 +316,18 @@ public class ManageBrokerAccountsService {
     return cuenta;
   }
 
-  private String validarAlta(CreateBrokerAccountRequest peticion) {
+  /** El identificador validado, o nulo si es una cuenta de vendedor sin él (`RN-SP-078`). */
+  private String validarAlta(CreateBrokerAccountRequest peticion, BrokerAccountKind tipo) {
     List<FieldError> errores = new ArrayList<>();
     if (peticion == null || peticion.brokerId() == null) {
       errores.add(new FieldError("brokerId", "VAL-012", "Debe indicar el broker."));
     }
-    String cuenta = validarIdentificador(peticion == null ? null : peticion.accountId(), errores);
+    String crudo = peticion == null ? null : peticion.accountId();
+    boolean sinNumero = crudo == null || crudo.isBlank();
+    String cuenta =
+        sinNumero && tipo == BrokerAccountKind.VENDEDOR
+            ? null
+            : validarIdentificador(crudo, errores);
     if (!errores.isEmpty()) {
       throw new ValidationException(errores.get(0).code(), "Los datos no son válidos.", errores);
     }

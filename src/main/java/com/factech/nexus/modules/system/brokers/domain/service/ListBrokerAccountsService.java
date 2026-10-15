@@ -93,7 +93,8 @@ public class ListBrokerAccountsService {
             peticion.supervisorId(),
             peticion.userId(),
             estado(peticion.status()),
-            tipo(peticion.kind()),
+            // `RN-SP-068`, 15-10-2026: el listado administrativo es de consumidores.
+            BrokerAccountKind.CONSUMIDOR,
             peticion.hasHolder(),
             peticion.brokerId(),
             peticion.search(),
@@ -232,15 +233,6 @@ public class ListBrokerAccountsService {
     }
     return UserBrokerStatus.de(valor)
         .orElseThrow(() -> invalido("status", "El estado debe ser REGISTER o FIRST_DEPOSIT."));
-  }
-
-  /** Un tipo inválido es {@code 400}, por lo mismo que un estado (`RN-SP-068`). */
-  private static BrokerAccountKind tipo(String valor) {
-    if (valor == null) {
-      return null;
-    }
-    return BrokerAccountKind.de(valor)
-        .orElseThrow(() -> invalido("kind", "El tipo debe ser VENDEDOR o CONSUMIDOR."));
   }
 
   /**
