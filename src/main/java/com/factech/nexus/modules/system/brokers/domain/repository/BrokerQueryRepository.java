@@ -2,6 +2,8 @@ package com.factech.nexus.modules.system.brokers.domain.repository;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerItem;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * La lectura del catálogo de brokers (`RF-SP-052`).
@@ -19,4 +21,10 @@ public interface BrokerQueryRepository {
    *     filtro que ocultara los activos respondería una pregunta que nadie hace
    */
   List<BrokerItem> findAll(boolean incluirInactivos);
+
+  /** Un broker, activo o no, <b>bloqueado</b> hasta el fin de la transacción (`RF-SP-084`). */
+  Optional<BrokerItem> lock(UUID id);
+
+  /** Escribe el enlace y el modelo, nulos incluidos (`RF-SP-084`). */
+  void updateLinkAndModel(UUID id, String url, String model);
 }

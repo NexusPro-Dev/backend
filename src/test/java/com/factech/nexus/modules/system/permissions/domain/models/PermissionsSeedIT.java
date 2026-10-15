@@ -33,7 +33,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
           + " V47: courses:read-available y lessons:learn del aula, RF-AC-034 y RF-AC-035)")
   void catalogoCompleto() {
     assertThat(jdbc.queryForObject("SELECT count(*) FROM permissions", Integer.class))
-        .isEqualTo(250);
+        .isEqualTo(251);
   }
 
   @Test
@@ -229,6 +229,8 @@ class PermissionsSeedIT extends IntegrationTestBase {
             // deja el catálogo de brokers fuera de la API porque son pocos y
             // cambian poco, no porque su contenido sea una regla.
             "brokers:read",
+            // V112 (RF-SP-084): editar el enlace y el modelo de un broker.
+            "brokers:update",
             // El CUARTO recurso sin ninguna acción de escritura, y el PRIMERO
             // cuyo recurso no es un catálogo: gobierna una LECTURA de datos
             // ajenos (`RF-SP-055`). No hay `create` porque la cuenta la declara
@@ -432,7 +434,7 @@ class PermissionsSeedIT extends IntegrationTestBase {
   void identificadoresUuidV7() {
     List<UUID> ids = jdbc.queryForList("SELECT id FROM permissions", UUID.class);
 
-    assertThat(ids).hasSize(250).doesNotHaveDuplicates();
+    assertThat(ids).hasSize(251).doesNotHaveDuplicates();
     assertThat(ids).allSatisfy(id -> assertThat(id.version()).isEqualTo(7));
     // variant() == 2 es la variante RFC 9562 (bits 10xx).
     assertThat(ids).allSatisfy(id -> assertThat(id.variant()).isEqualTo(2));
@@ -498,13 +500,13 @@ class PermissionsSeedIT extends IntegrationTestBase {
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7001-9c4f-5e7ad1000001'",
                 Integer.class))
-        .isEqualTo(250);
+        .isEqualTo(251);
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM role_permissions WHERE role_id ="
                     + " '01a02a33-4c00-7002-9c4f-5e7ad1000002'",
                 Integer.class))
-        .isEqualTo(248);
+        .isEqualTo(249);
     assertThat(
             jdbc.queryForList(
                 """

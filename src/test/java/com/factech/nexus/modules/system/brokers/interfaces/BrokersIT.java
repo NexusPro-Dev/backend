@@ -226,6 +226,140 @@ class BrokersIT extends IntegrationTestBase {
         .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
   }
 
+  // ---------------------------------------------------------------------------
+  // `RF-SP-084` — editar el enlace y el modelo
+  // ---------------------------------------------------------------------------
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1020` — cambia enlace y modelo, el catálogo lo publica, y queda auditado con el antes")
+  void editaEnlaceYModelo() throws Exception {
+    UUID id = idDe("Exness");
+    UUID quien = UUID.randomUUID();
+
+    mvc.perform(
+            editar(id, "{\"url\":\"  https://exness.example/r  \",\"model\":\"CPA\"}")
+                .with(editor(quien)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id.toString()))
+        .andExpect(jsonPath("$.name").value("Exness"))
+        .andExpect(jsonPath("$.url").value("https://exness.example/r"))
+        .andExpect(jsonPath("$.model").value("CPA"));
+
+    mvc.perform(get("/api/v1/brokers"))
+        .andExpect(jsonPath("$.content[1].url").value("https://exness.example/r"))
+        .andExpect(jsonPath("$.content[1].model").value("CPA"));
+
+    String cambios =
+        jdbc.queryForObject(
+            "SELECT changes::text FROM audit_change_log WHERE entity = 'brokers'"
+                + " AND entity_id = ? AND action = 'UPDATE' AND actor_id = ?",
+            String.class,
+            id,
+            quien);
+    org.assertj.core.api.Assertions.assertThat(cambios)
+        .contains("\"before\"", "\"after\"", "https://exness.example/r", "CPA");
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1021` — ausente o nulo no cambia, \"\" vacía, y sin cambios no se audita")
+  void ausenteNuloYVacio() throws Exception {
+    UUID id = idDe("Exness");
+    jdbc.update(
+        "UPDATE brokers SET url = 'https://exness.example/r', model = 'CPA' WHERE id = ?", id);
+
+    // Solo el modelo, y vacío: el enlace se queda.
+    mvc.perform(editar(id, "{\"model\":\"\"}").with(editor(UUID.randomUUID())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.url").value("https://exness.example/r"))
+        .andExpect(jsonPath("$.model").value(org.hamcrest.Matchers.nullValue()));
+
+    // Nulo explícito tampoco toca el enlace.
+    mvc.perform(editar(id, "{\"url\":null,\"model\":\"RevShare\"}").with(editor(UUID.randomUUID())))
+        .andExpect(jsonPath("$.url").value("https://exness.example/r"))
+        .andExpect(jsonPath("$.model").value("RevShare"));
+
+    int antes = auditorias(id);
+    mvc.perform(editar(id, "{\"model\":\"RevShare\"}").with(editor(UUID.randomUUID())))
+        .andExpect(status().isOk());
+    org.assertj.core.api.Assertions.assertThat(auditorias(id)).isEqualTo(antes).isEqualTo(2);
+
+    // Un broker inactivo también se edita.
+    mvc.perform(editar(idDe("IC Markets"), "{\"model\":\"CPA\"}").with(editor(UUID.randomUUID())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.isActive").value(false));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1022` — sin campos, enlace sin http(s), largos o `name` son 400; inexistente 404;"
+          + " sin permiso 403")
+  void erroresYPermiso() throws Exception {
+    UUID id = idDe("Exness");
+    UUID quien = UUID.randomUUID();
+
+    for (String cuerpo :
+        new String[] {
+          "{}",
+          "{\"url\":\"exness.example\"}",
+          "{\"url\":\"https://" + "a".repeat(500) + "\"}",
+          "{\"model\":\"" + "m".repeat(121) + "\"}",
+          "{\"name\":\"Otro\"}",
+          "{\"advertiser\":\"exness\",\"model\":\"CPA\"}"
+        }) {
+      mvc.perform(editar(id, cuerpo).with(editor(quien))).andExpect(status().isBadRequest());
+    }
+
+    mvc.perform(editar(UUID.randomUUID(), "{\"model\":\"CPA\"}").with(editor(quien)))
+        .andExpect(status().isNotFound());
+
+    mvc.perform(editar(id, "{\"model\":\"CPA\"}").with(lector())).andExpect(status().isForbidden());
+
+    mvc.perform(editar(id, "{\"model\":\"CPA\"}")).andExpect(status().isUnauthorized());
+
+    org.assertj.core.api.Assertions.assertThat(
+            jdbc.queryForMap("SELECT name, url, model FROM brokers WHERE id = ?", id))
+        .containsEntry("name", "Exness")
+        .containsEntry("url", null)
+        .containsEntry("model", null);
+    org.assertj.core.api.Assertions.assertThat(auditorias(id)).isZero();
+  }
+
+  @Test
+  @DisplayName("`CA-SP-1023` — `V112` siembra `brokers:update` a SUPERADMIN y ADMIN, y a nadie más")
+  void laSiembraDelPermiso() {
+    org.assertj.core.api.Assertions.assertThat(
+            jdbc.queryForList(
+                "SELECT r.code FROM role_permissions rp JOIN roles r ON r.id = rp.role_id"
+                    + " JOIN permissions p ON p.id = rp.permission_id"
+                    + " WHERE p.code = 'brokers:update' ORDER BY r.code",
+                String.class))
+        .containsExactly("ADMIN", "SUPERADMIN");
+  }
+
+  private static org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder editar(
+      UUID id, String cuerpo) {
+    return org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+            "/api/v1/brokers/" + id)
+        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+        .content(cuerpo);
+  }
+
+  private RequestPostProcessor editor(UUID quien) {
+    return user(quien.toString()).authorities(() -> "brokers:update");
+  }
+
+  private UUID idDe(String nombre) {
+    return jdbc.queryForObject("SELECT id FROM brokers WHERE name = ?", UUID.class, nombre);
+  }
+
+  private int auditorias(UUID id) {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM audit_change_log WHERE entity = 'brokers' AND entity_id = ?",
+        Integer.class,
+        id);
+  }
+
   private RequestPostProcessor lector() {
     return user(UUID.randomUUID().toString()).authorities(() -> "brokers:read");
   }
@@ -241,6 +375,7 @@ class BrokersIT extends IntegrationTestBase {
   private void limpiar() {
     // Antes que los brokers: `user_brokers` los referencia.
     jdbc.update("DELETE FROM user_brokers");
+    jdbc.update("DELETE FROM audit_change_log WHERE entity = 'brokers'");
     jdbc.update("DELETE FROM brokers");
   }
 }

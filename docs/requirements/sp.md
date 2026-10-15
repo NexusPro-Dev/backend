@@ -5,7 +5,7 @@
 | Módulo | `SP` — Sistema Principal |
 | Paquete | `modules/system` |
 | Prefijos de permiso | `roles:`, `permissions:`, `audit:`, `memberships:`, `currencies:`, `countries:`, `users:`, `exchange-rates:`, `document-types:`, `brokers:`, `broker-accounts:`, `teams:` |
-| Versión | 1.126.0 |
+| Versión | 1.127.0 |
 | Estado | **Aprobado** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -206,7 +206,7 @@ Reglas que no son transversales de seguridad y por tanto sí llevan el prefijo d
 | `RN-SP-036` | El catálogo de tipos de documento no se administra por API | Siempre | El catálogo se **puebla por migración** y no se crea, ni se edita, ni se elimina desde ningún endpoint: `RF-SP-051` solo lo consulta. Es la misma decisión que `RN-SP-010` toma sobre las monedas, y aquí es **más fuerte todavía**, porque el contenido del catálogo **es una regla de negocio**: dar de alta por API un tipo de documento de menor de edad dejaría entrar menores sin que ninguna regla cambiara ni nadie lo notara. Lo que deja de admitirse se retira con `is_active`, también por migración | **Crítica** |
 | `RN-SP-037` | Toda persona tiene teléfono personal; el de la empresa y la dirección son opcionales | Al registrar un usuario y al editarlo | El **teléfono personal es obligatorio** —es la vía de contacto con la que se opera— y **el teléfono de la empresa, la dirección, el complemento y la ciudad son opcionales**: exigir una dirección postal a un funcionario interno bloquearía su alta sin que nadie la necesite, y exigir un teléfono de empresa **bloquearía el alta de todo el que no tenga una**. Los cinco son **datos de contacto y no de identidad**, y esa es la razón de que el titular sí los corrija desde `RF-SP-044`: una mudanza o un número nuevo no deberían costar un ticket administrativo. **El de la empresa se añadió el 10-09-2026** y **no se pide en `RF-SP-045`**: quien se registra por un enlace es un cliente, y el formulario público no debe preguntar por algo que no le aplica | Alta |
 | `RN-SP-038` | **Una cuenta de broker pertenece a UNA sola persona** | Al vincular una cuenta de broker | Dos personas **no pueden declarar la misma cuenta**: el par **broker + identificador** es único en todo el sistema, y el segundo intento se rechaza con `409`. **Una misma persona SÍ puede tener varias cuentas en el mismo broker** —es lo normal en el ramo—, de modo que lo que se acota no es cuántas cuentas tiene alguien sino **de quién es cada cuenta**. Se declara en el esquema y no en un caso de uso: quien la sostiene es un índice único, porque dos altas simultáneas de la misma cuenta pasan cualquier comprobación previa | **Crítica** |
-| `RN-SP-039` | El catálogo de brokers no se administra por API | Siempre | El catálogo se **puebla por migración** y no se crea, ni se edita, ni se elimina desde la API: solo se consulta. Es la misma decisión que `RN-SP-010` toma con las monedas y `RN-SP-036` con los tipos de documento, y por el mismo motivo — son pocos, cambian poco, y cada alta es una decisión de negocio que merece quedar en el historial del repositorio y no en una fila que alguien insertó un martes | Alta |
+| `RN-SP-039` | El catálogo de brokers no se administra por API, **salvo su enlace y su modelo** | Siempre | El catálogo se **puebla por migración** y no se crea ni se elimina desde la API. **Enmendada el 15-10-2026** a petición del responsable del proyecto: **el enlace de registro (`url`) y el modelo (`model`) se editan por API** (`RF-SP-084`), con permiso propio y auditados; **el nombre, el `advertiser` y el estado siguen siendo de migración** — el nombre es la clave de negocio y el `advertiser` clasifica los avisos (`RN-SP-076`), de modo que cambiarlos desde una pantalla movería datos que ya se atribuyeron. Es la misma decisión que `RN-SP-010` toma con las monedas y `RN-SP-036` con los tipos de documento, y por el mismo motivo — son pocos, cambian poco, y cada alta es una decisión de negocio que merece quedar en el historial del repositorio y no en una fila que alguien insertó un martes | Alta |
 | `RN-SP-040` | **El nombre de usuario en el broker llega DESPUÉS** | Al vincular una cuenta y al recibir la confirmación del broker | La cuenta se declara con **el broker y el identificador**, que es lo que la persona conoce; el **nombre de usuario en el broker lo rellena más tarde el webhook** del propio broker. Por eso la columna admite nulo, y **ese nulo significa «el broker todavía no lo ha confirmado»**, no «esta cuenta no tiene nombre». La distinción importa: una columna obligatoria obligaría a inventarse un valor en el alta, y el dato inventado sobreviviría a la confirmación | Alta |
 | `RN-SP-041` | **Los tres catálogos del registro se consultan sin iniciar sesión** | Al consultar países, tipos de documento o brokers | El `GET` de los tres es **público** (08-09-2026): quien rellena el formulario de registro (`RF-SP-045`) todavía no tiene cuenta, y sin esto el desplegable no tiene de dónde sacar las opciones. **Solo el `GET`** — el alta y el cambio de estado de países siguen exigiendo su permiso. **Lo que publican no identifica a nadie**: son listas de opciones, y por eso no hace falta aquí nada del diseño que el hotlink necesita. Consecuencia declarada: `countries:read`, `document-types:read` y `brokers:read` **dejan de gobernar esas lecturas** y quedan sembrados sin endpoint que los exija | Alta |
 | `RN-SP-042` | **Quien se registra por un enlace `BECA → BECA` declara su cuenta de broker** | Al registrarse por enlace (`RF-SP-045`) | El formulario exige **al menos una cuenta de broker** —broker e identificador— cuando el producto del enlace es una membresía **de gratuita a gratuita**, y **solo entonces**. **Se declaran UNA O MÁS**: una persona puede operar con varios brokers, y este formulario es hoy la única vía para declararlos. El motivo es el estado en el que nace la cuenta: `FTD_PENDIENTE` autentica y **no opera**, y quien la saca de ahí es el **depósito confirmado por el webhook del broker** (`RF-SP-054`) — sin la cuenta declarada, el sistema no puede saber de quién es un depósito cuando llegue, y la persona se queda encerrada. La cuenta se declara con lo que la persona conoce; el **nombre de usuario en el broker lo rellena después el webhook** (`RN-SP-040`). Se aplican `RN-SP-038` y su `409`: **una cuenta es de una sola persona** | **Crítica** |
@@ -430,6 +430,7 @@ EXCLUDE USING gist (
 | `RF-SP-081` | Eliminar una cuenta de broker | Alta | `broker-accounts:delete-own` (la propia) o `broker-accounts:delete` | **En desarrollo** |
 | `RF-SP-082` | Asignar una cuenta de broker sin titular | Alta | `broker-accounts:assign-user` | **En desarrollo** |
 | `RF-SP-083` | Consultar las cuentas de broker que originó mi red | Alta | `broker-accounts:read-own-referred` | **En desarrollo** |
+| `RF-SP-084` | Editar el enlace y el modelo de un broker | Media | `brokers:update` | **En desarrollo** |
 
 !!! info "Dónde vive el estado de un requerimiento"
 
@@ -1654,6 +1655,22 @@ Cierra la pertenencia vigente de uno o varios managers **de este equipo**, con m
 
 **En el frontend se llama «Mis FTD's»** (15-10-2026): es la consulta **según la red**, y `RF-SP-057` la **administrativa**; cada una con su permiso. **Nace a petición del responsable del proyecto** (10-10-2026). `GET /api/v1/users/me/referred-broker-accounts`: la misma fila, los mismos filtros de texto, estado, broker y fecha, y el mismo resumen que `RF-SP-057`, **con el alcance fijado por el sistema** (`RN-SP-075`) y un filtro `sellerId` para ver la línea de un vendedor concreto de la red. **No sustituye a `RF-SP-056`**: aquel mira las cuentas **de las personas** del equipo directo; este, las cuentas **que originó el enlace** de cada vendedor, sean de quien sean.
 
+#### `RF-SP-084` — Editar el enlace y el modelo de un broker
+
+| Campo | Valor |
+|---|---|
+| Objetivo | Cambiar el **enlace de registro** (`url`) y el **modelo** (`model`) de un broker del catálogo sin una migración |
+| Actor | Administración |
+| Permiso requerido | `brokers:update` |
+| Prioridad | Media |
+| Reglas aplicables | `RN-SP-039` (enmendada) |
+| Depende de | `RF-SP-052` |
+| Tripleta | `docs/specs/sp/084-editar-enlace-y-modelo-de-broker/` |
+| Estado | **En desarrollo** (15-10-2026) |
+
+**Nace a petición del responsable del proyecto** (15-10-2026): «que se pueda editar, pero solo el enlace y el modelo». `PATCH /api/v1/brokers/{id}` con `url` y `model`, **ningún otro campo** —enviar otro es `400`—. **Un campo ausente o nulo no se toca; una cadena vacía lo vacía.** El enlace tiene que empezar por `http://` o `https://` (la restricción `ck_brokers_url`) y caber en 500 caracteres; el modelo, en 120. Se edita también un broker inactivo. Responde la fila del catálogo (`RF-SP-052`). **Auditado** con el antes y el después de lo que cambió; si nada cambia, no se escribe ni se audita.
+
+
 ## 7. Requerimientos no funcionales
 
 Definidos en [`security.md` §11](../security.md) y en la constitución. Los que este módulo debe satisfacer:
@@ -1743,6 +1760,7 @@ Definidos en [`security.md` §11](../security.md) y en la constitución. Los que
 | `POST` | `/api/v1/exchange-rates/{id}/deletion` | `RF-SP-050` | `exchange-rates:delete` |
 | `GET` | `/api/v1/document-types` | `RF-SP-051` | **Ninguno: público** |
 | `GET` | `/api/v1/brokers` | `RF-SP-052` | **Ninguno: público** |
+| `PATCH` | `/api/v1/brokers/{id}` | `RF-SP-084` | `brokers:update` |
 | `GET` | `/api/v1/brokers/notifications` | `RF-SP-078` | — (público, autorizado por el secreto común; el broker sale de `advertiser`, `RN-SP-069`, y si no se reconoce se guarda sin él, `RN-SP-076`) |
 | `POST` | `/api/v1/brokers/notifications` | `RF-SP-078` | — (público, autorizado por el secreto común; el broker sale de `advertiser`, `RN-SP-069`, y si no se reconoce se guarda sin él, `RN-SP-076`) |
 | `GET` | `/api/v1/users/{id}/broker-accounts` | `RF-SP-055` | `broker-accounts:read-team-member` (alcance: superior vigente, o `broker-accounts:read`) |
@@ -2699,3 +2717,4 @@ La fila se lee «esta persona vinculó este authenticator». `status` es `PENDIE
 | 1.124.0 | 15-10-2026 | **Las cuentas de broker, la más reciente primero**, a petición del responsable del proyecto. Los cuatro listados —las de una persona (`RF-SP-055`), las mías (`RF-SP-079`), las del equipo (`RF-SP-056`) y todas (`RF-SP-057`, y con él las de mi red, `RF-SP-083`)— se ordenan por fecha de registro descendente, con el identificador de la fila como desempate único; antes iban por titular, broker e identificador de cuenta. Sin cambio de forma ni de permisos; el desglose `byBroker` sigue por nombre de broker. Specs de 055, 056, 057 y 079 enmendadas. | Responsable del proyecto |
 | 1.125.0 | 15-10-2026 | **La consulta administrativa de cuentas de broker filtra por vendedor de origen**, a petición del responsable del proyecto, que separó las dos consultas: **según la red** —`RF-SP-083`, «Mis FTD's» en el frontend, `broker-accounts:read-own-referred`— y **administrativa** —`RF-SP-057`, `broker-accounts:read`—, cada una con su permiso, como ya estaban. La administrativa filtra por estado, broker, número o usuario de broker (`search`, sin cambios), titular (`userId`, y `hasHolder=false` para las sin titular), fechas de declaración, y ahora **vendedor de origen**: `sellerId` y `hasReferrer` (`false` = sin vendedor de origen). Sin migración ni permiso nuevo. Tripleta de `RF-SP-057` v0.6.0. | Responsable del proyecto |
 | 1.126.0 | 15-10-2026 | **El catálogo de brokers gana el modelo**, a petición del responsable del proyecto («enlace y modelo»; el enlace es el `url` que ya existía). `brokers.model`, texto libre y nulo (`V111`), publicado en `RF-SP-052`; nace `CA-SP-1019`. Sin permiso nuevo: el catálogo sigue siendo público y se puebla por migración (`RN-SP-039`). | Responsable del proyecto |
+| 1.127.0 | 15-10-2026 | **El enlace y el modelo de un broker se editan por API**, a petición del responsable del proyecto («que se pueda editar, pero solo el enlace y el modelo»). **`RN-SP-039` enmendada**: el catálogo sigue poblándose por migración, y nombre, `advertiser` y estado siguen siendo de migración. **Nace `RF-SP-084`** —`PATCH /api/v1/brokers/{id}`, `brokers:update` a `SUPERADMIN` y `ADMIN` (`V112`)—: ausente o nulo no se toca, cadena vacía vacía, auditado. | Responsable del proyecto |

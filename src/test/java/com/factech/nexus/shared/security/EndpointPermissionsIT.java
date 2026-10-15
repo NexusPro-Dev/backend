@@ -451,6 +451,8 @@ class EndpointPermissionsIT extends IntegrationTestBase {
           Map.entry(
               "PATCH /api/v1/movements/payout-institutions/{id}",
               "movements:update-payout-institution"),
+          // RF-SP-084: el enlace y el modelo del catálogo de brokers.
+          Map.entry("PATCH /api/v1/brokers/{id}", "brokers:update"),
           Map.entry(
               "POST /api/v1/movements/mine/payout-accounts", "movements:create-own-payout-account"),
           Map.entry(

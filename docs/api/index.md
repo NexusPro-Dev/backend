@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.137.0 |
+| Versión | 1.138.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -242,3 +242,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.135.0 | 15-10-2026 | **Las cuentas de broker, la más reciente primero** ([`requirements/sp.md`](../requirements/sp.md) v1.124.0). `GET /users/{id}/broker-accounts`, `/users/me/broker-accounts`, `/users/me/team/broker-accounts`, `/users/me/referred-broker-accounts` y `/broker-accounts` ordenan por fecha de registro descendente; antes, por titular, broker e identificador de cuenta. Misma forma. | Responsable técnico |
 | 1.136.0 | 15-10-2026 | **`GET /broker-accounts` filtra por vendedor de origen** ([`requirements/sp.md`](../requirements/sp.md) v1.125.0, `RF-SP-057`). Nacen `sellerId` —las cuentas que originó una cuenta `VENDEDOR` de esa persona, sea quien sea el titular— y `hasReferrer` —`false`, las cuentas sin vendedor de origen—. El resumen los respeta. Misma forma y mismo permiso. | Responsable técnico |
 | 1.137.0 | 15-10-2026 | **`GET /brokers` trae el modelo de cada broker** ([`requirements/sp.md`](../requirements/sp.md) v1.126.0, `RF-SP-052`): nace `model`, texto libre, `null` mientras no se cargue. Mismo permiso (público). | Responsable técnico |
+| 1.138.0 | 15-10-2026 | **Nace `PATCH /brokers/{id}`** ([`requirements/sp.md`](../requirements/sp.md) v1.127.0, `RF-SP-084`, `RN-SP-039` enmendada): edita **solo** `url` y `model` de un broker del catálogo, con `brokers:update`. Ausente o `null` no se toca, `""` vacía; otro campo es `400`. Responde la fila de `GET /brokers`. El `GET` sigue público. | Responsable técnico |

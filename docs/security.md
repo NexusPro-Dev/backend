@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.140.0 |
+| Versión | 0.141.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -287,7 +287,7 @@ exchange-rates:update   exchange-rates:delete
 
 document-types:read
 
-brokers:read     broker-accounts:read
+brokers:read     brokers:update     broker-accounts:read
 broker-accounts:read-own-team   broker-accounts:read-team-member   broker-accounts:read-own
 broker-accounts:create-own      broker-accounts:update-own         broker-accounts:delete-own
 broker-accounts:create          broker-accounts:update             broker-accounts:delete
@@ -470,6 +470,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **El 14-10-2026, `V107` siembra cuatro de un recurso nuevo**, las categorías de las clases en vivo (`RN-AC-034`, `RF-AC-063` a `RF-AC-066`): **`live-session-categories:create`**, **`:update`** y **`:delete`** a `SUPERADMIN` y `ADMIN` explícitos, y **`live-session-categories:list`** a ellos y además **donde está `courses:teach`** —el instructor elige categoría al programar por `/mine`— **o `live-sessions:learn`** —el alumno filtra la vitrina—. Catálogo **244**, `ADMIN` 242.
 
 **El mismo día, `V108` siembra seis de otro recurso nuevo**, las señales de trading (`RN-AC-035`, `RF-AC-067` a `RF-AC-072`): **`signals:list`**, **`:create`**, **`:create-batch`**, **`:import`** y **`:delete`** a `SUPERADMIN` y `ADMIN` explícitos, y **`signals:view`** —las vigentes de quien mira— **donde está `live-sessions:learn`**. Catálogo **250**, `ADMIN` 248.
+
+**El 15-10-2026, `V112` siembra `brokers:update`** (`RF-SP-084`, `RN-SP-039` enmendada): editar el enlace y el modelo de un broker del catálogo, a `SUPERADMIN` y `ADMIN` explícitos. Es la primera escritura del recurso `brokers`, que hasta hoy solo se consultaba. Catálogo **251**, `ADMIN` 249.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1147,3 +1149,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.138.0 | 14-10-2026 | **D-21 tiene por fin un valor**, con la plataforma nueva ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), Dokploy en un VPS propio): `TRUSTED_PROXIES` lleva **la subred de `dokploy-network`**. En Railway no había valor posible porque el borde no tenía dirección fija ni publicada; en Dokploy, Traefik corre como contenedor fuera de la malla de entrada de Swarm, ve la IP real, descarta el `X-Forwarded-For` de fuera y llega al backend desde una subred que no cambia. El precio se dice como siempre: se confía en todo lo conectado a esa red —Traefik, Dokploy y los servicios de los dos entornos—, y es lo más estrecho que la plataforma permite. Queda **sin comprobar** sobre el despliegue real hasta pasar las dos pruebas de `deployment.md` §11.2. §6 anota que la salida C de `ADR-004` —puerto de administración aparte— pasa a ser comprobable en esta plataforma, sin darla por hecha. | Responsable técnico |
 | 0.139.0 | 14-10-2026 | **`V107`**: nacen `live-session-categories:list`, `create`, `update` y `delete` (`RF-AC-063` a `RF-AC-066`); las escrituras a `SUPERADMIN` y `ADMIN`, el listado también donde está `courses:teach` o `live-sessions:learn`. Catálogo **244**, `ADMIN` 242. | Responsable técnico |
 | 0.140.0 | 14-10-2026 | **`V108`**: nacen `signals:list`, `create`, `create-batch`, `import`, `delete` y `view` (`RF-AC-067` a `RF-AC-072`); las cinco de administración a `SUPERADMIN` y `ADMIN`, `view` donde está `live-sessions:learn`. Catálogo **250**, `ADMIN` 248. | Responsable técnico |
+| 0.141.0 | 15-10-2026 | **`V112`**: nace `brokers:update` (`RF-SP-084`) a `SUPERADMIN` y `ADMIN`. Catálogo 251, `ADMIN` 249. | Responsable técnico |

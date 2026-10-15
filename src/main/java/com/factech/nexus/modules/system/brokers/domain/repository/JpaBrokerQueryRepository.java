@@ -5,6 +5,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.Tuple;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p><b>Sin entidad JPA</b>, igual que el catálogo de tipos de documento: lo que se devuelve es una
  * proyección de tres campos, y mapear una entidad para descartarla acto seguido sugiere que alguien
- * podría cargarla y escribirla — que es justo lo que `RN-SP-039` prohíbe.
+ * podría cargarla y escribirla. Desde el 15-10-2026 se escriben {@code url} y {@code model}
+ * (`RF-SP-084`), y solo ellos, con su método propio.
  */
 @Repository
 public class JpaBrokerQueryRepository implements BrokerQueryRepository {
@@ -44,14 +46,46 @@ public class JpaBrokerQueryRepository implements BrokerQueryRepository {
     List<Tuple> filas = em.createNativeQuery(sql, Tuple.class).getResultList();
     List<BrokerItem> resultado = new ArrayList<>(filas.size());
     for (Tuple fila : filas) {
-      resultado.add(
-          new BrokerItem(
-              (UUID) fila.get("id"),
-              (String) fila.get("name"),
-              (Boolean) fila.get("is_active"),
-              (String) fila.get("url"),
-              (String) fila.get("model")));
+      resultado.add(fila(fila));
     }
     return resultado;
+  }
+
+  @Override
+  @Transactional
+  @SuppressWarnings("unchecked")
+  public Optional<BrokerItem> lock(UUID id) {
+    List<Tuple> filas =
+        em.createNativeQuery(
+                "SELECT b.id AS id, b.name AS name, b.is_active AS is_active, b.url AS url,"
+                    + " b.model AS model FROM brokers b WHERE b.id = :id FOR UPDATE",
+                Tuple.class)
+            .setParameter("id", id)
+            .getResultList();
+    return filas.stream().findFirst().map(JpaBrokerQueryRepository::fila);
+  }
+
+  /**
+   * La única escritura del catálogo por API (`RN-SP-039` enmendada): <b>solo {@code url} y {@code
+   * model}</b>. El nombre, el {@code advertiser} y el estado no tienen método a propósito.
+   */
+  @Override
+  @Transactional
+  public void updateLinkAndModel(UUID id, String url, String model) {
+    em.createNativeQuery(
+            "UPDATE brokers SET url = :url, model = :modelo, updated_at = now() WHERE id = :id")
+        .setParameter("url", url)
+        .setParameter("modelo", model)
+        .setParameter("id", id)
+        .executeUpdate();
+  }
+
+  private static BrokerItem fila(Tuple fila) {
+    return new BrokerItem(
+        (UUID) fila.get("id"),
+        (String) fila.get("name"),
+        (Boolean) fila.get("is_active"),
+        (String) fila.get("url"),
+        (String) fila.get("model"));
   }
 }

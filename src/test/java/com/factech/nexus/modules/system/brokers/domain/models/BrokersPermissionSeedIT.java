@@ -27,16 +27,17 @@ class BrokersPermissionSeedIT extends IntegrationTestBase {
   @Autowired private JdbcTemplate jdbc;
 
   @Test
-  @DisplayName("`brokers:read` está sembrado, y es el ÚNICO permiso del recurso")
+  @DisplayName("`brokers:read` y `brokers:update` son los ÚNICOS permisos del recurso")
   void unSoloPermiso() {
     List<String> codigos =
         jdbc.queryForList(
             "SELECT code FROM permissions WHERE resource = 'brokers' ORDER BY code", String.class);
 
-    // Uno y no cuatro: este catálogo NO se administra por API (`RN-SP-039`).
-    // Sembrar `brokers:create` «por simetría» con las tasas dejaría un permiso
-    // que nadie puede ejercer y que alguien acabaría concediendo.
-    assertThat(codigos).containsExactly("brokers:read");
+    // Dos y no cuatro: el catálogo NO se crea ni se elimina por API
+    // (`RN-SP-039`); desde `V112` solo se editan su enlace y su modelo
+    // (`RF-SP-084`). Sembrar `brokers:create` «por simetría» dejaría un
+    // permiso que nadie puede ejercer y que alguien acabaría concediendo.
+    assertThat(codigos).containsExactly("brokers:read", "brokers:update");
   }
 
   @Test
