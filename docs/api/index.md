@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.143.0 |
+| Versión | 1.144.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -248,3 +248,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.141.0 | 15-10-2026 | **`GET /api/v1/broker-accounts` trae solo cuentas `CONSUMIDOR` y pierde `kind`**, y **el alta de una cuenta `VENDEDOR` admite `accountId` ausente si trae `afftrack`** ([`requirements/sp.md`](../requirements/sp.md) v1.130.0, `RN-SP-078`, `RF-SP-053` y `RF-SP-057`). **Ruptura admitida**: `?kind=` se ignora en lugar de filtrar o dar `400`, y `accountId` puede llegar nulo en una cuenta de vendedor. | Responsable del proyecto |
 | 1.142.0 | 15-10-2026 | **`POST /api/v1/auth/registration` usa la cuenta de broker sin titular en lugar de dar `409`** ([`requirements/sp.md`](../requirements/sp.md) v1.131.0, `RN-SP-072` enmendada): si el número ya llegó por un aviso del broker y no tiene titular, se asocia a quien se registra —venga de otro vendedor o de ninguno— y su origen pasa a la `VENDEDOR` del vendedor del enlace. `409` (`EX-009`) solo si la cuenta ya es de otra persona. Sin cambio de forma; solo la prosa. | Responsable del proyecto |
 | 1.143.0 | 15-10-2026 | **Nace `GET /api/v1/indicators/broker-accounts/summary`** (`RF-IN-010`, `indicators:read-broker-accounts-summary`): `today`, `totals` —`accounts`, `ftd`, `withoutHolder`, `withoutSeller` (nulo fuera de administración), `accountsToday`, `ftdToday`— y `staff`, un grupo por rol de la cúspide hacia abajo con sus personas y las cuatro cifras de cada una. Sin parámetros. | Responsable del proyecto |
+| 1.144.0 | 16-10-2026 | **`from`/`to` de `GET /api/v1/broker-accounts` y de `GET /api/v1/users/me/referred-broker-accounts` miran también el primer depósito** ([`requirements/sp.md`](../requirements/sp.md) v1.133.0, `RN-SP-080`): una cuenta entra si se creó en el rango **o** si su primer depósito llegó en él. Ningún campo cambia; **cambia lo que devuelve un rango**, y con él el `summary`: `firstDeposit` cuenta también las cuentas anteriores que depositaron en el rango. | Responsable técnico |

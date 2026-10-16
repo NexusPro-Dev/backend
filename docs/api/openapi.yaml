@@ -13023,7 +13023,8 @@ paths:
           demás.
         - `search` — fragmento del **número de cuenta** o del titular:
           usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.
-        - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
+        - `from` / `to` — **cuándo se creó la cuenta o llegó su primer
+          depósito** (`RN-SP-080`), instantes con zona y
           rango semiabierto. `from` posterior a `to` es `400`.
 
         **`summary`** tiene la forma y el sentido de el de
@@ -16897,7 +16898,9 @@ paths:
         cuenta `VENDEDOR` que la originó, su `afftrack` y el vendedor —
         identificador, usuario, nombre y apellido—. El vendedor del `afftrack`
         tiene que ser el principal del titular (`RN-SP-072`).
-        - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
+        - `from` / `to` — **cuándo se declaró la cuenta o llegó su primer
+          depósito** (`RN-SP-080`): entra si cualquiera de las dos cae en el
+          rango. Son **instantes con
           zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
           `from`, excluye `to`. `from` posterior a `to` es `400`.
 

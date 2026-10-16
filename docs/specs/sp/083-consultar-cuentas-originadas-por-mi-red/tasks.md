@@ -20,6 +20,7 @@
 | `T-02` | `BrokerAccountFilters` con `referrerNetworkOf` y `referrerUserId`; la recursiva de origen y su predicado | — | | **Hecha** — 10-10-2026 |
 | `T-03` | `ListReferredBrokerAccountsRequest`; `ListBrokerAccountsService.listReferred`; la ruta en `UserController` con su `@Operation` | `T-01`, `T-02` | | **Hecha** — 10-10-2026 |
 | `T-04` | `ReferredBrokerAccountsIT`: `CA-SP-1003` a `CA-SP-1006`; `EndpointPermissionsIT`; contrato; `api/index.md` | `T-03` | `mvn verify` en verde | **Hecha** — 10-10-2026 |
+| `T-05` | `ReferredBrokerAccountsIT`: `CA-SP-1047` sobre el predicado de `RF-SP-057` · `T-19`; prosa OpenAPI | — | `mvn verify` en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 
@@ -32,6 +33,7 @@
 | `CA-SP-1003`, `CA-SP-1004` | `T-02`, `T-04` |
 | `CA-SP-1005` | `T-02`, `T-03`, `T-04` |
 | `CA-SP-1006` | `T-01`, `T-04` |
+| `CA-SP-1047` | `T-05` |
 
 ## 4. Bloqueos
 

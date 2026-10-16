@@ -171,6 +171,25 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-1047` — el rango entra también por el primer depósito, en página y resumen")
+  void rangoPorDeposito() throws Exception {
+    java.time.OffsetDateTime ahora = java.time.OffsetDateTime.now();
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ?, first_deposit_at = ? WHERE external_id = '1002'",
+        ahora.minusDays(10),
+        ahora.minusHours(1));
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ? WHERE external_id = '1001'", ahora.minusDays(10));
+
+    // 1002 por su depósito, 1003 por su alta; 1001, vieja y sin depósito, fuera.
+    mvc.perform(get(RUTA).param("from", ahora.minusDays(2).toString()).with(como(jefe)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1002", "1003")))
+        .andExpect(jsonPath("$.summary.accounts.total").value(2))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1));
+  }
+
+  @Test
   @DisplayName(
       "`CA-SP-1006` — sin broker-accounts:read-own-referred es 403; V100 lo siembra a los roles"
           + " VENDEDOR y FUNCIONARIO y a ningún CONSUMIDOR")

@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-083` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -50,6 +50,7 @@ Ver las originadas por otro vendedor fuera de la red propia; las cuentas `VENDED
 | `RN-SP-070` | Una cuenta de consumidor sabe qué cuenta de vendedor la originó | `requirements/sp.md` §5.1 |
 | `RN-SP-071` | El `afftrack` es de la cuenta de vendedor | `requirements/sp.md` §5.1 |
 | `RN-SP-075` | **Un vendedor ve las cuentas que originó su red** | `requirements/sp.md` §5.1 |
+| `RN-SP-080` | **El rango de fechas es de registro O de primer depósito** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -62,7 +63,7 @@ Ver las originadas por otro vendedor fuera de la red propia; las cuentas `VENDED
 | `sellerId` | No | **Un vendedor de la red**: solo las que originó su cuenta. Uno de fuera de la red da la página vacía |
 | `hasHolder` | No | `false`, las que aún no tienen titular; `true`, las demás |
 | `search` | No | Fragmento del **número de cuenta** o del **nombre de usuario en el broker** —también del titular—, sin acentos ni mayúsculas |
-| `from` / `to` | No | **Cuándo se creó la cuenta**, semiabierto, como `RF-SP-057` |
+| `from` / `to` | No | **Cuándo se creó la cuenta o llegó su primer depósito** (`RN-SP-080`, 16-10-2026), semiabierto, como `RF-SP-057` |
 | `page` / `size` | No | Paginación |
 
 ### 6.2 Salida
@@ -104,6 +105,7 @@ Las de §10, iguales a `RF-SP-057`.
 | `CA-SP-1004` | **No ve** las originadas por su superior, por otra rama ni por quien dejó su red, ni las cuentas `VENDEDOR`; quien no tiene cuentas originadas recibe la página vacía con el resumen en ceros |
 | `CA-SP-1005` | Los filtros `status`, `brokerId`, `sellerId` —uno de fuera de la red da la página vacía—, `hasHolder`, `search` por número de cuenta y por **nombre de usuario en el broker**, y `from`/`to` acotan la página y el resumen; un `status` desconocido es `400` |
 | `CA-SP-1006` | Sin `broker-accounts:read-own-referred`, `403`; `V100` lo siembra a los roles `VENDEDOR` y `FUNCIONARIO` y no a los `CONSUMIDOR` |
+| `CA-SP-1047` | Con `from`/`to`, entra también la cuenta creada **antes** del rango cuyo primer depósito llegó **dentro**, en la página y en el resumen (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -123,3 +125,4 @@ Las de §10, iguales a `RF-SP-057`.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 10-10-2026 | Redacción inicial, a petición del responsable del proyecto (`RN-SP-075`). Criterios `CA-SP-1003` a `CA-SP-1006`. | Responsable del proyecto |
+| 0.2.0 | 16-10-2026 | **El rango de fechas incluye los primeros depósitos** (`RN-SP-080`, Art. I.7), a petición del responsable del proyecto, igual que `RF-SP-057`. `CA-SP-1047`. | Responsable del proyecto |

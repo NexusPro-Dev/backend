@@ -34,6 +34,8 @@
 | `T-14` | Prosa OpenAPI del resumen, **con la frase del cero** | `T-13` | Dice que ese cero significa «no pediste ninguno» | **Hecha el 10-09-2026** |
 | `T-17` | `sellerId` y `hasReferrer` en `ListBrokerAccountsRequest`, `BrokerAccountFilters` y el predicado; prosa OpenAPI (`plan.md` §12) | — | | **Hecha** — 15-10-2026 |
 | `T-18` | `AllBrokerAccountsIT`: `CA-SP-1016` a `CA-SP-1018`; contrato; `api/index.md` | `T-17` | `mvn verify` en verde | **Hecha** — 15-10-2026 |
+| `T-19` | El predicado de `from`/`to` en `JpaBrokerAccountQueryRepository`: `created_at` **o** `first_deposit_at` en el rango (`RN-SP-080`); prosa OpenAPI | — | | **Hecha** — 16-10-2026 |
+| `T-20` | `AllBrokerAccountsIT`: `CA-SP-1046`; contrato; `api/index.md` | `T-19` | `mvn verify` en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 

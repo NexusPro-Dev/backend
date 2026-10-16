@@ -429,6 +429,40 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-1046` — el rango entra por la creación O por el primer depósito")
+  void rangoPorCreacionOPorDeposito() throws Exception {
+    java.time.OffsetDateTime ahora = java.time.OffsetDateTime.now();
+    // Creada hace diez días y depositada hace una hora: vieja por su alta,
+    // nueva por su FTD.
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ?, status = 'FIRST_DEPOSIT', first_deposit_at = ?"
+            + " WHERE external_id = '40000001'",
+        ahora.minusDays(10),
+        ahora.minusHours(1));
+    // Creada hace diez días y sin depositar: no entra por ningún lado.
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ? WHERE external_id = '20000001'",
+        ahora.minusDays(10));
+
+    String desde = ahora.minusDays(2).toString();
+    mvc.perform(get(RUTA).param("from", desde).with(administrador()))
+        .andExpect(status().isOk())
+        // Las tres creadas hoy y la que depositó hoy; la de `medio`, no.
+        .andExpect(jsonPath("$.totalElements").value(4))
+        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1))
+        .andExpect(jsonPath("$.summary.register.total").value(3));
+
+    // Con el depósito después de `to` y el alta antes de `from`, fuera.
+    mvc.perform(
+            get(RUTA)
+                .param("userId", nieto.toString())
+                .param("from", desde)
+                .param("to", ahora.minusHours(2).toString())
+                .with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
   @DisplayName("`CA-SP-655` — estado inválido y rango imposible son 400; lo inexistente, vacío")
   void erroresYVacios() throws Exception {
     mvc.perform(get(RUTA + "?status=depositado").with(administrador()))

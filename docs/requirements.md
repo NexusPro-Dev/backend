@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.367.0 |
+| Versión | 0.368.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -847,3 +847,4 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.365.0 | 15-10-2026 | **El registro por enlace se asocia cualquier cuenta de broker sin titular** ([`requirements/sp.md`](requirements/sp.md) v1.131.0, `RN-SP-072` enmendada): la usa en lugar de dar `409`, y su origen pasa al vendedor del enlace. Tripleta de `RF-SP-053` v0.4.0 (`CA-SP-1035`). | Responsable del proyecto |
 | 0.366.0 | 15-10-2026 | **La beca del primer depósito** ([`requirements/sp.md`](requirements/sp.md) v1.132.0, `RN-SP-079`; [`requirements/mv.md`](requirements/mv.md) v0.100.0, `RN-MV-079`): la cuenta asociada desde la plataforma registra, al llegar a `FIRST_DEPOSIT`, la venta `BECA → BECA` confirmada y entregada, con el vendedor de origen o sin él. Tripleta de `RF-SP-078` v0.8.0 (`CA-SP-1036` a `CA-SP-1043`). | Responsable del proyecto |
 | 0.367.0 | 15-10-2026 | **Nace `RF-IN-010`, el resumen de cuentas de broker y de mi personal** ([`requirements/in.md`](requirements/in.md) v0.22.0; [`security.md`](security.md) v0.142.0; `V115`), a petición del responsable del proyecto. | Responsable del proyecto |
+| 0.368.0 | 16-10-2026 | **El rango de fechas de las cuentas de broker incluye los primeros depósitos** ([`requirements/sp.md`](requirements/sp.md) v1.133.0, `RN-SP-080`): `RF-SP-057` y `RF-SP-083` enmendados, `CA-SP-1046` y `CA-SP-1047`. | Responsable del proyecto |

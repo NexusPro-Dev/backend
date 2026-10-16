@@ -135,7 +135,9 @@ public class BrokerAccountController {
           cuenta `VENDEDOR` que la originó, su `afftrack` y el vendedor —
           identificador, usuario, nombre y apellido—. El vendedor del `afftrack`
           tiene que ser el principal del titular (`RN-SP-072`).
-          - `from` / `to` — **cuándo se declaró la cuenta**. Son **instantes con
+          - `from` / `to` — **cuándo se declaró la cuenta o llegó su primer
+            depósito** (`RN-SP-080`): entra si cualquiera de las dos cae en el
+            rango. Son **instantes con
             zona**, no fechas sueltas, y el rango es **semiabierto**: incluye
             `from`, excluye `to`. `from` posterior a `to` es `400`.
 

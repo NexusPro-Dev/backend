@@ -1628,7 +1628,8 @@ public class UserController {
             demás.
           - `search` — fragmento del **número de cuenta** o del titular:
             usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.
-          - `from` / `to` — **cuándo se creó la cuenta**, instantes con zona y
+          - `from` / `to` — **cuándo se creó la cuenta o llegó su primer
+            depósito** (`RN-SP-080`), instantes con zona y
             rango semiabierto. `from` posterior a `to` es `400`.
 
           **`summary`** tiene la forma y el sentido de el de

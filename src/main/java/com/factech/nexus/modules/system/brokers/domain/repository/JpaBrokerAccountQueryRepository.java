@@ -393,14 +393,17 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     if (f.kind() != null) {
       filtro.condicion("ub.kind = :tipo", "tipo", f.kind().name());
     }
-    if (f.from() != null) {
-      filtro.condicion("ub.created_at >= :desde", "desde", f.from());
-    }
-    if (f.to() != null) {
-      // SEMIABIERTO —incluye `from`, excluye `to`—, como los cuatro listados de
-      // auditoría. Con `<=`, pedir dos rangos consecutivos contaría dos veces
-      // lo que cayera justo en el borde.
-      filtro.condicion("ub.created_at < :hasta", "hasta", f.to());
+    if (f.from() != null || f.to() != null) {
+      // `RN-SP-080`: entra la creada en el rango O la que tuvo en él su primer
+      // depósito. Un `first_deposit_at` nulo da nulo en su brazo y no la mete.
+      filtro.condicion(
+          "(" + enRango("ub.created_at", f) + " OR " + enRango("ub.first_deposit_at", f) + ")");
+      if (f.from() != null) {
+        filtro.parametros.put("desde", f.from());
+      }
+      if (f.to() != null) {
+        filtro.parametros.put("hasta", f.to());
+      }
     }
     if (f.search() != null) {
       // Las expresiones son LAS DEL ÍNDICE (`ix_user_brokers_busqueda` y
@@ -438,6 +441,21 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    * sitio y su parámetro en otro es la forma habitual de que una se quede sin el otro, y el síntoma
    * es una excepción de parámetro no enlazado en tiempo de ejecución.
    */
+  /**
+   * SEMIABIERTO —incluye `from`, excluye `to`—, como los cuatro listados de auditoría. Con `<=`,
+   * pedir dos rangos consecutivos contaría dos veces lo que cayera justo en el borde.
+   */
+  private static String enRango(String columna, BrokerAccountFilters f) {
+    List<String> partes = new ArrayList<>(2);
+    if (f.from() != null) {
+      partes.add(columna + " >= :desde");
+    }
+    if (f.to() != null) {
+      partes.add(columna + " < :hasta");
+    }
+    return "(" + String.join(" AND ", partes) + ")";
+  }
+
   private static final class Filtro {
 
     private final StringBuilder donde = new StringBuilder("1 = 1");

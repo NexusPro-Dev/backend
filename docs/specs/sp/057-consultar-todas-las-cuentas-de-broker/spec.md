@@ -53,6 +53,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `RN-SP-040` | El nombre de usuario en el broker llega DESPUÉS | `requirements/sp.md` §5.1 |
 | `RN-SP-045` | Toda cuenta de broker declara en qué punto está | `requirements/sp.md` §5.1 |
 | `RN-SP-047` | La red de un vendedor es TODO lo que cuelga de él | `requirements/sp.md` §5.1 |
+| `RN-SP-080` | **El rango de fechas es de registro O de primer depósito** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -68,7 +69,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `sellerId` | No | Solo las cuentas cuyo **vendedor de origen** es esa persona (`RN-SP-070`) — desde el 15-10-2026 | `uuid`. Inexistente: página vacía |
 | `hasReferrer` | No | `false`: solo las cuentas **sin vendedor de origen**; `true`: las que lo tienen — desde el 15-10-2026 | Booleano |
 | `search` | No | Fragmento de **nombre de usuario, correo, nombre completo o identificador de cuenta**, y desde el 10-10-2026 del **nombre de usuario en el broker** | Texto; sin acentos y sin distinguir mayúsculas |
-| `from`, `to` | No | Rango de **cuándo se declaró la cuenta** | Instantes con zona. **Semiabierto**: incluye `from`, excluye `to` |
+| `from`, `to` | No | Rango de **cuándo se declaró la cuenta o llegó su primer depósito** (`RN-SP-080`, 16-10-2026) | Instantes con zona. **Semiabierto**: incluye `from`, excluye `to` |
 | `page`, `size` | No | Paginación | La del resto del sistema |
 
 **Todos se combinan con Y**, y **`supervisorId` y `userId` no son excluyentes**: juntos responden «de la red de este vendedor, las cuentas de esta persona», que es la comprobación natural al revisar un caso concreto.
@@ -169,7 +170,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-651` | Una persona **eliminada** no aparece, y **su rama sigue colgando**: los suyos sí aparecen |
 | `CA-SP-652` | `userId` acota a esa persona, y **se combina con `supervisorId`** |
 | `CA-SP-653` | `search` encuentra por **identificador de cuenta** y por **nombre de usuario**, sin acentos y sin distinguir mayúsculas |
-| `CA-SP-654` | `from`/`to` acotan por fecha de declaración, con el rango **semiabierto** |
+| `CA-SP-654` | `from`/`to` acotan por fecha de declaración, con el rango **semiabierto** — **y desde el 16-10-2026 también por la del primer depósito** (`CA-SP-1046`) |
 | `CA-SP-655` | `status` inválido y `from` posterior a `to` devuelven **`400`**; un identificador inexistente devuelve la **página vacía** |
 | `CA-SP-656` | El total **cuenta lo filtrado**, y dos páginas seguidas no repiten ni pierden filas |
 | `CA-SP-657` | La fila es **idéntica** a la de `RF-SP-056`, campo por campo |
@@ -186,6 +187,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-1016` | `sellerId` deja solo las cuentas cuyo origen es una cuenta `VENDEDOR` de esa persona, **sin mirar el titular**; uno inexistente da la página vacía (15-10-2026) |
 | `CA-SP-1017` | `hasReferrer=false` deja solo las cuentas **sin vendedor de origen**, y `true` solo las que lo tienen; las dos suman el total sin filtro (15-10-2026) |
 | `CA-SP-1018` | El resumen respeta `sellerId` y `hasReferrer`, y `sellerId` con `hasReferrer=false` da la página vacía, sin error (15-10-2026) |
+| `CA-SP-1046` | Con `from`/`to`, una cuenta creada **antes** del rango cuyo primer depósito llegó **dentro** sale en la página y en `summary.firstDeposit`; una creada dentro sale aunque no haya depositado; una creada y depositada fuera, no (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -216,3 +218,4 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | 0.4.0 | 18-09-2026 | **`CA-SP-648` precisado**: el cliente sale de `user_supervisors` (`RN-SP-028` revertida por el responsable del proyecto; `RF-SP-059`), de modo que la recursiva de `RN-SP-047` recorre **solo fuerza comercial** y las cuentas de la red son las de los clientes `REGISTRO` de cada nodo, unidas en la hoja. `CA-SP-649` —la raíz no incluye sus propias cuentas— no cambia: sus **clientes** sí son su red. Sin cambio de contrato; el código lo cambia `RF-SP-059 · T-12`. | Responsable del proyecto |
 | 0.5.0 | 10-10-2026 | **Se completa en lugar de nacer otro listado**, por decisión del responsable del proyecto, que pidió «un endpoint nuevo para ver todas las cuentas de brokers de tipo consumidor, con filtros por estado, broker, número de cuenta o username del broker y fecha de creación, que traiga el vendedor y el dueño»: casi todo ya estaba —`kind`, `status`, `brokerId`, `from`/`to`, el titular y el origen—. **`search` busca también el nombre de usuario en el broker** y **el origen trae nombre y apellido del vendedor**, que es el del `afftrack` y debe coincidir con el principal del cliente (`RN-SP-072`). `CA-SP-1007` y `CA-SP-1008`. | Responsable del proyecto |
 | 0.6.0 | 15-10-2026 | **Filtro por vendedor de origen**, a petición del responsable del proyecto, que separó la consulta **según la red** (`RF-SP-083`, «Mis FTD's») de esta, la **administrativa**, cada una con su permiso. Nacen `sellerId` y `hasReferrer` (§6.1), separados del titular —`userId` y `hasHolder`, que §6.1 no listaba y ahora sí—, y `CA-SP-1016` a `CA-SP-1018`. Sin permiso nuevo. | Responsable del proyecto |
+| 0.7.0 | 16-10-2026 | **El rango de fechas incluye los primeros depósitos** (`RN-SP-080`, Art. I.7), a petición del responsable del proyecto: «el filtro de la fecha al consultar es una mezcla de registro y depósito; actualmente al filtrar por una fecha solo me trae los registros de esta, no incluye los depósitos que se hicieron en esa fecha». Una cuenta entra si se creó en el rango **o** si su primer depósito llegó en él; el resumen lo sigue. `CA-SP-1046`. | Responsable del proyecto |
