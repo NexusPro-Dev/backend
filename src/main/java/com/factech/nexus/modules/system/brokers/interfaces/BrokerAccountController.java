@@ -86,10 +86,13 @@ public class BrokerAccountController {
       summary = "Consultar y filtrar todas las cuentas de broker",
       description =
           """
-          Devuelve **todas** las cuentas de broker **de consumidor** del
-          sistema, paginadas y con su titular en cada fila. **Sin ningún filtro
-          devuelve el sistema entero**: es lo que `broker-accounts:read`
-          significa. **Las cuentas `VENDEDOR` no salen aquí** (`RN-SP-068`,
+          Devuelve las cuentas de broker **de consumidor** **del alcance de
+          quien pregunta** (`RN-SP-081`, 16-10-2026), paginadas y con su
+          titular en cada fila. **Administración** (rol `FUNCIONARIO`) ve el
+          sistema entero y acota con `supervisorId`. **Un vendedor** ve las
+          suyas y las de toda su red; con `supervisorId` de alguien de su red,
+          las de esa persona y su red, y con uno de fuera, la página vacía.
+          **Las cuentas `VENDEDOR` no salen aquí** (`RN-SP-068`,
           15-10-2026): se consultan en las de cada persona. El parámetro
           `kind` se retiró ese día.
 
@@ -98,14 +101,12 @@ public class BrokerAccountController {
           estos, y así hasta abajo. **No es un solo nivel**, al revés que
           `GET /api/v1/users/{id}/team` y que
           `GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan
-          por la estructura y por eso se acotan; este se autoriza por permiso,
-          que ya alcanza a todos, de modo que la profundidad **ahorra recorrer
-          el árbol y no concede nada**.
+          por la estructura y por eso se acotan.
 
-          **La raíz NO se incluye en su red.** Preguntar por la red de alguien
-          devuelve la de los suyos; sus propias cuentas se piden con `userId`, y
-          **los dos filtros se combinan** — juntos responden «de la red de este
-          vendedor, las cuentas de esta persona».
+          **La red incluye a su raíz** desde el 16-10-2026 (`RN-SP-081`): las
+          cuentas de esa persona, las de quienes cuelgan de ella y las de los
+          clientes que registraron. Con `userId` se acota a una persona, y
+          **los dos filtros se combinan**.
 
           **Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni
           los que colgaban de él por esa vía. Y una persona **eliminada** no

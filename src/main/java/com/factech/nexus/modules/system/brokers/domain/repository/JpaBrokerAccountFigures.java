@@ -111,8 +111,38 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
 
   @Override
   @Transactional(readOnly = true)
+  public List<SellerAfftrack> sellerAfftracks() {
+    @SuppressWarnings("unchecked")
+    List<Tuple> filas =
+        em.createNativeQuery(
+                """
+                SELECT ub.user_id AS vendedor, b.id AS broker, b.name AS nombre,
+                       ub.afftrack AS afftrack
+                  FROM user_brokers ub
+                  JOIN brokers b ON b.id = ub.broker_id
+                 WHERE ub.kind = 'VENDEDOR' AND ub.afftrack IS NOT NULL
+                   AND ub.user_id IS NOT NULL
+                 ORDER BY b.name, ub.afftrack
+                """,
+                Tuple.class)
+            .getResultList();
+
+    List<SellerAfftrack> resultado = new ArrayList<>(filas.size());
+    for (Tuple fila : filas) {
+      resultado.add(
+          new SellerAfftrack(
+              (UUID) fila.get("vendedor"),
+              (UUID) fila.get("broker"),
+              (String) fila.get("nombre"),
+              (String) fila.get("afftrack")));
+    }
+    return resultado;
+  }
+
+  @Override
+  @Transactional(readOnly = true)
   public List<SellerBrokerFigures> bySellerAndBroker(
-      OffsetDateTime from, OffsetDateTime to, boolean allTime) {
+      OffsetDateTime from, OffsetDateTime to, boolean allTime, UUID brokerId) {
     String creada = rango("ub.created_at", from, to);
     // `RN-IN-015` (2): cada cifra por su fecha. Sin fechas, los FTD son todas las
     // cuentas en FIRST_DEPOSIT —también las que pasaron sin aviso, sin fecha— y las
@@ -147,11 +177,16 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
                 + ") AS activas,"
                 + " coalesce(sum(ub.operations_count) FILTER (WHERE "
                 + activa
-                + "), 0) AS operaciones "
+                + "), 0) AS operaciones,"
+                // `RN-IN-016`: con FTD y sin ninguna operación.
+                + " count(*) FILTER (WHERE "
+                + creada
+                + " AND ub.status = 'FIRST_DEPOSIT' AND ub.operations_count = 0) AS ftd_sin_operar "
                 + DESDE
+                + delBroker(brokerId)
                 + " GROUP BY f.id, ub.broker_id",
             Tuple.class);
-    enlazar(consulta, from, to);
+    enlazar(consulta, from, to, brokerId);
 
     @SuppressWarnings("unchecked")
     List<Tuple> filas = consulta.getResultList();
@@ -166,14 +201,16 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
               numero(fila.get("sin_titular")),
               numero(fila.get("ftd")),
               numero(fila.get("activas")),
-              numero(fila.get("operaciones"))));
+              numero(fila.get("operaciones")),
+              numero(fila.get("ftd_sin_operar"))));
     }
     return resultado;
   }
 
   @Override
   @Transactional(readOnly = true)
-  public List<SellerConsumers> consumersBySeller(OffsetDateTime from, OffsetDateTime to) {
+  public List<SellerConsumers> consumersBySeller(
+      OffsetDateTime from, OffsetDateTime to, UUID brokerId) {
     // Aparte, y sin agrupar por broker: una persona con cuentas en dos brokers es
     // UNA persona.
     Query consulta =
@@ -181,11 +218,12 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
             FUERZA
                 + "SELECT f.id AS vendedor, count(DISTINCT ub.user_id) AS consumidores "
                 + DESDE
+                + delBroker(brokerId)
                 + " AND ub.user_id IS NOT NULL AND "
                 + rango("ub.created_at", from, to)
                 + " GROUP BY f.id",
             Tuple.class);
-    enlazar(consulta, from, to);
+    enlazar(consulta, from, to, brokerId);
 
     @SuppressWarnings("unchecked")
     List<Tuple> filas = consulta.getResultList();
@@ -200,11 +238,18 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
   @Override
   @Transactional(readOnly = true)
   public List<BucketFigures> byBucket(
-      Set<UUID> sellers, OffsetDateTime from, OffsetDateTime to, String unit, ZoneId zone) {
+      Set<UUID> sellers,
+      OffsetDateTime from,
+      OffsetDateTime to,
+      String unit,
+      ZoneId zone,
+      UUID brokerId) {
     if (sellers != null && sellers.isEmpty()) {
       return List.of();
     }
-    String deQuien = sellers == null ? " AND f.id IS NOT NULL " : " AND f.id IN (:vendedores) ";
+    String deQuien =
+        (sellers == null ? " AND f.id IS NOT NULL " : " AND f.id IN (:vendedores) ")
+            + delBroker(brokerId);
     Query consulta =
         em.createNativeQuery(
             FUERZA
@@ -224,7 +269,7 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
                 + rango("ub.first_deposit_at", from, to)
                 + ") x GROUP BY dia ORDER BY dia",
             Tuple.class);
-    enlazar(consulta, from, to);
+    enlazar(consulta, from, to, brokerId);
     consulta.setParameter("unidad", unit).setParameter("zona", zone.getId());
     if (sellers != null) {
       consulta.setParameter("vendedores", sellers);
@@ -250,6 +295,19 @@ public class JpaBrokerAccountFigures implements BrokerAccountFigures {
       partes.add(columna + " < :hasta");
     }
     return partes.isEmpty() ? "TRUE" : "(" + String.join(" AND ", partes) + ")";
+  }
+
+  /** El filtro por broker de `RF-IN-009` y `RF-IN-010`; nulo, todos. */
+  private static String delBroker(UUID brokerId) {
+    return brokerId == null ? "" : " AND ub.broker_id = CAST(:broker AS uuid) ";
+  }
+
+  private static void enlazar(
+      Query consulta, OffsetDateTime from, OffsetDateTime to, UUID brokerId) {
+    enlazar(consulta, from, to);
+    if (brokerId != null) {
+      consulta.setParameter("broker", brokerId);
+    }
   }
 
   private static void enlazar(Query consulta, OffsetDateTime from, OffsetDateTime to) {

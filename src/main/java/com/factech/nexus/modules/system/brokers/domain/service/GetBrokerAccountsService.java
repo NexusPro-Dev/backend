@@ -2,6 +2,7 @@ package com.factech.nexus.modules.system.brokers.domain.service;
 
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountsResponse;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
+import com.factech.nexus.modules.system.users.application.CommercialReach;
 import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository;
 import com.factech.nexus.modules.system.users.domain.repository.ClientSellerRepository.ClientSellerRow;
 import com.factech.nexus.modules.system.users.domain.repository.UserRepository;
@@ -71,16 +72,19 @@ public class GetBrokerAccountsService {
   private final UserRepository usuarios;
   private final ClientSellerRepository vinculos;
   private final CurrentActor actor;
+  private final CommercialReach alcance;
 
   public GetBrokerAccountsService(
       BrokerAccountQueryRepository cuentas,
       UserRepository usuarios,
       ClientSellerRepository vinculos,
-      CurrentActor actor) {
+      CurrentActor actor,
+      CommercialReach alcance) {
     this.cuentas = cuentas;
     this.usuarios = usuarios;
     this.vinculos = vinculos;
     this.actor = actor;
+    this.alcance = alcance;
   }
 
   /**
@@ -137,7 +141,10 @@ public class GetBrokerAccountsService {
    * clave y ninguna persona tiene, en la práctica, filas en ambas.
    */
   private boolean puedeVer(UUID quien, UUID userId) {
-    if (actor.currentPermissions().contains(PERMISO)) {
+    // Desde el 16-10-2026 los vendedores también tienen el permiso, para su red en
+    // `GET /broker-accounts` (`RN-SP-081`); aquí solo abre a quien alcanza todo.
+    if (actor.currentPermissions().contains(PERMISO)
+        && alcance.reachOf(quien).kind() == CommercialReach.Kind.EVERYTHING) {
       return true;
     }
     Optional<UserSupervisor> superior = usuarios.findActiveSupervisor(userId);

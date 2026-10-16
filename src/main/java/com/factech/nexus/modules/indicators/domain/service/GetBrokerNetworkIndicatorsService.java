@@ -74,7 +74,7 @@ public class GetBrokerNetworkIndicatorsService {
 
   @Transactional(readOnly = true)
   public BrokerNetworkIndicatorsResponse get(
-      LocalDate from, LocalDate to, UUID sellerId, String granularity) {
+      LocalDate from, LocalDate to, UUID sellerId, UUID brokerId, String granularity) {
     List<FieldError> problemas = new ArrayList<>();
     IndicatorPeriod periodo = periodos.resolve(from, to, problemas);
     Granularity tramo = SalesPeriodResolver.granularity(granularity, null, problemas);
@@ -99,14 +99,15 @@ public class GetBrokerNetworkIndicatorsService {
     Map<UUID, Suma> propios = new HashMap<>();
     Suma sinAtribuir = new Suma();
     for (SellerBrokerFigures fila :
-        cifras.bySellerAndBroker(intervalo.from(), intervalo.to(), todaLaHistoria)) {
+        cifras.bySellerAndBroker(intervalo.from(), intervalo.to(), todaLaHistoria, brokerId)) {
       Suma destino =
           fila.sellerId() == null || !porId.containsKey(fila.sellerId())
               ? sinAtribuir
               : propios.computeIfAbsent(fila.sellerId(), id -> new Suma());
       destino.sumar(fila);
     }
-    for (SellerConsumers fila : cifras.consumersBySeller(intervalo.from(), intervalo.to())) {
+    for (SellerConsumers fila :
+        cifras.consumersBySeller(intervalo.from(), intervalo.to(), brokerId)) {
       Suma destino =
           fila.sellerId() == null || !porId.containsKey(fila.sellerId())
               ? sinAtribuir
@@ -144,7 +145,8 @@ public class GetBrokerNetworkIndicatorsService {
                     case WEEK -> "week";
                     case MONTH -> "month";
                   },
-                  calendario.zona());
+                  calendario.zona(),
+                  brokerId);
       Map<LocalDate, BucketFigures> porDia = new HashMap<>();
       conDatos.forEach(b -> porDia.put(b.start(), b));
       tramos =

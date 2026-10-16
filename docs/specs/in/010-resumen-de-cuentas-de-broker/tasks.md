@@ -20,6 +20,9 @@
 | `T-02` | `BrokerAccountsSummaryResponse` y `GetBrokerAccountsSummaryService` | — | | **Hecha** — 15-10-2026 |
 | `T-03` | La ruta en `BrokerAccountIndicatorsController` con su `@Operation` | `T-02` | | **Hecha** — 15-10-2026 |
 | `T-04` | `BrokerAccountsSummaryIT`: `CA-IN-111` a `CA-IN-115`; `EndpointPermissionsIT`; contrato; `api/index.md` | `T-01`, `T-03` | `mvn verify` de las suites en verde | **Hecha** — 15-10-2026 |
+| `T-05` | `withoutOperations` en lugar de `withoutSeller`: `BrokerAccountFigures` gana las FTD sin operar; respuesta, servicio y prosa; `BrokerAccountsSummaryIT` con `CA-IN-116` | — | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
+| `T-06` | `supervisorId` y `afftracks` en `Person`: el superior de `commercialForce` y `BrokerAccountFigures.sellerAfftracks`; prosa; `BrokerAccountsSummaryIT` con `CA-IN-117` | — | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
+| `T-07` | `from`, `to`, `brokerId` y `sellerId` en la ruta y el servicio, con `SalesPeriodResolver` y la rama del vendedor; `brokerId` en el puerto; prosa; `BrokerAccountsSummaryIT` con `CA-IN-118` | — | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 
@@ -31,6 +34,9 @@
 |---|---|
 | `CA-IN-111` a `CA-IN-114` | `T-02`, `T-03`, `T-04` |
 | `CA-IN-115` | `T-01`, `T-04` |
+| `CA-IN-116` | `T-05` |
+| `CA-IN-117` | `T-06` |
+| `CA-IN-118` | `T-07` |
 
 ## 4. Bloqueos
 

@@ -27,18 +27,25 @@ public interface BrokerAccountFigures {
   List<Seller> commercialForce();
 
   /**
+   * Los {@code afftrack} de las cuentas {@code VENDEDOR} de la fuerza comercial, uno por cuenta que
+   * lo tenga, por nombre de broker (`RF-IN-010`, `CA-IN-117`).
+   */
+  List<SellerAfftrack> sellerAfftracks();
+
+  /**
    * Las cifras por vendedor de origen y broker, <b>cada una con su fecha</b> (`RN-IN-015`).
    *
    * @param from inicio incluido, o nulo: sin límite
    * @param to fin excluido, o nulo: sin límite
    * @param allTime sin fechas pedidas: los FTD son todas las cuentas en {@code FIRST_DEPOSIT} y las
    *     que operaron, todas las que tienen alguna operación
+   * @param brokerId solo las de ese broker, o nulo: todos
    */
   List<SellerBrokerFigures> bySellerAndBroker(
-      OffsetDateTime from, OffsetDateTime to, boolean allTime);
+      OffsetDateTime from, OffsetDateTime to, boolean allTime, UUID brokerId);
 
   /** Los consumidores distintos de las cuentas creadas en el intervalo, por vendedor de origen. */
-  List<SellerConsumers> consumersBySeller(OffsetDateTime from, OffsetDateTime to);
+  List<SellerConsumers> consumersBySeller(OffsetDateTime from, OffsetDateTime to, UUID brokerId);
 
   /**
    * Las cuentas creadas y los FTD por tramo, de las originadas por {@code sellers} —o por cualquier
@@ -47,7 +54,12 @@ public interface BrokerAccountFigures {
    * @param unit {@code day}, {@code week} o {@code month}, como {@code date_trunc}
    */
   List<BucketFigures> byBucket(
-      Set<UUID> sellers, OffsetDateTime from, OffsetDateTime to, String unit, ZoneId zone);
+      Set<UUID> sellers,
+      OffsetDateTime from,
+      OffsetDateTime to,
+      String unit,
+      ZoneId zone,
+      UUID brokerId);
 
   /** Un vendedor de la fuerza comercial y su superior vigente, que puede no tenerlo. */
   record Seller(
@@ -73,12 +85,15 @@ public interface BrokerAccountFigures {
       long withoutHolder,
       long ftd,
       long activeAccounts,
-      long operations) {}
+      long operations,
+      long ftdWithoutOperations) {}
 
   /** {@code sellerId} nulo es lo no atribuido. */
   record SellerConsumers(UUID sellerId, long consumers) {}
 
   record Broker(UUID id, String name) {}
+
+  record SellerAfftrack(UUID sellerId, UUID brokerId, String brokerName, String afftrack) {}
 
   record BucketFigures(LocalDate start, long accounts, long ftd) {}
 }

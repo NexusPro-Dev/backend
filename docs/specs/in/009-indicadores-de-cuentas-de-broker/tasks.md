@@ -21,6 +21,7 @@
 | `T-03` | `BrokerNetworkIndicatorsResponse`, `GetBrokerNetworkIndicatorsService` y `BrokerAccountIndicatorsController` con su `@Operation` | `T-02` | | **Hecha** — 10-10-2026 |
 | `T-04` | Retirar de `SP` la ruta, el servicio, la respuesta, los conteos y `NetworkIndicatorsIT` | `T-03` | | **Hecha** — 10-10-2026 |
 | `T-05` | `BrokerNetworkIndicatorsIT`: `CA-IN-104` a `CA-IN-110`; `EndpointPermissionsIT`; contrato; `api/index.md` | `T-01`, `T-03`, `T-04` | `mvn verify` en verde | **Hecha** — 10-10-2026 |
+| `T-06` | `brokerId` en la ruta, el servicio y las tres consultas del puerto; prosa; `BrokerNetworkIndicatorsIT` con `CA-IN-119` | — | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 
@@ -33,6 +34,7 @@
 | `CA-IN-104` a `CA-IN-107` | `T-02`, `T-03`, `T-05` |
 | `CA-IN-108`, `CA-IN-109` | `T-03`, `T-05` |
 | `CA-IN-110` | `T-01`, `T-04`, `T-05` |
+| `CA-IN-119` | `T-06` |
 
 ## 4. Bloqueos
 

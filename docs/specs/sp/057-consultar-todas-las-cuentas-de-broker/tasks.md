@@ -36,6 +36,8 @@
 | `T-18` | `AllBrokerAccountsIT`: `CA-SP-1016` a `CA-SP-1018`; contrato; `api/index.md` | `T-17` | `mvn verify` en verde | **Hecha** — 15-10-2026 |
 | `T-19` | El predicado de `from`/`to` en `JpaBrokerAccountQueryRepository`: `created_at` **o** `first_deposit_at` en el rango (`RN-SP-080`); prosa OpenAPI | — | | **Hecha** — 16-10-2026 |
 | `T-20` | `AllBrokerAccountsIT`: `CA-SP-1046`; contrato; `api/index.md` | `T-19` | `mvn verify` en verde | **Hecha** — 16-10-2026 |
+| `T-21` | `V116`: `broker-accounts:read` a los roles `VENDEDOR`, con su guarda; `ListBrokerAccountsService` acota por `CommercialReach`; la raíz en `alcance`; `GetBrokerAccountsService` exige el alcance entero junto al permiso; prosa OpenAPI | — | | **Hecha** — 16-10-2026 |
+| `T-22` | `AllBrokerAccountsIT`: `CA-SP-649` invertido y `CA-SP-1048`; las suites del reparto por rol; contrato; `api/index.md` | `T-21` | `mvn verify` en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 

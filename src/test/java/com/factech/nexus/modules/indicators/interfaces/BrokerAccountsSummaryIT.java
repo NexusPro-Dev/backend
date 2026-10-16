@@ -37,6 +37,7 @@ class BrokerAccountsSummaryIT extends IntegrationTestBase {
 
   private static final String RUTA = "/api/v1/indicators/broker-accounts/summary";
   private static final String PERMISO = "indicators:read-broker-accounts-summary";
+  private static final String IQOPTION = "01a081f0-6000-7101-9c4f-5e7adb000001";
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
@@ -83,25 +84,33 @@ class BrokerAccountsSummaryIT extends IntegrationTestBase {
     // k5 sin origen y k6 con origen fuera de la fuerza comercial: sin vendedor.
     cuenta(null, broker, "k5", null, false, null);
     cuenta(null, broker, "k6", deAdmin, true, null);
+    // k3 depositó y opera: no cuenta como sin operar; k1 depositó y no opera.
+    jdbc.update(
+        "UPDATE user_brokers SET operations_count = 2, first_operation_at = now(),"
+            + " last_operation_at = now() WHERE external_id = 'k3'");
   }
 
   /** {@code user_brokers} vacía: su clave foránea a {@code users} es {@code RESTRICT}. */
   @AfterEach
   void vaciar() {
     jdbc.update("DELETE FROM user_brokers");
+    // La estructura también: una fila que sobreviva rompe el `DELETE FROM users`
+    // de la siguiente suite que lo haga sin vaciarla antes.
+    jdbc.update("DELETE FROM user_supervisors");
+    jdbc.update("DELETE FROM client_sellers");
   }
 
   @Test
   @DisplayName(
-      "CA-IN-111, CA-IN-112 — administración: todas las de consumidor, sus FTD, sin titular, sin"
-          + " vendedor, y las de hoy por su fecha; las de vendedor no cuentan")
+      "CA-IN-111, CA-IN-112, CA-IN-116 — administración: todas las de consumidor, sus FTD, sin"
+          + " titular, sin operar, y las de hoy por su fecha; las de vendedor no cuentan")
   void losTotales() throws Exception {
     String cuerpo = pedir(como(SUPERADMIN));
 
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.accounts")).isEqualTo(6);
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.ftd")).isEqualTo(2);
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.withoutHolder")).isEqualTo(3);
-    assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.withoutSeller")).isEqualTo(2);
+    assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.withoutOperations")).isEqualTo(1);
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.accountsToday")).isEqualTo(3);
     // k1 es vieja pero su depósito llegó hoy.
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.ftdToday")).isEqualTo(2);
@@ -136,8 +145,8 @@ class BrokerAccountsSummaryIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "CA-IN-114 — un vendedor ve lo originado por él y su red, a esas personas, y sin vendedor"
-          + " nulo")
+      "CA-IN-114, CA-IN-116 — un vendedor ve lo originado por él y su red, a esas personas, y"
+          + " lo sin operar de su alcance")
   void elAlcanceDelVendedor() throws Exception {
     String cuerpo = pedir(como(medio));
 
@@ -147,12 +156,79 @@ class BrokerAccountsSummaryIT extends IntegrationTestBase {
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.ftd")).isEqualTo(2);
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.withoutHolder")).isEqualTo(1);
     assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.accountsToday")).isEqualTo(2);
-    assertThat((Object) JsonPath.read(cuerpo, "$.totals.withoutSeller")).isNull();
+    assertThat(JsonPath.<Integer>read(cuerpo, "$.totals.withoutOperations")).isEqualTo(1);
 
     String suelto = pedir(como(otro));
     assertThat((List<String>) JsonPath.read(suelto, "$.staff[*].people[*].user.username"))
         .containsExactly("rs-d-otro");
     assertThat(JsonPath.<Integer>read(suelto, "$.totals.accounts")).isZero();
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-117 — cada persona trae su superior vigente y sus afftrack; la cúspide va sin"
+          + " superior, y el de un vendedor puede quedar fuera de la respuesta")
+  void superiorYAfftracks() throws Exception {
+    String cuerpo = pedir(como(SUPERADMIN));
+
+    // Jefe: cúspide, sin superior.
+    assertThat((Object) JsonPath.read(cuerpo, "$.staff[0].people[0].supervisorId")).isNull();
+    assertThat(JsonPath.<String>read(cuerpo, "$.staff[0].people[0].afftracks[0].afftrack"))
+        .isEqualTo("AFF-V-JEFE");
+    assertThat(JsonPath.<String>read(cuerpo, "$.staff[0].people[0].afftracks[0].brokerName"))
+        .isEqualTo("EXNOVA");
+    // Medio cuelga de jefe; otro no tiene cuenta VENDEDOR: lista vacía, no ausente.
+    String idJefe = JsonPath.read(cuerpo, "$.staff[0].people[0].user.id");
+    assertThat(JsonPath.<String>read(cuerpo, "$.staff[1].people[0].supervisorId"))
+        .isEqualTo(idJefe);
+    assertThat((List<?>) JsonPath.read(cuerpo, "$.staff[2].people[1].afftracks")).isEmpty();
+
+    // Para medio, su superior no viene en la respuesta: él es la raíz.
+    String suyo = pedir(como(medio));
+    assertThat(JsonPath.<String>read(suyo, "$.staff[0].people[0].supervisorId")).isEqualTo(idJefe);
+    assertThat((List<String>) JsonPath.read(suyo, "$.staff[*].people[*].user.id"))
+        .doesNotContain(idJefe);
+  }
+
+  @Test
+  @DisplayName(
+      "CA-IN-118 — from/to acotan los totales y no lo de hoy; brokerId y sellerId acotan todo,"
+          + " y con sellerId no entra lo no atribuido")
+  void losFiltros() throws Exception {
+    String ayer = java.time.LocalDate.now().minusDays(1).toString();
+    String manana = java.time.LocalDate.now().plusDays(1).toString();
+
+    // Desde ayer: las creadas hoy (k2, k3, k6) y los FTD de hoy (k1, k3).
+    String reciente = pedir(RUTA + "?from=" + ayer + "&to=" + manana, como(SUPERADMIN));
+    assertThat(JsonPath.<Integer>read(reciente, "$.totals.accounts")).isEqualTo(3);
+    assertThat(JsonPath.<Integer>read(reciente, "$.totals.ftd")).isEqualTo(2);
+
+    // Un periodo viejo deja los totales en cero, y lo de hoy sigue siendo de hoy.
+    String viejo = pedir(RUTA + "?from=2020-01-01&to=2020-01-31", como(SUPERADMIN));
+    assertThat(JsonPath.<Integer>read(viejo, "$.totals.accounts")).isZero();
+    assertThat(JsonPath.<Integer>read(viejo, "$.totals.accountsToday")).isEqualTo(3);
+    assertThat(JsonPath.<Integer>read(viejo, "$.totals.ftdToday")).isEqualTo(2);
+
+    // Otro broker: todo en cero, también lo de hoy, y sin afftrack de EXNOVA.
+    String deIq = pedir(RUTA + "?brokerId=" + IQOPTION, como(SUPERADMIN));
+    assertThat(JsonPath.<Integer>read(deIq, "$.totals.accounts")).isZero();
+    assertThat(JsonPath.<Integer>read(deIq, "$.totals.accountsToday")).isZero();
+    assertThat((List<?>) JsonPath.read(deIq, "$.staff[0].people[0].afftracks")).isEmpty();
+
+    // La rama de medio: medio y base, sin jefe ni lo no atribuido.
+    String rama = pedir(RUTA + "?sellerId=" + medio, como(SUPERADMIN));
+    assertThat((List<String>) JsonPath.read(rama, "$.staff[*].people[*].user.username"))
+        .containsExactly("rs-b-medio", "rs-c-base");
+    assertThat(JsonPath.<Integer>read(rama, "$.totals.accounts")).isEqualTo(3);
+    assertThat(JsonPath.<Integer>read(rama, "$.totals.accountsToday")).isEqualTo(2);
+
+    // Un vendedor fuera de su alcance: todo en cero.
+    String ajena = pedir(RUTA + "?sellerId=" + medio, como(otro));
+    assertThat((List<?>) JsonPath.read(ajena, "$.staff")).isEmpty();
+    assertThat(JsonPath.<Integer>read(ajena, "$.totals.accounts")).isZero();
+
+    mvc.perform(get(RUTA + "?from=2026-10-10&to=2026-10-01").with(como(SUPERADMIN)))
+        .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -176,7 +252,11 @@ class BrokerAccountsSummaryIT extends IntegrationTestBase {
   }
 
   private String pedir(RequestPostProcessor quien) throws Exception {
-    return mvc.perform(get(RUTA).with(quien))
+    return pedir(RUTA, quien);
+  }
+
+  private String pedir(String ruta, RequestPostProcessor quien) throws Exception {
+    return mvc.perform(get(ruta).with(quien))
         .andExpect(status().isOk())
         .andReturn()
         .getResponse()

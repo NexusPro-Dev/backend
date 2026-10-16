@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.142.0 |
+| Versión | 0.143.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 14-10-2026 |
+| Última actualización | 16-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -748,7 +748,7 @@ Implantada el 25-08-2026 (issue #25). Hasta entonces la última regla de §5.5 e
     - **Es la única lectura del sistema autorizada por estructura.** Ninguna otra puede añadirse citando esta: quien lo necesite reabre D-22.
     - **`RF-SP-057` NO la amplía, y conviene no confundirlas** (10-09-2026): aquel listado **filtra** por estructura —`?supervisorId=`, y en profundidad— pero **lo autoriza el permiso**, no la estructura. La diferencia es la que importa: quien lo llama ya podía ver las cuentas de cualquiera, de modo que el filtro le ahorra recorrer el árbol y **no le concede nada**. La cota de un solo nivel se rompe **ahí y solo ahí**, y por eso mismo: sin estructura que conceder, no hay estructura que acotar.
     - **Un solo nivel**, el equipo directo. El árbol descendente publicaría la estructura entera de la empresa, y es la misma cota que `RF-SP-042` ya se puso.
-    - **La alternativa por permiso sigue existiendo y es la vía general**: `broker-accounts:read` ve las cuentas de cualquiera, y es lo que usa la administración.
+    - **La alternativa por permiso sigue existiendo y es la vía general**: `broker-accounts:read` ve las cuentas de cualquiera, y es lo que usa la administración. **Desde el 16-10-2026 solo con el alcance entero** (`RN-SP-081`): los roles `VENDEDOR` también tienen el permiso, para su red en `RF-SP-057`, y aquí no les abre a nadie más.
     - **Se cierra sobre un dato y no sobre un módulo**: las cuentas de broker, y nada más. No alcanza a movimientos, comisiones ni perfiles.
 
     **Y aquí se usa `404` donde el modelo pide `403`** —la excepción que el punto de abajo admite «cuando la especificación lo exija de forma expresa y justificada»—: quien no es el superior vigente recibe la misma respuesta que si la persona no existiera. El motivo es que el actor de esta lectura **es un vendedor cualquiera**, no un administrador, y un `403` le confirmaría qué identificadores corresponden a personas reales; es el mismo razonamiento con el que el hotlink de `RF-PM-008` unificó su `404`, con la diferencia de que aquel es público y este no.
@@ -1153,3 +1153,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.140.0 | 14-10-2026 | **`V108`**: nacen `signals:list`, `create`, `create-batch`, `import`, `delete` y `view` (`RF-AC-067` a `RF-AC-072`); las cinco de administración a `SUPERADMIN` y `ADMIN`, `view` donde está `live-sessions:learn`. Catálogo **250**, `ADMIN` 248. | Responsable técnico |
 | 0.141.0 | 15-10-2026 | **`V112`**: nace `brokers:update` (`RF-SP-084`) a `SUPERADMIN` y `ADMIN`. Catálogo 251, `ADMIN` 249. | Responsable técnico |
 | 0.142.0 | 15-10-2026 | **`V115`**: nace `indicators:read-broker-accounts-summary` (`RF-IN-010`) a `FUNCIONARIO` y `VENDEDOR` por su tipo. Catálogo 252. | Responsable técnico |
+| 0.143.0 | 16-10-2026 | **`V116`**: `broker-accounts:read` pasa también a los roles `VENDEDOR` (`RN-SP-081`): en `GET /broker-accounts` un vendedor ve él y su red, y administración todo. En `GET /users/{id}/broker-accounts` el permiso abre a cualquiera **solo con el alcance entero**. Catálogo sin cambio (252). | Responsable técnico |

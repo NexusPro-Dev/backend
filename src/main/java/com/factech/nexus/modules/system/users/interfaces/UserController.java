@@ -2076,7 +2076,8 @@ public class UserController {
 
           **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
           vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
-          sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+          con el alcance entero —administración— sobre cualquiera (`RN-SP-081`:
+          un vendedor también tiene el permiso, y aquí no le abre a nadie más). Es la primera lectura del sistema cuyo alcance sale
           de la estructura comercial, y **solo alcanza a esta**.
 
           **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es

@@ -65,6 +65,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "broker-accounts:delete-own",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
+          "broker-accounts:read",
           "movements:create",
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
@@ -154,6 +155,7 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "broker-accounts:delete-own",
           "broker-accounts:read-own-team",
           "broker-accounts:read-team-member",
+          "broker-accounts:read",
           "movements:list-own",
           // V48 y V49 (26-09-2026, etapa 6 de MV): lo propio de pagos y saldos, por tipo de rol.
           "movements:retry-payment",

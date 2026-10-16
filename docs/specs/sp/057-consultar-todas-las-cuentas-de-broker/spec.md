@@ -54,6 +54,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `RN-SP-045` | Toda cuenta de broker declara en qué punto está | `requirements/sp.md` §5.1 |
 | `RN-SP-047` | La red de un vendedor es TODO lo que cuelga de él | `requirements/sp.md` §5.1 |
 | `RN-SP-080` | **El rango de fechas es de registro O de primer depósito** | `requirements/sp.md` §5.1 |
+| `RN-SP-081` | **El listado lo acota quien pregunta, y la red incluye a su raíz** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -165,7 +166,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-646` | Sin filtros, el actor con `broker-accounts:read` obtiene **todas** las cuentas del sistema, paginadas |
 | `CA-SP-647` | Sin el permiso, la respuesta es **`403`** — y no el `404` de `RF-SP-055`: aquí no hay recurso ajeno que ocultar |
 | `CA-SP-648` | `supervisorId` devuelve **toda la red en profundidad**: la cuenta del **nieto** SÍ aparece. **Precisado el 18-09-2026**: la red son los vendedores que cuelgan de la raíz por `user_supervisors` **y los clientes `REGISTRO` de la raíz y de cada uno de ellos** en `client_sellers` (`RN-SP-028` revertida); el «nieto» es el cliente del agente del director |
-| `CA-SP-649` | `supervisorId` **no incluye las cuentas de la propia raíz** |
+| ~~`CA-SP-649`~~ | ~~`supervisorId` **no incluye las cuentas de la propia raíz**~~ — **invertido el 16-10-2026** (`RN-SP-081`): la red incluye a su raíz, y la prueba afirma lo contrario |
 | `CA-SP-650` | Quien **dejó** la estructura no aparece, **ni los que colgaban de él por esa vía** |
 | `CA-SP-651` | Una persona **eliminada** no aparece, y **su rama sigue colgando**: los suyos sí aparecen |
 | `CA-SP-652` | `userId` acota a esa persona, y **se combina con `supervisorId`** |
@@ -188,6 +189,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-1017` | `hasReferrer=false` deja solo las cuentas **sin vendedor de origen**, y `true` solo las que lo tienen; las dos suman el total sin filtro (15-10-2026) |
 | `CA-SP-1018` | El resumen respeta `sellerId` y `hasReferrer`, y `sellerId` con `hasReferrer=false` da la página vacía, sin error (15-10-2026) |
 | `CA-SP-1046` | Con `from`/`to`, una cuenta creada **antes** del rango cuyo primer depósito llegó **dentro** sale en la página y en `summary.firstDeposit`; una creada dentro sale aunque no haya depositado; una creada y depositada fuera, no (16-10-2026) |
+| `CA-SP-1048` | Un vendedor ve las cuentas suyas y de toda su red, por titular; con `supervisorId` de su red, esa rama con su raíz; de fuera, la página vacía; administración, todas. Todo rol `VENDEDOR` tiene `broker-accounts:read`, y con él no se le abren las cuentas de quien no es de los suyos en `GET /users/{id}/broker-accounts` (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -219,3 +221,4 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | 0.5.0 | 10-10-2026 | **Se completa en lugar de nacer otro listado**, por decisión del responsable del proyecto, que pidió «un endpoint nuevo para ver todas las cuentas de brokers de tipo consumidor, con filtros por estado, broker, número de cuenta o username del broker y fecha de creación, que traiga el vendedor y el dueño»: casi todo ya estaba —`kind`, `status`, `brokerId`, `from`/`to`, el titular y el origen—. **`search` busca también el nombre de usuario en el broker** y **el origen trae nombre y apellido del vendedor**, que es el del `afftrack` y debe coincidir con el principal del cliente (`RN-SP-072`). `CA-SP-1007` y `CA-SP-1008`. | Responsable del proyecto |
 | 0.6.0 | 15-10-2026 | **Filtro por vendedor de origen**, a petición del responsable del proyecto, que separó la consulta **según la red** (`RF-SP-083`, «Mis FTD's») de esta, la **administrativa**, cada una con su permiso. Nacen `sellerId` y `hasReferrer` (§6.1), separados del titular —`userId` y `hasHolder`, que §6.1 no listaba y ahora sí—, y `CA-SP-1016` a `CA-SP-1018`. Sin permiso nuevo. | Responsable del proyecto |
 | 0.7.0 | 16-10-2026 | **El rango de fechas incluye los primeros depósitos** (`RN-SP-080`, Art. I.7), a petición del responsable del proyecto: «el filtro de la fecha al consultar es una mezcla de registro y depósito; actualmente al filtrar por una fecha solo me trae los registros de esta, no incluye los depósitos que se hicieron en esa fecha». Una cuenta entra si se creó en el rango **o** si su primer depósito llegó en él; el resumen lo sigue. `CA-SP-1046`. | Responsable del proyecto |
+| 0.8.0 | 16-10-2026 | **El listado lo acota quien pregunta** (`RN-SP-081`, Art. I.7), a petición del responsable del proyecto: administración todo, un vendedor él y su red; la red incluye a su raíz (`CA-SP-649` invertido). `V116`. `CA-SP-1048`. | Responsable del proyecto |

@@ -48,22 +48,34 @@ public class BrokerAccountIndicatorsController {
       description =
           """
           **Las tarjetas y el listado del personal** (`RF-IN-010`). Solo
-          cuentan las cuentas `CONSUMIDOR`. Sin parámetros.
+          cuentan las cuentas `CONSUMIDOR`.
+
+          **Filtros, todos opcionales** (16-10-2026): `from`/`to` —días del
+          calendario del negocio, `to` incluido entero— acotan `totals` y
+          `staff` con cada cifra por su fecha (`RN-IN-015`), **pero no lo de
+          hoy**: `accountsToday` y `ftdToday` siguen siendo de hoy. `brokerId`
+          y `sellerId` —la rama de ese vendedor, él incluido; de fuera del
+          alcance, todo en cero— acotan **todo**, también lo de hoy, y con
+          `sellerId` no entra lo no atribuido.
 
           **`totals`**:
 
           - `accounts` — todas; `ftd`, las que están en `FIRST_DEPOSIT`.
           - `withoutHolder` — las que no tienen titular.
-          - `withoutSeller` — las sin vendedor de origen, o con un origen que no
-            es fuerza comercial. **Nulo** si quien pregunta no es
-            administración.
+          - `withoutOperations` — las que están en `FIRST_DEPOSIT` y **no han
+            hecho ninguna operación** (`RN-IN-016`): depositaron y no operan.
           - `accountsToday` — **creadas** hoy; `ftdToday`, las de **primer
             depósito llegado** hoy, aunque la cuenta sea de otro día.
 
           **`staff`** — un grupo por rol, **de la cúspide hacia abajo**, con
           sus personas por usuario. **Cada persona cuenta lo que originó ella**
           por su `afftrack` (`RN-IN-015`), no lo de su red: la columna se
-          puede sumar. Las personas sin nada salen en cero.
+          puede sumar. Las personas sin nada salen en cero. Cada persona trae
+          además **`supervisorId`** —su superior vigente, nulo en la cúspide— y
+          **`afftracks`**, el de cada cuenta `VENDEDOR` suya con su broker, para
+          que el cliente acumule por la red (16-10-2026). **El superior puede no
+          venir en la respuesta**: para un vendedor, el suyo queda fuera de su
+          alcance; quien no encuentre a su superior es una raíz.
 
           **Alcance** (`RN-IN-002`): administración, todas las cuentas y toda
           la fuerza comercial; un vendedor, lo originado por él y su red, y
@@ -85,8 +97,16 @@ public class BrokerAccountIndicatorsController {
         description = "Fallo no controlado (`ERR-500`)",
         content = @Content)
   })
-  public BrokerAccountsSummaryResponse resumen() {
-    return resumen.get();
+  public BrokerAccountsSummaryResponse resumen(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+      @Parameter(description = "Solo las cuentas de ese broker, también las de hoy.")
+          @RequestParam(required = false)
+          UUID brokerId,
+      @Parameter(description = "La rama de ese vendedor, él incluido, también las de hoy.")
+          @RequestParam(required = false)
+          UUID sellerId) {
+    return resumen.get(from, to, brokerId, sellerId);
   }
 
   @GetMapping("/broker-accounts/network")
@@ -130,6 +150,8 @@ public class BrokerAccountIndicatorsController {
 
           **Periodo** (`RN-IN-010`): `from` y `to` son días del calendario del
           negocio, `to` incluido entero; sin ninguno, toda la historia.
+          **`brokerId`** (16-10-2026) deja solo las cuentas de ese broker en
+          todas las cifras, el desglose y los tramos.
           **`granularity`** —`DAY`, `WEEK` o `MONTH`— añade a los totales las
           cuentas creadas y los FTD por tramo, todos los tramos presentes.
           """)
@@ -160,9 +182,11 @@ public class BrokerAccountIndicatorsController {
       @Parameter(description = "Un vendedor del alcance: el árbol se enraíza en él.")
           @RequestParam(required = false)
           UUID sellerId,
+      @Parameter(description = "Solo las cuentas de ese broker.") @RequestParam(required = false)
+          UUID brokerId,
       @Parameter(description = "DAY, WEEK o MONTH: tramos en los totales.")
           @RequestParam(required = false)
           String granularity) {
-    return red.get(from, to, sellerId, granularity);
+    return red.get(from, to, sellerId, brokerId, granularity);
   }
 }

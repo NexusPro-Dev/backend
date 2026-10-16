@@ -110,6 +110,10 @@ class BrokerNetworkIndicatorsIT extends IntegrationTestBase {
   @AfterEach
   void vaciar() {
     jdbc.update("DELETE FROM user_brokers");
+    // La estructura también: una fila que sobreviva rompe el `DELETE FROM users`
+    // de la siguiente suite que lo haga sin vaciarla antes.
+    jdbc.update("DELETE FROM user_supervisors");
+    jdbc.update("DELETE FROM client_sellers");
   }
 
   @Test
@@ -184,6 +188,33 @@ class BrokerNetworkIndicatorsIT extends IntegrationTestBase {
     assertThat(JsonPath.<Integer>read(noviembre, "$.totals.activeAccounts")).isZero();
     assertThat(JsonPath.<Integer>read(noviembre, "$.totals.accounts")).isZero();
     assertThat((Object) JsonPath.read(noviembre, "$.totals.conversion")).isNull();
+  }
+
+  @Test
+  @DisplayName("CA-IN-119 — brokerId deja solo las cuentas de ese broker en todas las cifras")
+  void filtraPorBroker() throws Exception {
+    String todo = pedir(RUTA, admin());
+    String deA = pedir(RUTA + "?brokerId=" + brokerA, admin());
+
+    // Los totales con el filtro son la columna de ese broker sin él.
+    assertThat(JsonPath.<Integer>read(deA, "$.totals.accounts"))
+        .isEqualTo(
+            ((List<Integer>)
+                    JsonPath.read(
+                        todo, "$.totals.byBroker[?(@.broker.id == '" + brokerA + "')].accounts"))
+                .get(0));
+    assertThat(JsonPath.<Integer>read(deA, "$.totals.ftd"))
+        .isEqualTo(
+            ((List<Integer>)
+                    JsonPath.read(
+                        todo, "$.totals.byBroker[?(@.broker.id == '" + brokerA + "')].ftd"))
+                .get(0));
+    // Y el otro broker queda en cero dentro del desglose.
+    assertThat(
+            (List<Integer>)
+                JsonPath.read(
+                    deA, "$.totals.byBroker[?(@.broker.id == '" + brokerB + "')].accounts"))
+        .containsExactly(0);
   }
 
   @Test

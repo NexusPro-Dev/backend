@@ -164,11 +164,12 @@ class OwnScopePermissionsIT extends IntegrationTestBase {
                     user(UUID.randomUUID().toString())
                         .authorities(() -> "broker-accounts:read-team-member")))
         .andExpect(status().isNotFound());
-    // Y con el amplio además, ve a cualquiera: la segunda capa sigue entera.
+    // Y con el amplio además, ve a cualquiera —desde el 16-10-2026, solo con el
+    // alcance entero (`RN-SP-081`): el actor es el superadministrador—.
     mvc.perform(
             get("/api/v1/users/{id}/broker-accounts", SUPERADMIN)
                 .with(
-                    user(UUID.randomUUID().toString())
+                    user(SUPERADMIN.toString())
                         .authorities(
                             () -> "broker-accounts:read-team-member",
                             () -> "broker-accounts:read")))

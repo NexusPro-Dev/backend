@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-IN-009` |
 | Módulo | `IN` — Indicadores |
-| Versión | 0.1.0 |
+| Versión | 0.2.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -116,6 +116,7 @@ Las de §10, iguales a los demás indicadores.
 | `CA-IN-108` | Un vendedor ve **su rama** —él como raíz— y no lo no atribuido; `sellerId` de su red enraíza el árbol en ese vendedor; uno de fuera, nodos vacíos y cifras en cero |
 | `CA-IN-109` | Con `granularity`, los totales traen las cuentas creadas y los FTD por tramo, todos los tramos presentes, y su suma es la de los totales; una `granularity` desconocida o `from` posterior a `to`, `400` |
 | `CA-IN-110` | Sin `indicators:read-broker-accounts-network`, `403`; `V101` lo siembra a `FUNCIONARIO` y `VENDEDOR`, retira `broker-accounts:read-indicators` y la ruta vieja ya no existe |
+| `CA-IN-119` | `brokerId` deja solo las cuentas de ese broker en todas las cifras, el desglose —los demás en cero— y los tramos (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -140,3 +141,4 @@ Las de §10, iguales a los demás indicadores.
 | Versión | Fecha | Cambio | Responsable |
 |---|---|---|---|
 | 0.1.0 | 10-10-2026 | Redacción inicial, a petición del responsable del proyecto: sustituye a `RF-SP-058` (`RN-IN-015`). Criterios `CA-IN-104` a `CA-IN-110`. | Responsable del proyecto |
+| 0.2.0 | 16-10-2026 | **Filtro por broker**, a petición del responsable del proyecto: «los indicadores filtran por fecha, brokers y agente?» — «en summary, lo de hoy solo no aplica la fecha». `brokerId` opcional. `CA-IN-119`. | Responsable del proyecto |

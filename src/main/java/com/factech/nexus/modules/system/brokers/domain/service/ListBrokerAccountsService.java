@@ -15,6 +15,8 @@ import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQ
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerStatusCount;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerQueryRepository;
+import com.factech.nexus.modules.system.users.application.CommercialReach;
+import com.factech.nexus.modules.system.users.application.CommercialReach.Reach;
 import com.factech.nexus.shared.error.FieldError;
 import com.factech.nexus.shared.error.UnauthorizedException;
 import com.factech.nexus.shared.error.ValidationException;
@@ -71,16 +73,19 @@ public class ListBrokerAccountsService {
 
   private final Pagination paginacion;
   private final CurrentActor actor;
+  private final CommercialReach alcance;
 
   public ListBrokerAccountsService(
       BrokerAccountQueryRepository cuentas,
       BrokerQueryRepository brokers,
       Pagination paginacion,
-      CurrentActor actor) {
+      CurrentActor actor,
+      CommercialReach alcance) {
     this.cuentas = cuentas;
     this.brokers = brokers;
     this.paginacion = paginacion;
     this.actor = actor;
+    this.alcance = alcance;
   }
 
   /** El resumen y la página, <b>en la misma transacción de solo lectura</b>. */
@@ -88,9 +93,28 @@ public class ListBrokerAccountsService {
   public BrokerAccountsPage list(ListBrokerAccountsRequest peticion) {
     Pagination.Slice trozo = paginacion.resolver(peticion.page(), peticion.size());
 
+    // `RN-SP-081`: administración ve todo y filtra por la red que quiera; un
+    // vendedor, él y su red, y dentro de ella la red de quien pida.
+    UUID quien =
+        actor
+            .currentActorId()
+            .orElseThrow(() -> new UnauthorizedException("AUTH-001", "Se requiere autenticación."));
+    Reach hastaDonde = alcance.reachOf(quien);
+    UUID raiz = peticion.supervisorId();
+    if (hastaDonde.kind() != CommercialReach.Kind.EVERYTHING) {
+      if (raiz == null) {
+        raiz = quien;
+      } else if (!raiz.equals(quien) && !hastaDonde.sellers().contains(raiz)) {
+        // Validados antes, para que un rango mal escrito siga siendo 400.
+        estado(peticion.status());
+        rangoVerificado(peticion.from(), peticion.to());
+        return pagina(List.of(), List.of(), trozo);
+      }
+    }
+
     BrokerAccountFilters filtros =
         new BrokerAccountFilters(
-            peticion.supervisorId(),
+            raiz,
             peticion.userId(),
             estado(peticion.status()),
             // `RN-SP-068`, 15-10-2026: el listado administrativo es de consumidores.
@@ -139,9 +163,12 @@ public class ListBrokerAccountsService {
   }
 
   private BrokerAccountsPage pagina(BrokerAccountFilters filtros, Pagination.Slice trozo) {
-    List<BrokerStatusCount> conteos = cuentas.summarize(filtros);
-    List<TeamBrokerAccountItem> pagina = cuentas.findAll(filtros, trozo.offset(), trozo.size());
+    return pagina(
+        cuentas.summarize(filtros), cuentas.findAll(filtros, trozo.offset(), trozo.size()), trozo);
+  }
 
+  private BrokerAccountsPage pagina(
+      List<BrokerStatusCount> conteos, List<TeamBrokerAccountItem> pagina, Pagination.Slice trozo) {
     Summary resumen = resumen(conteos);
 
     // `totalElements` sale DEL RESUMEN y no de un conteo aparte: son el mismo

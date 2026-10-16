@@ -24,12 +24,8 @@ public record BrokerAccountsSummaryResponse(
       @Schema(description = "Todas las cuentas de consumidor.") long accounts,
       @Schema(description = "Las que están en FIRST_DEPOSIT.") long ftd,
       @Schema(description = "Las que no tienen titular.") long withoutHolder,
-      @JsonInclude(JsonInclude.Include.ALWAYS)
-          @Schema(
-              description =
-                  "Las sin vendedor de origen, o con origen fuera de la fuerza comercial. Solo con"
-                      + " el alcance entero; nulo en otro caso.")
-          Long withoutSeller,
+      @Schema(description = "Las que están en FIRST_DEPOSIT y no han hecho ninguna operación.")
+          long withoutOperations,
       @Schema(description = "Las creadas hoy.") long accountsToday,
       @Schema(description = "Las de primer depósito llegado hoy.") long ftdToday) {}
 
@@ -45,10 +41,21 @@ public record BrokerAccountsSummaryResponse(
   @Schema(name = "BrokerAccountsSummaryPerson")
   public record Person(
       User user,
+      @JsonInclude(JsonInclude.Include.ALWAYS)
+          @Schema(
+              description =
+                  "Su superior vigente; nulo en la cúspide. Puede no venir en la respuesta: quien"
+                      + " no encuentre a su superior es una raíz.")
+          UUID supervisorId,
+      @Schema(description = "El afftrack de cada cuenta VENDEDOR suya, por nombre de broker.")
+          List<Afftrack> afftracks,
       @Schema(description = "Las que originó su afftrack.") long accounts,
       long ftd,
       long accountsToday,
       long ftdToday) {}
+
+  @Schema(name = "BrokerAccountsSummaryAfftrack")
+  public record Afftrack(UUID brokerId, String brokerName, String afftrack) {}
 
   @Schema(name = "BrokerAccountsSummaryUser")
   public record User(UUID id, String username, String firstName, String lastName) {}

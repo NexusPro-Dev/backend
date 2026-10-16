@@ -1430,7 +1430,8 @@ paths:
 
         **Quién puede consultarlas** (`RN-SP-046`): **su superior comercial
         vigente**, sin ningún permiso, o quien traiga **`broker-accounts:read`**
-        sobre cualquiera. Es la primera lectura del sistema cuyo alcance sale
+        con el alcance entero —administración— sobre cualquiera (`RN-SP-081`:
+        un vendedor también tiene el permiso, y aquí no le abre a nadie más). Es la primera lectura del sistema cuyo alcance sale
         de la estructura comercial, y **solo alcanza a esta**.
 
         **Quien no es ninguna de las dos cosas recibe `404`, no `403`**, y es
@@ -15515,28 +15516,67 @@ paths:
         **Permiso requerido:** `indicators:read-broker-accounts-summary`. Sin él, `403` (`AUTH-002`).
 
         **Las tarjetas y el listado del personal** (`RF-IN-010`). Solo
-        cuentan las cuentas `CONSUMIDOR`. Sin parámetros.
+        cuentan las cuentas `CONSUMIDOR`.
+
+        **Filtros, todos opcionales** (16-10-2026): `from`/`to` —días del
+        calendario del negocio, `to` incluido entero— acotan `totals` y
+        `staff` con cada cifra por su fecha (`RN-IN-015`), **pero no lo de
+        hoy**: `accountsToday` y `ftdToday` siguen siendo de hoy. `brokerId`
+        y `sellerId` —la rama de ese vendedor, él incluido; de fuera del
+        alcance, todo en cero— acotan **todo**, también lo de hoy, y con
+        `sellerId` no entra lo no atribuido.
 
         **`totals`**:
 
         - `accounts` — todas; `ftd`, las que están en `FIRST_DEPOSIT`.
         - `withoutHolder` — las que no tienen titular.
-        - `withoutSeller` — las sin vendedor de origen, o con un origen que no
-          es fuerza comercial. **Nulo** si quien pregunta no es
-          administración.
+        - `withoutOperations` — las que están en `FIRST_DEPOSIT` y **no han
+          hecho ninguna operación** (`RN-IN-016`): depositaron y no operan.
         - `accountsToday` — **creadas** hoy; `ftdToday`, las de **primer
           depósito llegado** hoy, aunque la cuenta sea de otro día.
 
         **`staff`** — un grupo por rol, **de la cúspide hacia abajo**, con
         sus personas por usuario. **Cada persona cuenta lo que originó ella**
         por su `afftrack` (`RN-IN-015`), no lo de su red: la columna se
-        puede sumar. Las personas sin nada salen en cero.
+        puede sumar. Las personas sin nada salen en cero. Cada persona trae
+        además **`supervisorId`** —su superior vigente, nulo en la cúspide— y
+        **`afftracks`**, el de cada cuenta `VENDEDOR` suya con su broker, para
+        que el cliente acumule por la red (16-10-2026). **El superior puede no
+        venir en la respuesta**: para un vendedor, el suyo queda fuera de su
+        alcance; quien no encuentre a su superior es una raíz.
 
         **Alcance** (`RN-IN-002`): administración, todas las cuentas y toda
         la fuerza comercial; un vendedor, lo originado por él y su red, y
         esas personas —él incluido—. **Hoy** es el día del calendario del
         negocio, `today`.
       operationId: resumen_2
+      parameters:
+      - name: from
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: brokerId
+        in: query
+        description: "Solo las cuentas de ese broker, también las de hoy."
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: sellerId
+        in: query
+        description: "La rama de ese vendedor, él incluido, también las de hoy."
+        required: false
+        schema:
+          type: string
+          format: uuid
       responses:
         "200":
           description: Los totales y el personal por rol.
@@ -15594,6 +15634,8 @@ paths:
 
         **Periodo** (`RN-IN-010`): `from` y `to` son días del calendario del
         negocio, `to` incluido entero; sin ninguno, toda la historia.
+        **`brokerId`** (16-10-2026) deja solo las cuentas de ese broker en
+        todas las cifras, el desglose y los tramos.
         **`granularity`** —`DAY`, `WEEK` o `MONTH`— añade a los totales las
         cuentas creadas y los FTD por tramo, todos los tramos presentes.
       operationId: red
@@ -15613,6 +15655,13 @@ paths:
       - name: sellerId
         in: query
         description: "Un vendedor del alcance: el árbol se enraíza en él."
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: brokerId
+        in: query
+        description: Solo las cuentas de ese broker.
         required: false
         schema:
           type: string
@@ -16849,10 +16898,13 @@ paths:
       description: |
         **Permiso requerido:** `broker-accounts:read`. Sin él, `403` (`AUTH-002`).
 
-        Devuelve **todas** las cuentas de broker **de consumidor** del
-        sistema, paginadas y con su titular en cada fila. **Sin ningún filtro
-        devuelve el sistema entero**: es lo que `broker-accounts:read`
-        significa. **Las cuentas `VENDEDOR` no salen aquí** (`RN-SP-068`,
+        Devuelve las cuentas de broker **de consumidor** **del alcance de
+        quien pregunta** (`RN-SP-081`, 16-10-2026), paginadas y con su
+        titular en cada fila. **Administración** (rol `FUNCIONARIO`) ve el
+        sistema entero y acota con `supervisorId`. **Un vendedor** ve las
+        suyas y las de toda su red; con `supervisorId` de alguien de su red,
+        las de esa persona y su red, y con uno de fuera, la página vacía.
+        **Las cuentas `VENDEDOR` no salen aquí** (`RN-SP-068`,
         15-10-2026): se consultan en las de cada persona. El parámetro
         `kind` se retiró ese día.
 
@@ -16861,14 +16913,12 @@ paths:
         estos, y así hasta abajo. **No es un solo nivel**, al revés que
         `GET /api/v1/users/{id}/team` y que
         `GET /api/v1/users/me/team/broker-accounts` — aquellos se autorizan
-        por la estructura y por eso se acotan; este se autoriza por permiso,
-        que ya alcanza a todos, de modo que la profundidad **ahorra recorrer
-        el árbol y no concede nada**.
+        por la estructura y por eso se acotan.
 
-        **La raíz NO se incluye en su red.** Preguntar por la red de alguien
-        devuelve la de los suyos; sus propias cuentas se piden con `userId`, y
-        **los dos filtros se combinan** — juntos responden «de la red de este
-        vendedor, las cuentas de esta persona».
+        **La red incluye a su raíz** desde el 16-10-2026 (`RN-SP-081`): las
+        cuentas de esa persona, las de quienes cuelgan de ella y las de los
+        clientes que registraron. Con `userId` se acota a una persona, y
+        **los dos filtros se combinan**.
 
         **Solo la estructura vigente.** Quien dejó la red ayer no aparece, ni
         los que colgaban de él por esa vía. Y una persona **eliminada** no
@@ -24763,11 +24813,31 @@ components:
         total:
           $ref: "#/components/schemas/CommissionBatchesBlock"
           description: "Todos los lotes, sean cuales sean sus estados."
+    BrokerAccountsSummaryAfftrack:
+      type: object
+      properties:
+        brokerId:
+          type: string
+          format: uuid
+        brokerName:
+          type: string
+        afftrack:
+          type: string
     BrokerAccountsSummaryPerson:
       type: object
       properties:
         user:
           $ref: "#/components/schemas/BrokerAccountsSummaryUser"
+        supervisorId:
+          type: string
+          format: uuid
+          description: "Su superior vigente; nulo en la cúspide. Puede no venir en\
+            \ la respuesta: quien no encuentre a su superior es una raíz."
+        afftracks:
+          type: array
+          description: "El afftrack de cada cuenta VENDEDOR suya, por nombre de broker."
+          items:
+            $ref: "#/components/schemas/BrokerAccountsSummaryAfftrack"
         accounts:
           type: integer
           format: int64
@@ -24832,11 +24902,10 @@ components:
           type: integer
           format: int64
           description: Las que no tienen titular.
-        withoutSeller:
+        withoutOperations:
           type: integer
           format: int64
-          description: "Las sin vendedor de origen, o con origen fuera de la fuerza\
-            \ comercial. Solo con el alcance entero; nulo en otro caso."
+          description: Las que están en FIRST_DEPOSIT y no han hecho ninguna operación.
         accountsToday:
           type: integer
           format: int64

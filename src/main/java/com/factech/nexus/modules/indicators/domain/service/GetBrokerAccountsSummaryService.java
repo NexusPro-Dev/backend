@@ -1,16 +1,20 @@
 package com.factech.nexus.modules.indicators.domain.service;
 
 import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse;
+import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse.Afftrack;
 import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse.Person;
 import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse.RoleGroup;
 import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse.Totals;
 import com.factech.nexus.modules.indicators.application.BrokerAccountsSummaryResponse.User;
+import com.factech.nexus.modules.indicators.application.IndicatorPeriod;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountFigures;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountFigures.Seller;
 import com.factech.nexus.modules.system.brokers.application.BrokerAccountFigures.SellerBrokerFigures;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.CommercialReach;
 import com.factech.nexus.modules.system.users.application.CommercialReach.Reach;
+import com.factech.nexus.shared.error.FieldError;
+import com.factech.nexus.shared.error.ValidationException;
 import com.factech.nexus.shared.time.BusinessCalendar;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -32,6 +36,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p><b>Sin consultas propias</b>: las cifras salen de {@link BrokerAccountFigures}, el puerto de
  * `RF-IN-009`, pedido dos veces —la historia entera y hoy—, cada cifra con su fecha (`RN-IN-015`).
  * Cada persona cuenta lo que originó ella; el alcance es el de `RN-IN-002`.
+ *
+ * <p><b>Filtros</b> (16-10-2026, `CA-IN-118`): {@code from}/{@code to} acotan los totales y el
+ * personal, <b>no lo de hoy</b>; {@code brokerId} y {@code sellerId} acotan todo. {@code sellerId}
+ * es la rama de ese vendedor, él incluido, como en `RF-IN-009`.
  */
 @Service
 public class GetBrokerAccountsSummaryService {
@@ -40,12 +48,15 @@ public class GetBrokerAccountsSummaryService {
   private final CommercialReach alcance;
   private final AuthenticatedActor actor;
   private final BusinessCalendar calendario;
+  private final SalesPeriodResolver periodos;
 
   public GetBrokerAccountsSummaryService(
       BrokerAccountFigures cifras,
       CommercialReach alcance,
       AuthenticatedActor actor,
-      BusinessCalendar calendario) {
+      BusinessCalendar calendario,
+      SalesPeriodResolver periodos) {
+    this.periodos = periodos;
     this.cifras = cifras;
     this.alcance = alcance;
     this.actor = actor;
@@ -53,7 +64,17 @@ public class GetBrokerAccountsSummaryService {
   }
 
   @Transactional(readOnly = true)
-  public BrokerAccountsSummaryResponse get() {
+  public BrokerAccountsSummaryResponse get(
+      LocalDate from, LocalDate to, UUID brokerId, UUID sellerId) {
+    List<FieldError> problemas = new ArrayList<>();
+    IndicatorPeriod periodo = periodos.resolve(from, to, problemas);
+    if (!problemas.isEmpty()) {
+      throw new ValidationException(
+          problemas.get(0).code(), "La consulta solicitada no es válida.", problemas);
+    }
+    boolean todaLaHistoria = from == null && to == null;
+    var intervalo = periodos.interval(periodo);
+
     LocalDate hoy = calendario.hoy();
     OffsetDateTime desde = hoy.atStartOfDay(calendario.zona()).toOffsetDateTime();
     OffsetDateTime hasta = hoy.plusDays(1).atStartOfDay(calendario.zona()).toOffsetDateTime();
@@ -63,36 +84,60 @@ public class GetBrokerAccountsSummaryService {
     fuerza.forEach(v -> porId.put(v.id(), v));
 
     Reach hastaDonde = alcance.reachOf(actor.id());
-    boolean todo = hastaDonde.kind() == CommercialReach.Kind.EVERYTHING;
+    // Lo no atribuido solo con el alcance entero y sin acotar a una rama.
+    boolean todo = hastaDonde.kind() == CommercialReach.Kind.EVERYTHING && sellerId == null;
     Set<UUID> delAlcance =
         switch (hastaDonde.kind()) {
           case EVERYTHING -> porId.keySet();
           case NETWORK -> hastaDonde.sellers();
           case OWN -> Set.of(actor.id());
         };
+    if (sellerId != null) {
+      // La rama de ese vendedor dentro del alcance; de fuera, todo en cero.
+      Set<UUID> rama = rama(sellerId, fuerza, porId);
+      rama.retainAll(delAlcance);
+      delAlcance = rama;
+    }
 
-    // 0 cuentas, 1 ftd, 2 sin titular, 3 creadas hoy, 4 ftd hoy — por vendedor.
+    // 0 cuentas, 1 ftd, 2 sin titular, 3 creadas hoy, 4 ftd hoy, 5 ftd sin operar — por
+    // vendedor.
     Map<UUID, long[]> porVendedor = new HashMap<>();
-    long[] sinVendedor = new long[5];
-    for (SellerBrokerFigures f : cifras.bySellerAndBroker(null, null, true)) {
+    long[] sinVendedor = new long[6];
+    for (SellerBrokerFigures f :
+        cifras.bySellerAndBroker(
+            todaLaHistoria ? null : intervalo.from(),
+            todaLaHistoria ? null : intervalo.to(),
+            todaLaHistoria,
+            brokerId)) {
       long[] c = destino(f.sellerId(), porId, porVendedor, sinVendedor);
       c[0] += f.accounts();
       c[1] += f.ftd();
       c[2] += f.withoutHolder();
+      c[5] += f.ftdWithoutOperations();
     }
-    for (SellerBrokerFigures f : cifras.bySellerAndBroker(desde, hasta, false)) {
+    for (SellerBrokerFigures f : cifras.bySellerAndBroker(desde, hasta, false, brokerId)) {
       long[] c = destino(f.sellerId(), porId, porVendedor, sinVendedor);
       c[3] += f.accounts();
       c[4] += f.ftd();
     }
 
-    long[] total = new long[5];
+    Map<UUID, List<Afftrack>> afftracks = new HashMap<>();
+    for (var a : cifras.sellerAfftracks()) {
+      if (brokerId != null && !brokerId.equals(a.brokerId())) {
+        continue;
+      }
+      afftracks
+          .computeIfAbsent(a.sellerId(), id -> new ArrayList<>())
+          .add(new Afftrack(a.brokerId(), a.brokerName(), a.afftrack()));
+    }
+
+    long[] total = new long[6];
     Map<String, List<Person>> porRol = new LinkedHashMap<>();
     for (Seller vendedor : preorden(fuerza, porId)) {
       if (!delAlcance.contains(vendedor.id())) {
         continue;
       }
-      long[] c = porVendedor.getOrDefault(vendedor.id(), new long[5]);
+      long[] c = porVendedor.getOrDefault(vendedor.id(), new long[6]);
       sumar(total, c);
       porRol
           .computeIfAbsent(vendedor.roleCode(), rol -> new ArrayList<>())
@@ -103,6 +148,8 @@ public class GetBrokerAccountsSummaryService {
                       vendedor.username(),
                       vendedor.firstName(),
                       vendedor.lastName()),
+                  vendedor.supervisorId(),
+                  afftracks.getOrDefault(vendedor.id(), List.of()),
                   c[0],
                   c[1],
                   c[3],
@@ -129,7 +176,7 @@ public class GetBrokerAccountsSummaryService {
 
     return new BrokerAccountsSummaryResponse(
         hoy,
-        new Totals(total[0], total[1], total[2], todo ? sinVendedor[0] : null, total[3], total[4]),
+        new Totals(total[0], total[1], total[2], total[5], total[3], total[4]),
         List.copyOf(grupos));
   }
 
@@ -138,7 +185,29 @@ public class GetBrokerAccountsSummaryService {
       UUID vendedor, Map<UUID, Seller> porId, Map<UUID, long[]> porVendedor, long[] sinVendedor) {
     return vendedor == null || !porId.containsKey(vendedor)
         ? sinVendedor
-        : porVendedor.computeIfAbsent(vendedor, id -> new long[5]);
+        : porVendedor.computeIfAbsent(vendedor, id -> new long[6]);
+  }
+
+  /** El vendedor y todo lo que cuelga de él en la fuerza comercial. */
+  private static Set<UUID> rama(UUID raiz, List<Seller> fuerza, Map<UUID, Seller> porId) {
+    Set<UUID> rama = new HashSet<>();
+    if (!porId.containsKey(raiz)) {
+      return rama;
+    }
+    Map<UUID, List<UUID>> hijos = new HashMap<>();
+    for (Seller v : fuerza) {
+      if (v.supervisorId() != null) {
+        hijos.computeIfAbsent(v.supervisorId(), s -> new ArrayList<>()).add(v.id());
+      }
+    }
+    List<UUID> pila = new ArrayList<>(List.of(raiz));
+    while (!pila.isEmpty()) {
+      UUID v = pila.removeLast();
+      if (rama.add(v)) {
+        pila.addAll(hijos.getOrDefault(v, List.of()));
+      }
+    }
+    return rama;
   }
 
   private static void sumar(long[] a, long[] b) {

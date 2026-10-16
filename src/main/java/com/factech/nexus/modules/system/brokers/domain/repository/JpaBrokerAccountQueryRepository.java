@@ -249,8 +249,9 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
    *       descender por la estructura <b>de ayer</b> sin que nada fallara — el error que no rompe
    *       nada y devuelve de más. Además es lo que deja usar {@code
    *       ix_user_supervisors_supervisor_vigente}, que es parcial sobre ese predicado.
-   *   <li><b>La raíz NO se siembra.</b> El brazo base son <b>sus subordinados</b>, no ella: por eso
-   *       su red la excluye. Quien quiera además las suyas las pide con {@code userId}.
+   *   <li><b>La raíz no se siembra en la recursión</b> —el brazo base son <b>sus subordinados</b>—
+   *       <b>pero entra en {@code alcance}</b> desde el 16-10-2026 (`RN-SP-081`): la red de una
+   *       persona la incluye a ella, que es lo que ve ella misma al entrar.
    *   <li><b>{@code deleted_at} NO se filtra aquí</b>, sino fuera, al unir con {@code users}.
    *       Dentro <b>cortaría la rama</b>: una persona eliminada dejaría de expandirse y sus
    *       subordinados desaparecerían del resultado aunque sigan vivos y colgando de ella.
@@ -304,6 +305,8 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
              WHERE us.ended_at IS NULL
         ), alcance AS (
             SELECT user_id FROM red
+            UNION
+            SELECT CAST(:raiz AS uuid)
             UNION
             SELECT cs.client_id
               FROM client_sellers cs

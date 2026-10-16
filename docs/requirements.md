@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `requirements.md` |
-| Versión | 0.368.0 |
+| Versión | 0.371.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 20-08-2026 |
@@ -848,3 +848,6 @@ El inventario y el estado de los módulos se consultan en [`modules.md` §4](mod
 | 0.366.0 | 15-10-2026 | **La beca del primer depósito** ([`requirements/sp.md`](requirements/sp.md) v1.132.0, `RN-SP-079`; [`requirements/mv.md`](requirements/mv.md) v0.100.0, `RN-MV-079`): la cuenta asociada desde la plataforma registra, al llegar a `FIRST_DEPOSIT`, la venta `BECA → BECA` confirmada y entregada, con el vendedor de origen o sin él. Tripleta de `RF-SP-078` v0.8.0 (`CA-SP-1036` a `CA-SP-1043`). | Responsable del proyecto |
 | 0.367.0 | 15-10-2026 | **Nace `RF-IN-010`, el resumen de cuentas de broker y de mi personal** ([`requirements/in.md`](requirements/in.md) v0.22.0; [`security.md`](security.md) v0.142.0; `V115`), a petición del responsable del proyecto. | Responsable del proyecto |
 | 0.368.0 | 16-10-2026 | **El rango de fechas de las cuentas de broker incluye los primeros depósitos** ([`requirements/sp.md`](requirements/sp.md) v1.133.0, `RN-SP-080`): `RF-SP-057` y `RF-SP-083` enmendados, `CA-SP-1046` y `CA-SP-1047`. | Responsable del proyecto |
+| 0.369.0 | 16-10-2026 | **Cuentas de broker: el listado lo acota quien pregunta, y el resumen cuenta las sin operar** ([`requirements/sp.md`](requirements/sp.md) v1.134.0, `RN-SP-081`, `V116`; [`requirements/in.md`](requirements/in.md) v0.23.0, `RN-IN-016`; [`security.md`](security.md) v0.143.0): `RF-SP-057` y `RF-IN-010` enmendados, `CA-SP-1048` y `CA-IN-116`. | Responsable del proyecto |
+| 0.370.0 | 16-10-2026 | **`RF-IN-010`: `supervisorId` y `afftracks` en cada persona del personal** ([`requirements/in.md`](requirements/in.md) v0.24.0), `CA-IN-117`. | Responsable del proyecto |
+| 0.371.0 | 16-10-2026 | **Filtros en los indicadores de cuentas de broker** ([`requirements/in.md`](requirements/in.md) v0.25.0): `brokerId` en `RF-IN-009` y `RF-IN-010`; `from`/`to` y `sellerId` en `RF-IN-010`, sin tocar lo de hoy. `CA-IN-118` y `CA-IN-119`. | Responsable del proyecto |

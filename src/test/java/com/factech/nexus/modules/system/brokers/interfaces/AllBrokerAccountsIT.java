@@ -253,23 +253,66 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     // Cuatro niveles: si la consulta bajara uno o dos escalones en vez de
     // recorrer, saldrían 1 o 2 y la prueba lo diría. Con tres niveles, «entera»
     // y «dos escalones» son indistinguibles.
+    // Desde el 16-10-2026 la raíz entra (`RN-SP-081`): los tres de abajo y él.
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.totalElements").value(4))
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'pnieto')]")
                 .value(org.hamcrest.Matchers.hasSize(1)));
   }
 
   @Test
-  @DisplayName("`CA-SP-649` — la red NO incluye a la propia raíz")
-  void laRaizNoSeIncluye() throws Exception {
-    // «Su red» son los suyos. Las de él se piden con `userId`, y por eso los dos
-    // filtros se combinan en vez de excluirse.
+  @DisplayName("`CA-SP-649` invertido el 16-10-2026 — la red SÍ incluye a la propia raíz")
+  void laRaizSeIncluye() throws Exception {
+    // `RN-SP-081`: la red de alguien es lo que esa persona ve al entrar, ella
+    // incluida. Antes se pedía aparte con `userId`.
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'rlopez')]")
-                .value(org.hamcrest.Matchers.empty()));
+                .value(org.hamcrest.Matchers.hasSize(1)));
+  }
+
+  @Test
+  @DisplayName(
+      "`CA-SP-1048` — un vendedor ve lo suyo y su red; con `supervisorId` de su red, esa rama;"
+          + " de fuera, vacío; y `/users/{id}/broker-accounts` no se le abre por el permiso")
+  void elVendedorVeSuRed() throws Exception {
+    // `medio` (director): él, `base` y `nieto`; ni `jefe` ni `ajeno`.
+    mvc.perform(get(RUTA).with(vendedor(medio)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(3))
+        .andExpect(jsonPath("$.summary.accounts.total").value(3))
+        .andExpect(
+            jsonPath(
+                "$.content[*].user.username",
+                org.hamcrest.Matchers.containsInAnyOrder("amartinez", "lgarcia", "pnieto")));
+
+    // Dentro de su red, la rama de `base`: `base` y `nieto`.
+    mvc.perform(get(RUTA + "?supervisorId=" + base).with(vendedor(medio)))
+        .andExpect(jsonPath("$.totalElements").value(2));
+
+    // Su superior y alguien de otra rama quedan fuera: página vacía, sin error.
+    mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(vendedor(medio)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(0))
+        .andExpect(jsonPath("$.summary.accounts.total").value(0));
+    mvc.perform(get(RUTA + "?userId=" + ajeno).with(vendedor(medio)))
+        .andExpect(jsonPath("$.totalElements").value(0));
+
+    // El permiso ya no abre las cuentas de cualquiera: `ajeno` no es de los suyos.
+    mvc.perform(get("/api/v1/users/" + ajeno + "/broker-accounts").with(vendedor(medio)))
+        .andExpect(status().isNotFound());
+
+    // Y el reparto: todo rol VENDEDOR lo tiene (`V116`).
+    org.assertj.core.api.Assertions.assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM roles r WHERE r.role_type = 'VENDEDOR'"
+                    + " AND NOT EXISTS (SELECT 1 FROM role_permissions rp JOIN permissions p"
+                    + " ON p.id = rp.permission_id WHERE rp.role_id = r.id"
+                    + " AND p.code = 'broker-accounts:read')",
+                Integer.class))
+        .isZero();
   }
 
   @Test
@@ -296,7 +339,7 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
 
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(5))
+        .andExpect(jsonPath("$.totalElements").value(6))
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'c-bisnieto')]")
                 .value(org.hamcrest.Matchers.hasSize(1)))
@@ -305,11 +348,14 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
                 .value(org.hamcrest.Matchers.hasSize(1)))
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'rlopez')]")
-                .value(org.hamcrest.Matchers.empty()));
+                // Desde el 16-10-2026 la raíz entra (`RN-SP-081`).
+                .value(org.hamcrest.Matchers.hasSize(1)));
 
+    // La red del ajeno es solo la suya: el HOTLINK no le trae al cliente.
     mvc.perform(get(RUTA + "?supervisorId=" + ajeno).with(administrador()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(0));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].user.username").value("zruiz"));
   }
 
   @Test
@@ -322,10 +368,11 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
 
     // `ended_at IS NULL` tiene que estar en LOS DOS brazos de la recursiva:
     // omitirlo en el recursivo haría descender por la estructura de ayer sin
-    // que nada fallara.
+    // que nada fallara. Queda solo la de la raíz (`RN-SP-081`).
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(0));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].user.username").value("rlopez"));
   }
 
   @Test
@@ -338,9 +385,10 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     // pequeño, que nadie relaciona con esta línea.
     jdbc.update("UPDATE users SET deleted_at = now() WHERE id = ?", base);
 
+    // La raíz entra en su red desde el 16-10-2026 (`RN-SP-081`): las de `jefe` cuentan.
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(2))
+        .andExpect(jsonPath("$.totalElements").value(3))
         .andExpect(
             jsonPath("$.content[?(@.user.username == 'lgarcia')]")
                 .value(org.hamcrest.Matchers.empty()))
@@ -498,8 +546,9 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
     mvc.perform(get(RUTA + "?brokerId=" + brokerB).with(administrador()))
         .andExpect(jsonPath("$.totalElements").value(2));
 
+    // medio, nieto y la de la raíz (`RN-SP-081`).
     mvc.perform(get(RUTA + "?brokerId=" + brokerA + "&supervisorId=" + jefe).with(administrador()))
-        .andExpect(jsonPath("$.totalElements").value(2));
+        .andExpect(jsonPath("$.totalElements").value(3));
   }
 
   @Test
@@ -645,10 +694,10 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   @Test
   @DisplayName("`CA-SP-673` — el resumen respeta el resto de filtros")
   void elResumenSigueAlFiltro() throws Exception {
-    // Por red: de `jefe` cuelgan 3 cuentas (medio, base, nieto).
+    // Por red: las 3 que cuelgan de `jefe` (medio, base, nieto) y la suya (`RN-SP-081`).
     mvc.perform(get(RUTA + "?supervisorId=" + jefe).with(administrador()))
-        .andExpect(jsonPath("$.summary.accounts.total").value(3))
-        .andExpect(deBroker("accounts", "EXNOVA", 2))
+        .andExpect(jsonPath("$.summary.accounts.total").value(4))
+        .andExpect(deBroker("accounts", "EXNOVA", 3))
         .andExpect(deBroker("accounts", "IQOPTION", 1));
 
     // Por broker: solo IQOPTION suma, y EXNOVA queda en cero SIN desaparecer.
@@ -728,6 +777,11 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
    * y no los permisos que {@code CurrentActor} lee de la base. Allí la comprobación vive dentro del
    * servicio y por eso bastaba con que la persona existiera.
    */
+  private static RequestPostProcessor vendedor(UUID persona) {
+    return user(persona.toString())
+        .authorities(() -> "broker-accounts:read", () -> "broker-accounts:read-team-member");
+  }
+
   private static RequestPostProcessor administrador() {
     return user(SUPERADMIN.toString()).authorities(() -> "broker-accounts:read");
   }
