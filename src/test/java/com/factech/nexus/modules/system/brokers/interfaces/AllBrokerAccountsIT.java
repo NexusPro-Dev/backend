@@ -191,6 +191,27 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName("`CA-SP-1049` — `sellerId` trae también lo que originó su rama")
+  void elOrigenEsUnaRama() throws Exception {
+    // `medio` cuelga de `jefe`: lo que origina su cuenta VENDEDOR es de la rama de
+    // `jefe`, y no de la de `base`, que cuelga de `medio`.
+    UUID deMedio =
+        jdbc.queryForObject(
+            "UPDATE user_brokers SET kind = 'VENDEDOR', afftrack = 'AFF-ANA'"
+                + " WHERE external_id = '20000001' RETURNING id",
+            UUID.class);
+    jdbc.update(
+        "UPDATE user_brokers SET referrer_account_id = ? WHERE external_id = '40000001'", deMedio);
+
+    mvc.perform(get(RUTA + "?sellerId=" + jefe).with(administrador()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("40000001"));
+    mvc.perform(get(RUTA + "?sellerId=" + base).with(administrador()))
+        .andExpect(jsonPath("$.totalElements").value(0));
+  }
+
+  @Test
   @DisplayName("`CA-SP-1017` — `hasReferrer` separa las cuentas con y sin vendedor de origen")
   void conYSinVendedorDeOrigen() throws Exception {
     originarDesdeJefe("20000001", "40000001");

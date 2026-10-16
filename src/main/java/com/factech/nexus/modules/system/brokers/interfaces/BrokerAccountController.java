@@ -122,8 +122,9 @@ public class BrokerAccountController {
           - `hasHolder` — `false`, las cuentas **sin titular**, que llegaron del
             broker antes que la persona (`RN-SP-072`); `true`, las demás. Sin
             titular, `user` va nulo.
-          - `sellerId` — **el vendedor de origen**: solo las cuentas que originó
-            una cuenta `VENDEDOR` suya (`RN-SP-070`), sea quien sea el titular.
+          - `sellerId` — **el vendedor de origen y su rama** (`RN-SP-082`): las
+            cuentas que originó una cuenta `VENDEDOR` suya o de cualquiera que
+            cuelga de él (`RN-SP-070`), sea quien sea el titular.
           - `hasReferrer` — `false`, las cuentas **sin vendedor de origen**;
             `true`, las que lo tienen. Con `sellerId`, `false` da la página
             vacía.

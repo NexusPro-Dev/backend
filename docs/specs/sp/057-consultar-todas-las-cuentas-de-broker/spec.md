@@ -55,6 +55,7 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `RN-SP-047` | La red de un vendedor es TODO lo que cuelga de él | `requirements/sp.md` §5.1 |
 | `RN-SP-080` | **El rango de fechas es de registro O de primer depósito** | `requirements/sp.md` §5.1 |
 | `RN-SP-081` | **El listado lo acota quien pregunta, y la red incluye a su raíz** | `requirements/sp.md` §5.1 |
+| `RN-SP-082` | **El vendedor de origen del listado es una rama** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -185,11 +186,12 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | `CA-SP-674` | Con la página **vacía**, el resumen va en **ceros y arreglos vacíos**, no ausente |
 | `CA-SP-1007` | `search` encuentra también por **nombre de usuario en el broker**, sin acentos y sin distinguir mayúsculas, y con `?kind=CONSUMIDOR` acota a las cuentas de consumidor (10-10-2026) |
 | `CA-SP-1008` | El origen de cada fila trae **nombre y apellido** del vendedor, además de su identificador, su nombre de usuario y su `afftrack` (10-10-2026) |
-| `CA-SP-1016` | `sellerId` deja solo las cuentas cuyo origen es una cuenta `VENDEDOR` de esa persona, **sin mirar el titular**; uno inexistente da la página vacía (15-10-2026) |
+| `CA-SP-1016` | `sellerId` deja solo las cuentas cuyo origen es una cuenta `VENDEDOR` de esa persona, **sin mirar el titular**; uno inexistente da la página vacía (15-10-2026) — **precisado el 16-10-2026** (`RN-SP-082`): también lo que originaron las cuentas `VENDEDOR` de su red (`CA-SP-1049`) |
 | `CA-SP-1017` | `hasReferrer=false` deja solo las cuentas **sin vendedor de origen**, y `true` solo las que lo tienen; las dos suman el total sin filtro (15-10-2026) |
 | `CA-SP-1018` | El resumen respeta `sellerId` y `hasReferrer`, y `sellerId` con `hasReferrer=false` da la página vacía, sin error (15-10-2026) |
 | `CA-SP-1046` | Con `from`/`to`, una cuenta creada **antes** del rango cuyo primer depósito llegó **dentro** sale en la página y en `summary.firstDeposit`; una creada dentro sale aunque no haya depositado; una creada y depositada fuera, no (16-10-2026) |
 | `CA-SP-1048` | Un vendedor ve las cuentas suyas y de toda su red, por titular; con `supervisorId` de su red, esa rama con su raíz; de fuera, la página vacía; administración, todas. Todo rol `VENDEDOR` tiene `broker-accounts:read`, y con él no se le abren las cuentas de quien no es de los suyos en `GET /users/{id}/broker-accounts` (16-10-2026) |
+| `CA-SP-1049` | `sellerId` deja también las cuentas que originó la cuenta `VENDEDOR` de cualquiera que cuelga de ese vendedor, en toda la profundidad; las de quien no es de su rama, no (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -222,3 +224,4 @@ Ver **todas** las cuentas de broker del sistema y acotarlas — sobre todo **por
 | 0.6.0 | 15-10-2026 | **Filtro por vendedor de origen**, a petición del responsable del proyecto, que separó la consulta **según la red** (`RF-SP-083`, «Mis FTD's») de esta, la **administrativa**, cada una con su permiso. Nacen `sellerId` y `hasReferrer` (§6.1), separados del titular —`userId` y `hasHolder`, que §6.1 no listaba y ahora sí—, y `CA-SP-1016` a `CA-SP-1018`. Sin permiso nuevo. | Responsable del proyecto |
 | 0.7.0 | 16-10-2026 | **El rango de fechas incluye los primeros depósitos** (`RN-SP-080`, Art. I.7), a petición del responsable del proyecto: «el filtro de la fecha al consultar es una mezcla de registro y depósito; actualmente al filtrar por una fecha solo me trae los registros de esta, no incluye los depósitos que se hicieron en esa fecha». Una cuenta entra si se creó en el rango **o** si su primer depósito llegó en él; el resumen lo sigue. `CA-SP-1046`. | Responsable del proyecto |
 | 0.8.0 | 16-10-2026 | **El listado lo acota quien pregunta** (`RN-SP-081`, Art. I.7), a petición del responsable del proyecto: administración todo, un vendedor él y su red; la red incluye a su raíz (`CA-SP-649` invertido). `V116`. `CA-SP-1048`. | Responsable del proyecto |
+| 0.9.0 | 16-10-2026 | **`sellerId` es la rama del vendedor de origen** (`RN-SP-082`, Art. I.7), a petición del responsable del proyecto: «al cargar la tabla no me muestra las cuentas de mis directores ni los agentes de los directores». `CA-SP-1016` precisado, `CA-SP-1049`. | Responsable del proyecto |

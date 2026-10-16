@@ -124,8 +124,9 @@ public class ListBrokerAccountsService {
             peticion.search(),
             peticion.from(),
             rangoVerificado(peticion.from(), peticion.to()),
-            null,
+            // `RN-SP-082`: el vendedor de origen es su rama, como en los indicadores.
             peticion.sellerId(),
+            null,
             peticion.hasReferrer());
 
     return pagina(filtros, trozo);
