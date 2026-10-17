@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `deployment.md` |
-| Versión | 0.27.0 |
+| Versión | 0.28.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 27-08-2026 |
-| Última actualización | 14-10-2026 |
+| Última actualización | 17-10-2026 |
 | Documento superior | `constitution.md` v0.7.0 |
 | Documentos relacionados | `architecture.md` v0.51.0 · `security.md` v0.138.0 · [`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md) |
 | Documento derivado | [`manual-de-despliegue.md`](manual-de-despliegue.md) v0.3.0 — el paso a paso |
@@ -84,7 +84,7 @@ Antes de crear nada en Dokploy:
 
 - [ ] La rama que se va a desplegar tiene **CI en verde** (`.github/workflows/ci.yml`). Con esta plataforma ya no es solo una regla: **sin CI en verde no se publica la imagen** (§10), de modo que no hay nada que desplegar.
 - [ ] `mvn verify` pasa en local. Si falla aquí, falla en el CI igual y se descubre diez minutos más tarde.
-- [ ] Existe el **servidor**, con Dokploy instalado y endurecido (§5.1).
+- [ ] Existe el **servidor**, un **VPS de Hostinger** (plan KVM; el hosting compartido no ejecuta Docker), con Dokploy instalado y endurecido (§5.1).
 - [ ] Existe un **almacenamiento compatible con S3** para las copias de la base —Cloudflare R2, Backblaze B2, el del propio proveedor del VPS—, **fuera del servidor**.
 - [ ] Hay un **dominio** con acceso a su DNS: uno para el panel de Dokploy y uno por entorno para la API.
 - [ ] Están generados los **dos secretos** de §4. Sin ellos el despliegue no arranca, y es intencionado (Art. IX.5).
@@ -719,3 +719,4 @@ Ninguno de estos puntos impide desplegar. Todos están declarados para que no se
 | 0.25.0 | 13-10-2026 | §6.5.3: **la dirección común es la única** y **guarda todo aviso con el secreto**: el que no se reconoce queda sin broker y se asocia al arrancar cuando una migración cargue su `advertiser` (`RN-SP-076`). Se retiran la dirección por nombre y `BROKER_TOKEN_IQOPTION`, `BROKER_TOKEN_EXNOVA` y `BROKER_TOKEN_EXOPTION`; la consulta de lo que llegó gana `advertiser` y la de los avisos sin broker. | Responsable técnico |
 | 0.26.0 | 14-10-2026 | **La plataforma pasa de Railway a un VPS propio con Dokploy** ([`ADR-007`](architecture/ADR-007-plataforma-de-despliegue-dokploy.md), que sustituye a [`ADR-002`](architecture/ADR-002-plataforma-de-despliegue-railway.md)), por decisión del responsable del proyecto. §2 dibuja la topología nueva: Traefik como borde, el backend como servicio de Swarm que ejecuta una imagen de GHCR y PostgreSQL 17 con copias a S3. §5 se reescribe entera: **el servidor y su endurecimiento** —con el aviso de que **Docker se salta UFW** y el firewall tiene que ser el del proveedor—, los servicios de cada entorno, y **la configuración del servicio transcrita valor por valor**, porque Dokploy no la lee de ningún archivo del repositorio y `railway.json` deja de valer. Ahí aparece el único defecto que esta plataforma traía de serie: **Swarm mata el proceso a los diez segundos** y el apagado ordenado tiene treinta, de modo que el *Stop Grace Period* va a 35. Nueva §5.4 con los **límites de memoria** que separan los dos entornos en el mismo servidor y `JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=60`, sin la cual la JVM solo usa para el montón una cuarta parte del límite. §6.1 construye `DATABASE_URL` con el *Internal Host* y avisa de la URI de Dokploy, que no es de JDBC. §7 cambia sus tres detalles: el puerto lo decide el dominio y no una variable inyectada, desaparece la red solo IPv6 de Railway, y el relevo es `start-first` con vuelta atrás automática. Nueva §10.1: **la imagen la construye y publica el CI después de `verificar`** y despliega por la API de Dokploy, de modo que una rama en rojo ya no llega a ningún entorno; el job está apagado hasta declarar `DOKPLOY_DEPLOY=true`. **§11.2 deja de decir que la auditoría no puede registrar la IP real**: con Traefik como contenedor fuera de la malla de Swarm, `TRUSTED_PROXIES` lleva la subred de `dokploy-network` (**D-21**), con dos comprobaciones sobre el despliegue real. §11.1 gana la verificación de la configuración del servicio, y §12 la reversión por etiqueta `sha-`, el acceso a la base por SSH, las copias y los secretos que no viajan en ellas. Se elimina el aviso de §10 sobre `feature/esqueleto-del-proyecto`, que llevaba semanas sin ser cierto. | Responsable técnico |
 | 0.27.0 | 15-10-2026 | §6.5.3: **`BROKER_FIELD_COUNTRY`, `BROKER_FIELD_AMOUNT` y `BROKER_FIELD_CURRENCY`**: la cuenta guarda la fecha del registro, el país y los depósitos (`RN-SP-077`); los avisos de operación contados se borran (`RN-SP-074`). | Responsable técnico |
+| 0.28.0 | 17-10-2026 | §3: **el servidor es un VPS de Hostinger** (plan KVM), por decisión del responsable del proyecto. Las copias de la base siguen yendo a un S3 fuera del servidor. | Responsable técnico |
