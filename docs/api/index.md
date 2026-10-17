@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.149.0 |
+| Versión | 1.150.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -254,3 +254,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.147.0 | 16-10-2026 | **Filtros en los indicadores de cuentas de broker.** `GET /api/v1/indicators/broker-accounts/summary` deja de ir sin parámetros: **`from`/`to`** (días del negocio, `to` entero) acotan `totals` y `staff` **pero no `accountsToday` ni `ftdToday`**, que siguen siendo de hoy; **`brokerId`** y **`sellerId`** —la rama de ese vendedor, él incluido— acotan todo, también lo de hoy, y con `sellerId` no entra lo no atribuido; `from` posterior a `to` es `400` (`VAL-002`). `GET /api/v1/indicators/broker-accounts/network` gana **`brokerId`**. Todos opcionales: sin ellos, nada cambia. | Responsable técnico |
 | 1.148.0 | 16-10-2026 | **`sellerId` de `GET /api/v1/broker-accounts` trae la rama entera** (`RN-SP-082`): las cuentas que originó ese vendedor **y las que originaron los que cuelgan de él**, en toda la profundidad, como `sellerId` en los indicadores de cuentas de broker. Hasta hoy era solo lo de esa persona. `GET /api/v1/users/me/referred-broker-accounts` no cambia. | Responsable técnico |
 | 1.149.0 | 16-10-2026 | **`PATCH /api/v1/users/{id}/supervisor` mueve la oficina de lo vendido en el periodo abierto** (`RN-SP-083`, `RN-MV-080`): las líneas del subordinado y de su red vendidas desde el último cierre de comisiones pasan a su oficina nueva, y lo mismo al asignar roles con un superior nuevo (`POST /api/v1/users/{id}/roles`). El contrato no cambia; cambia el `team` que devuelven después las ventas y lo que filtra `teamId`. | Responsable técnico |
+| 1.150.0 | 16-10-2026 | **`GET /api/v1/users/me/referred-broker-accounts` solo trae lo directo** (`RN-SP-084`): las cuentas que originó la cuenta `VENDEDOR` de quien pregunta, sin su red; **se retira `sellerId`** (si llega, se ignora). **El `summary` de los listados de cuentas de broker** —este y `GET /api/v1/broker-accounts`— **gana `lastRegisterId` y `lastFirstDepositId`** (`RN-SP-085`): el `id` de la cuenta registrada más reciente y el de la del último primer depósito, por llegada al sistema y con los mismos filtros; nulos si no hay. Hay que regenerar el cliente. | Responsable técnico |

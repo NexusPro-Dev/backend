@@ -680,6 +680,16 @@
           "firstDeposit" : {
             "$ref" : "#/components/schemas/BrokerAccountsTotals"
           },
+          "lastFirstDepositId" : {
+            "description" : "La cuenta de lo filtrado con el primer depósito más reciente (first_deposit_at), o nulo (RN-SP-085).",
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastRegisterId" : {
+            "description" : "La cuenta de lo filtrado que llegó al sistema la última (created_at), o nulo (RN-SP-085).",
+            "format" : "uuid",
+            "type" : "string"
+          },
           "register" : {
             "$ref" : "#/components/schemas/BrokerAccountsTotals"
           }
@@ -27530,7 +27540,7 @@
     },
     "/api/v1/users/me/referred-broker-accounts" : {
       "get" : {
-        "description" : "**Permiso requerido:** `broker-accounts:read-own-referred`. Sin él, `403` (`AUTH-002`).\n\nDevuelve, **paginadas y con un resumen**, las cuentas de broker de\n**consumidor** creadas con el `afftrack` del actor **o con el de\ncualquier vendedor de su red hacia abajo**, en todos los niveles\n(`RN-SP-075`). La red es la **vigente**: quien dejó la red ya no cuenta,\nni los que colgaban de él.\n\n**Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a\nla cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que\ntiene que ser del actor o de su red. Por eso **aparecen también las\ncuentas sin titular** —llegaron del broker antes que la persona; `user`\nva nulo— y por eso no aparecen las cuentas `VENDEDOR`.\n\n**Cada fila dice de qué vendedor viene**: `referrer` trae la cuenta de\norigen, su `afftrack` y el vendedor —identificador, usuario, nombre y\napellido—. La fila es la de `GET /api/v1/broker-accounts`.\n\n**No hay parámetro que amplíe el alcance.** Quien no tiene cuentas\noriginadas recibe `200` con la página vacía y el resumen en ceros.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es\n  `400`.\n- `brokerId` — un broker del catálogo.\n- `sellerId` — **un vendedor de la red**: solo las que originó su\n  cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.\n- `hasHolder` — `false`, las que aún no tienen titular; `true`, las\n  demás.\n- `search` — fragmento del **número de cuenta** o del titular:\n  usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se creó la cuenta o llegó su primer\n  depósito** (`RN-SP-080`), instantes con zona y\n  rango semiabierto. `from` posterior a `to` es `400`.\n\n**`summary`** tiene la forma y el sentido de el de\n`GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`\ny cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado.\n",
+        "description" : "**Permiso requerido:** `broker-accounts:read-own-referred`. Sin él, `403` (`AUTH-002`).\n\nDevuelve, **paginadas y con un resumen**, las cuentas de broker de\n**consumidor** creadas con el `afftrack` **del actor**, y solo las\nsuyas: **las de su red no** (`RN-SP-084`, 16-10-2026). Lo de la red se\nconsulta en `GET /api/v1/broker-accounts` con `sellerId`.\n\n**Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a\nla cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que\ntiene que ser del actor. Por eso **aparecen también las\ncuentas sin titular** —llegaron del broker antes que la persona; `user`\nva nulo— y por eso no aparecen las cuentas `VENDEDOR`.\n\n**Cada fila dice de qué vendedor viene**: `referrer` trae la cuenta de\norigen, su `afftrack` y el vendedor —identificador, usuario, nombre y\napellido—. La fila es la de `GET /api/v1/broker-accounts`.\n\n**No hay parámetro que amplíe el alcance.** Quien no tiene cuentas\noriginadas recibe `200` con la página vacía y el resumen en ceros.\n\n**Filtros, todos opcionales y combinables con Y:**\n\n- `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es\n  `400`.\n- `brokerId` — un broker del catálogo.\n- `hasHolder` — `false`, las que aún no tienen titular; `true`, las\n  demás.\n- `search` — fragmento del **número de cuenta** o del titular:\n  usuario, correo o nombre. Sin acentos y sin distinguir mayúsculas.\n- `from` / `to` — **cuándo se creó la cuenta o llegó su primer\n  depósito** (`RN-SP-080`), instantes con zona y\n  rango semiabierto. `from` posterior a `to` es `400`.\n\n**`summary`** tiene la forma y el sentido de el de\n`GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`\ny cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado;\ny `lastRegisterId` y `lastFirstDepositId`, la última cuenta registrada\ny el último primer depósito de lo filtrado (`RN-SP-085`).\n",
         "operationId" : "cuentasOriginadasPorMiRed",
         "parameters" : [ {
           "in" : "query",
@@ -27558,14 +27568,6 @@
         }, {
           "in" : "query",
           "name" : "brokerId",
-          "required" : false,
-          "schema" : {
-            "format" : "uuid",
-            "type" : "string"
-          }
-        }, {
-          "in" : "query",
-          "name" : "sellerId",
           "required" : false,
           "schema" : {
             "format" : "uuid",
@@ -27611,7 +27613,7 @@
                 }
               }
             },
-            "description" : "Página de cuentas originadas por la red, la más reciente primero, con su resumen. Vacía si no hay ninguna."
+            "description" : "Página de cuentas originadas por el actor, la más reciente primero, con su resumen. Vacía si no hay ninguna."
           },
           "400" : {
             "description" : "`status` desconocido o `from` posterior a `to` (`VAL-001`), identificador malformado o paginación fuera de límites (`VAL-003`)"
@@ -27626,7 +27628,7 @@
             "description" : "Fallo no controlado (`ERR-500`)"
           }
         },
-        "summary" : "Consultar las cuentas de broker que originó mi red",
+        "summary" : "Consultar las cuentas de broker que originé",
         "tags" : [ "Usuarios" ],
         "x-required-permission" : "broker-accounts:read-own-referred"
       }

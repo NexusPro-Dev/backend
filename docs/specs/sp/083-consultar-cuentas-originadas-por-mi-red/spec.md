@@ -4,7 +4,7 @@
 |---|---|
 | Requerimiento | `RF-SP-083` |
 | Módulo | `SP` — Sistema Principal |
-| Versión | 0.2.0 |
+| Versión | 0.3.0 |
 | Estado | **Aprobada** |
 | Autor | Responsable técnico |
 | Aprobada por | Responsable del proyecto |
@@ -51,6 +51,8 @@ Ver las originadas por otro vendedor fuera de la red propia; las cuentas `VENDED
 | `RN-SP-071` | El `afftrack` es de la cuenta de vendedor | `requirements/sp.md` §5.1 |
 | `RN-SP-075` | **Un vendedor ve las cuentas que originó su red** | `requirements/sp.md` §5.1 |
 | `RN-SP-080` | **El rango de fechas es de registro O de primer depósito** | `requirements/sp.md` §5.1 |
+| `RN-SP-084` | **«Mis FTD's» son solo lo que originó mi propia cuenta** (sustituye a `RN-SP-075` desde el 16-10-2026) | `requirements/sp.md` §5.1 |
+| `RN-SP-085` | **El resumen dice cuál fue la última cuenta registrada y el último FTD** | `requirements/sp.md` §5.1 |
 
 ## 6. Datos
 
@@ -106,6 +108,8 @@ Las de §10, iguales a `RF-SP-057`.
 | `CA-SP-1005` | Los filtros `status`, `brokerId`, `sellerId` —uno de fuera de la red da la página vacía—, `hasHolder`, `search` por número de cuenta y por **nombre de usuario en el broker**, y `from`/`to` acotan la página y el resumen; un `status` desconocido es `400` |
 | `CA-SP-1006` | Sin `broker-accounts:read-own-referred`, `403`; `V100` lo siembra a los roles `VENDEDOR` y `FUNCIONARIO` y no a los `CONSUMIDOR` |
 | `CA-SP-1047` | Con `from`/`to`, entra también la cuenta creada **antes** del rango cuyo primer depósito llegó **dentro**, en la página y en el resumen (16-10-2026) |
+| `CA-SP-1052` | Solo trae las cuentas que originó la cuenta `VENDEDOR` de quien pregunta: las de su red ya no, y `sellerId` se ignora (16-10-2026; deja sin efecto la parte de red de `CA-SP-1003` y el `sellerId` de `CA-SP-1005`) |
+| `CA-SP-1053` | `summary.lastRegisterId` y `summary.lastFirstDepositId` son la cuenta de `created_at` y la de `first_deposit_at` más recientes de lo filtrado; nulos si no hay (16-10-2026) |
 
 ## 13. Casos límite
 
@@ -126,3 +130,4 @@ Las de §10, iguales a `RF-SP-057`.
 |---|---|---|---|
 | 0.1.0 | 10-10-2026 | Redacción inicial, a petición del responsable del proyecto (`RN-SP-075`). Criterios `CA-SP-1003` a `CA-SP-1006`. | Responsable del proyecto |
 | 0.2.0 | 16-10-2026 | **El rango de fechas incluye los primeros depósitos** (`RN-SP-080`, Art. I.7), a petición del responsable del proyecto, igual que `RF-SP-057`. `CA-SP-1047`. | Responsable del proyecto |
+| 0.3.0 | 16-10-2026 | **Solo lo directo, y el resumen con la última cuenta y el último FTD** (`RN-SP-084`, `RN-SP-085`, Art. I.7), a petición del responsable del proyecto: «en la consulta de me/referred-broker-accounts solo traer los que me pertenecen directamente a mi, ademas agregar en el summary el id del ultimo registro y del ultimo ftd registrado». `CA-SP-1052`, `CA-SP-1053`. | Responsable del proyecto |

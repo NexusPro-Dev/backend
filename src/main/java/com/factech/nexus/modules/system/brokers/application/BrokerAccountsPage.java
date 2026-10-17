@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.brokers.application.BrokerAccountItem.Br
 import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * La página del listado de administración <b>con su resumen</b> (`RF-SP-057`, 10-09-2026).
@@ -50,7 +51,23 @@ public record BrokerAccountsPage(
    * «nadie ha depositado»: significa «no pediste ninguno»</b>.
    */
   @Schema(name = "BrokerAccountsSummary")
-  public record Summary(Totals accounts, Totals register, Totals firstDeposit) {}
+  @JsonInclude(JsonInclude.Include.ALWAYS)
+  public record Summary(
+      Totals accounts,
+      Totals register,
+      Totals firstDeposit,
+      @Schema(
+              description =
+                  "La cuenta de lo filtrado que llegó al sistema la última (created_at), o nulo"
+                      + " (RN-SP-085).",
+              nullable = true)
+          UUID lastRegisterId,
+      @Schema(
+              description =
+                  "La cuenta de lo filtrado con el primer depósito más reciente (first_deposit_at),"
+                      + " o nulo (RN-SP-085).",
+              nullable = true)
+          UUID lastFirstDepositId) {}
 
   /**
    * Un total y su desglose.

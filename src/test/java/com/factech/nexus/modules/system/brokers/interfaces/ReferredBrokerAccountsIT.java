@@ -21,11 +21,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * Las cuentas de broker que originó mi red (`RF-SP-083`, `RN-SP-075`): `CA-SP-1003` a `CA-SP-1006`.
+ * Las cuentas de broker que originé (`RF-SP-083`, `RN-SP-084`, `RN-SP-085`): `CA-SP-1003` a
+ * `CA-SP-1006`, `CA-SP-1047`, `CA-SP-1052` y `CA-SP-1053`.
  *
- * <p><b>La red tiene tres niveles</b> —{@code jefe} ← {@code medio} ← {@code base}— para que «toda
- * la red» se distinga de «el equipo directo», y hay un <b>exsubordinado</b> con la relación
- * cerrada, para que «vigente» se distinga de «alguna vez».
+ * <p><b>La red tiene tres niveles</b> —{@code jefe} ← {@code medio} ← {@code base}—: desde el
+ * 16-10-2026 cada uno ve solo lo suyo, y la red es lo que demuestra que lo de abajo no entra.
  */
 @AutoConfigureMockMvc
 class ReferredBrokerAccountsIT extends IntegrationTestBase {
@@ -104,17 +104,18 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
 
   @Test
   @DisplayName(
-      "`CA-SP-1003` — el vendedor ve las cuentas de consumidor que originó su cuenta y las de toda"
-          + " su red, también sin titular, con el vendedor de origen y su nombre")
-  void veLasDeSuRed() throws Exception {
+      "`CA-SP-1003` y `CA-SP-1052` — el vendedor ve solo las cuentas de consumidor que originó su"
+          + " propia cuenta, también sin titular, con el vendedor de origen y su nombre; las de su red no")
+  void veSoloLoSuyo() throws Exception {
     mvc.perform(get(RUTA).with(como(jefe)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.totalElements").value(3))
-        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1001", "1002", "1003")))
-        .andExpect(jsonPath("$.summary.accounts.total").value(3))
-        .andExpect(jsonPath("$.summary.firstDeposit.total").value(1));
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("1001"))
+        .andExpect(jsonPath("$.summary.accounts.total").value(1));
 
-    mvc.perform(get(RUTA + "?search=1002").with(como(jefe)))
+    mvc.perform(get(RUTA).with(como(medio)))
+        .andExpect(jsonPath("$.totalElements").value(1))
+        .andExpect(jsonPath("$.content[0].accountId").value("1002"))
         .andExpect(jsonPath("$.content[0].user").isEmpty())
         .andExpect(jsonPath("$.content[0].kind").value("CONSUMIDOR"))
         .andExpect(jsonPath("$.content[0].referrer.afftrack").value("AFF-MEDIO"))
@@ -122,22 +123,16 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(jsonPath("$.content[0].referrer.username").value("rr-medio"))
         .andExpect(jsonPath("$.content[0].referrer.firstName").value("Ana"))
         .andExpect(jsonPath("$.content[0].referrer.lastName").value("Apellido"));
-
-    // Un nivel más abajo, solo lo suyo y lo de los suyos.
-    mvc.perform(get(RUTA).with(como(medio)))
-        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1002", "1003")));
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-1004` — no ve las de su superior, otra rama o quien dejó su red, ni cuentas"
+      "`CA-SP-1004` — no ve las de su superior, otra rama, quien dejó su red ni su red, ni cuentas"
           + " VENDEDOR; sin cuentas originadas, la página vacía con el resumen en ceros")
   void noVeLoAjeno() throws Exception {
     mvc.perform(get(RUTA).with(como(base)))
         .andExpect(jsonPath("$.totalElements").value(1))
         .andExpect(jsonPath("$.content[0].accountId").value("1003"));
-    mvc.perform(get(RUTA).with(como(medio)))
-        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1002", "1003")));
     mvc.perform(get(RUTA).with(como(ajeno)))
         .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1004")));
 
@@ -145,22 +140,24 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalElements").value(0))
         .andExpect(jsonPath("$.content").isEmpty())
-        .andExpect(jsonPath("$.summary.accounts.total").value(0));
+        .andExpect(jsonPath("$.summary.accounts.total").value(0))
+        .andExpect(jsonPath("$.summary.lastRegisterId").isEmpty())
+        .andExpect(jsonPath("$.summary.lastFirstDepositId").isEmpty());
   }
 
   @Test
   @DisplayName(
-      "`CA-SP-1005` — status, brokerId, sellerId, hasHolder, search por número y fechas acotan"
-          + " la página y el resumen; un status desconocido es 400")
+      "`CA-SP-1005` y `CA-SP-1052` — status, brokerId, hasHolder, search por número y fechas"
+          + " acotan la página y el resumen; sellerId se ignora; un status desconocido es 400")
   void losFiltros() throws Exception {
-    unico("?status=FIRST_DEPOSIT", "1002");
-    unico("?brokerId=" + brokerB, "1003");
-    unico("?sellerId=" + base, "1003");
-    unico("?hasHolder=false", "1002");
+    masDeJefe();
+    unico("?status=FIRST_DEPOSIT", "1007");
+    unico("?brokerId=" + brokerB, "1008");
+    unico("?hasHolder=false", "1007");
     unico("?search=1001", "1001");
 
-    mvc.perform(get(RUTA + "?sellerId=" + ajeno).with(como(jefe)))
-        .andExpect(jsonPath("$.totalElements").value(0));
+    mvc.perform(get(RUTA + "?sellerId=" + base).with(como(jefe)))
+        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1001", "1007", "1008")));
     mvc.perform(get(RUTA + "?from=2999-01-01T00:00:00Z").with(como(jefe)))
         .andExpect(jsonPath("$.totalElements").value(0))
         .andExpect(jsonPath("$.summary.accounts.total").value(0));
@@ -171,22 +168,66 @@ class ReferredBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-1053` — el resumen trae la última cuenta registrada y el último primer depósito de lo"
+          + " filtrado, por llegada al sistema; nulo si no hay")
+  void lasUltimas() throws Exception {
+    masDeJefe();
+    java.time.OffsetDateTime ahora = java.time.OffsetDateTime.now();
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ? WHERE external_id = '1001'", ahora.minusDays(3));
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ?, first_deposit_at = ? WHERE external_id = '1007'",
+        ahora.minusDays(2),
+        ahora.minusHours(1));
+    jdbc.update(
+        "UPDATE user_brokers SET created_at = ? WHERE external_id = '1008'", ahora.minusDays(1));
+
+    mvc.perform(get(RUTA).with(como(jefe)))
+        .andExpect(jsonPath("$.summary.lastRegisterId").value(idDe("1008").toString()))
+        .andExpect(jsonPath("$.summary.lastFirstDepositId").value(idDe("1007").toString()));
+    mvc.perform(get(RUTA + "?status=REGISTER").with(como(jefe)))
+        .andExpect(jsonPath("$.summary.lastRegisterId").value(idDe("1008").toString()))
+        .andExpect(jsonPath("$.summary.lastFirstDepositId").isEmpty());
+  }
+
+  @Test
   @DisplayName("`CA-SP-1047` — el rango entra también por el primer depósito, en página y resumen")
   void rangoPorDeposito() throws Exception {
     java.time.OffsetDateTime ahora = java.time.OffsetDateTime.now();
+    UUID deMedio =
+        jdbc.queryForObject(
+            "SELECT id FROM user_brokers WHERE external_id = 'V-MEDIO'", UUID.class);
+    consumidora(null, brokerA, "1009", deMedio, "REGISTER");
+    consumidora(null, brokerA, "1010", deMedio, "REGISTER");
     jdbc.update(
         "UPDATE user_brokers SET created_at = ?, first_deposit_at = ? WHERE external_id = '1002'",
         ahora.minusDays(10),
         ahora.minusHours(1));
     jdbc.update(
-        "UPDATE user_brokers SET created_at = ? WHERE external_id = '1001'", ahora.minusDays(10));
+        "UPDATE user_brokers SET created_at = ? WHERE external_id = '1009'", ahora.minusDays(10));
 
-    // 1002 por su depósito, 1003 por su alta; 1001, vieja y sin depósito, fuera.
-    mvc.perform(get(RUTA).param("from", ahora.minusDays(2).toString()).with(como(jefe)))
+    // 1002 por su depósito, 1010 por su alta; 1009, vieja y sin depósito, fuera.
+    mvc.perform(get(RUTA).param("from", ahora.minusDays(2).toString()).with(como(medio)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1002", "1003")))
+        .andExpect(jsonPath("$.content[*].accountId", containsInAnyOrder("1002", "1010")))
         .andExpect(jsonPath("$.summary.accounts.total").value(2))
         .andExpect(jsonPath("$.summary.firstDeposit.total").value(1));
+  }
+
+  /** Dos cuentas más de jefe: una con depósito y sin titular, y otra en el otro broker. */
+  private void masDeJefe() {
+    UUID deJefe =
+        jdbc.queryForObject("SELECT id FROM user_brokers WHERE external_id = 'V-JEFE'", UUID.class);
+    UUID deJefeB = vendedora(jefe, brokerB, "V-JEFE-B", "AFF-JEFE-B");
+    UUID cliente = crearPersona("rr-cliente3", "Elena", CLIENTE);
+    consumidora(null, brokerA, "1007", deJefe, "FIRST_DEPOSIT");
+    consumidora(cliente, brokerB, "1008", deJefeB, "REGISTER");
+  }
+
+  private UUID idDe(String cuenta) {
+    return jdbc.queryForObject(
+        "SELECT id FROM user_brokers WHERE external_id = ?", UUID.class, cuenta);
   }
 
   @Test

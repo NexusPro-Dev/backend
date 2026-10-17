@@ -39,6 +39,7 @@
 | `T-21` | `V116`: `broker-accounts:read` a los roles `VENDEDOR`, con su guarda; `ListBrokerAccountsService` acota por `CommercialReach`; la raíz en `alcance`; `GetBrokerAccountsService` exige el alcance entero junto al permiso; prosa OpenAPI | — | | **Hecha** — 16-10-2026 |
 | `T-22` | `AllBrokerAccountsIT`: `CA-SP-649` invertido y `CA-SP-1048`; las suites del reparto por rol; contrato; `api/index.md` | `T-21` | `mvn verify` en verde | **Hecha** — 16-10-2026 |
 | `T-23` | `sellerId` como `referrerNetworkOf` en `ListBrokerAccountsService.list` (la red de origen de `RF-SP-083`); prosa; `AllBrokerAccountsIT` con `CA-SP-1049` | — | `mvn verify` en verde | **Hecha** — 16-10-2026 |
+| `T-24` | `summary.lastRegisterId` y `summary.lastFirstDepositId` (`RN-SP-085`) con el predicado del listado; `AllBrokerAccountsIT` con `CA-SP-1054` | — | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
 
 ## 2. Orden de ejecución
 

@@ -1595,24 +1595,23 @@ public class UserController {
     return cuentasDelEquipo.ofMyTeam(status, brokerId, page, size);
   }
 
-  // `RF-SP-083` (10-10-2026): las cuentas que originó el enlace del actor o el
-  // de su red. El alcance lo pone el sistema (`RN-SP-075`), como el equipo de
-  // arriba; la fila, los filtros y el resumen son los de `RF-SP-057`.
+  // `RF-SP-083`: las cuentas que originó el enlace del actor; desde el 16-10-2026
+  // solo el suyo, sin su red (`RN-SP-084`). La fila, los filtros y el resumen son
+  // los de `RF-SP-057`.
   @GetMapping("/me/referred-broker-accounts")
   @PreAuthorize("hasAuthority('broker-accounts:read-own-referred')")
   @Operation(
-      summary = "Consultar las cuentas de broker que originó mi red",
+      summary = "Consultar las cuentas de broker que originé",
       description =
           """
           Devuelve, **paginadas y con un resumen**, las cuentas de broker de
-          **consumidor** creadas con el `afftrack` del actor **o con el de
-          cualquier vendedor de su red hacia abajo**, en todos los niveles
-          (`RN-SP-075`). La red es la **vigente**: quien dejó la red ya no cuenta,
-          ni los que colgaban de él.
+          **consumidor** creadas con el `afftrack` **del actor**, y solo las
+          suyas: **las de su red no** (`RN-SP-084`, 16-10-2026). Lo de la red se
+          consulta en `GET /api/v1/broker-accounts` con `sellerId`.
 
           **Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a
           la cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que
-          tiene que ser del actor o de su red. Por eso **aparecen también las
+          tiene que ser del actor. Por eso **aparecen también las
           cuentas sin titular** —llegaron del broker antes que la persona; `user`
           va nulo— y por eso no aparecen las cuentas `VENDEDOR`.
 
@@ -1628,8 +1627,6 @@ public class UserController {
           - `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es
             `400`.
           - `brokerId` — un broker del catálogo.
-          - `sellerId` — **un vendedor de la red**: solo las que originó su
-            cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
           - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
             demás.
           - `search` — fragmento del **número de cuenta** o del titular:
@@ -1640,13 +1637,15 @@ public class UserController {
 
           **`summary`** tiene la forma y el sentido de el de
           `GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`
-          y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado.
+          y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado;
+          y `lastRegisterId` y `lastFirstDepositId`, la última cuenta registrada
+          y el último primer depósito de lo filtrado (`RN-SP-085`).
           """)
   @ApiResponses({
     @ApiResponse(
         responseCode = "200",
         description =
-            "Página de cuentas originadas por la red, la más reciente primero, con su resumen."
+            "Página de cuentas originadas por el actor, la más reciente primero, con su resumen."
                 + " Vacía si no hay ninguna."),
     @ApiResponse(
         responseCode = "400",

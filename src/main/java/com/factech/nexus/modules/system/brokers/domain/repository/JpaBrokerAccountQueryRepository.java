@@ -235,6 +235,31 @@ public class JpaBrokerAccountQueryRepository implements BrokerAccountQueryReposi
     return resultado;
   }
 
+  @Override
+  @Transactional(readOnly = true)
+  public LastAccounts lastAccounts(BrokerAccountFilters filtros) {
+    Filtro filtro = predicado(filtros);
+    // Las dos subconsultas comparten el predicado, la recursiva y sus parámetros.
+    Query consulta =
+        em.createNativeQuery(
+            recursivaSiHace(filtros)
+                + " SELECT (SELECT ub.id "
+                + DESDE_GLOBAL
+                + " WHERE "
+                + filtro.sql()
+                + " ORDER BY ub.created_at DESC, ub.id DESC LIMIT 1) AS registro,"
+                + " (SELECT ub.id "
+                + DESDE_GLOBAL
+                + " WHERE "
+                + filtro.sql()
+                + " AND ub.first_deposit_at IS NOT NULL"
+                + " ORDER BY ub.first_deposit_at DESC, ub.id DESC LIMIT 1) AS deposito",
+            Tuple.class);
+    filtro.enlazar(consulta);
+    Tuple fila = (Tuple) consulta.getSingleResult();
+    return new LastAccounts((UUID) fila.get("registro"), (UUID) fila.get("deposito"));
+  }
+
   /**
    * <b>La red de una persona, en profundidad.</b> La única consulta recursiva del sistema.
    *

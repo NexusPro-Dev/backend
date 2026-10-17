@@ -12996,19 +12996,18 @@ paths:
     get:
       tags:
       - Usuarios
-      summary: Consultar las cuentas de broker que originó mi red
+      summary: Consultar las cuentas de broker que originé
       description: |
         **Permiso requerido:** `broker-accounts:read-own-referred`. Sin él, `403` (`AUTH-002`).
 
         Devuelve, **paginadas y con un resumen**, las cuentas de broker de
-        **consumidor** creadas con el `afftrack` del actor **o con el de
-        cualquier vendedor de su red hacia abajo**, en todos los niveles
-        (`RN-SP-075`). La red es la **vigente**: quien dejó la red ya no cuenta,
-        ni los que colgaban de él.
+        **consumidor** creadas con el `afftrack` **del actor**, y solo las
+        suyas: **las de su red no** (`RN-SP-084`, 16-10-2026). Lo de la red se
+        consulta en `GET /api/v1/broker-accounts` con `sellerId`.
 
         **Se mira el origen, no el titular.** Cada cuenta de consumidor apunta a
         la cuenta `VENDEDOR` que la originó (`RN-SP-070`), y esa es la que
-        tiene que ser del actor o de su red. Por eso **aparecen también las
+        tiene que ser del actor. Por eso **aparecen también las
         cuentas sin titular** —llegaron del broker antes que la persona; `user`
         va nulo— y por eso no aparecen las cuentas `VENDEDOR`.
 
@@ -13024,8 +13023,6 @@ paths:
         - `status` — `REGISTER` o `FIRST_DEPOSIT`. Cualquier otro valor es
           `400`.
         - `brokerId` — un broker del catálogo.
-        - `sellerId` — **un vendedor de la red**: solo las que originó su
-          cuenta. Uno de fuera de la red devuelve la página vacía, no `403`.
         - `hasHolder` — `false`, las que aún no tienen titular; `true`, las
           demás.
         - `search` — fragmento del **número de cuenta** o del titular:
@@ -13036,7 +13033,9 @@ paths:
 
         **`summary`** tiene la forma y el sentido de el de
         `GET /api/v1/broker-accounts`: cuántas cuentas, cuántas en `REGISTER`
-        y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado.
+        y cuántas en `FIRST_DEPOSIT`, cada una por broker, sobre lo filtrado;
+        y `lastRegisterId` y `lastFirstDepositId`, la última cuenta registrada
+        y el último primer depósito de lo filtrado (`RN-SP-085`).
       operationId: cuentasOriginadasPorMiRed
       parameters:
       - name: page
@@ -13057,12 +13056,6 @@ paths:
         schema:
           type: string
       - name: brokerId
-        in: query
-        required: false
-        schema:
-          type: string
-          format: uuid
-      - name: sellerId
         in: query
         required: false
         schema:
@@ -13092,8 +13085,8 @@ paths:
           format: date-time
       responses:
         "200":
-          description: "Página de cuentas originadas por la red, la más reciente primero,\
-            \ con su resumen. Vacía si no hay ninguna."
+          description: "Página de cuentas originadas por el actor, la más reciente\
+            \ primero, con su resumen. Vacía si no hay ninguna."
           content:
             '*/*':
               schema:
@@ -23008,6 +23001,16 @@ components:
           $ref: "#/components/schemas/BrokerAccountsTotals"
         firstDeposit:
           $ref: "#/components/schemas/BrokerAccountsTotals"
+        lastRegisterId:
+          type: string
+          format: uuid
+          description: "La cuenta de lo filtrado que llegó al sistema la última (created_at),\
+            \ o nulo (RN-SP-085)."
+        lastFirstDepositId:
+          type: string
+          format: uuid
+          description: "La cuenta de lo filtrado con el primer depósito más reciente\
+            \ (first_deposit_at), o nulo (RN-SP-085)."
     BrokerAccountsTotals:
       type: object
       properties:

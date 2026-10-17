@@ -733,6 +733,32 @@ class AllBrokerAccountsIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "`CA-SP-1054` — el resumen trae la última cuenta registrada y el último primer depósito de lo"
+          + " filtrado; nulos y presentes si no hay")
+  void lasUltimas() throws Exception {
+    // Las esperadas, con el mismo criterio sobre lo que lista la ruta: solo CONSUMIDOR.
+    UUID registro =
+        jdbc.queryForObject(
+            "SELECT id FROM user_brokers WHERE kind = 'CONSUMIDOR'"
+                + " ORDER BY created_at DESC, id DESC LIMIT 1",
+            UUID.class);
+    jdbc.update(
+        "UPDATE user_brokers SET status = 'FIRST_DEPOSIT', first_deposit_at = now()"
+            + " WHERE external_id = '40000001'");
+    UUID deposito =
+        jdbc.queryForObject(
+            "SELECT id FROM user_brokers WHERE external_id = '40000001'", UUID.class);
+
+    mvc.perform(get(RUTA).with(administrador()))
+        .andExpect(jsonPath("$.summary.lastRegisterId").value(registro.toString()))
+        .andExpect(jsonPath("$.summary.lastFirstDepositId").value(deposito.toString()));
+    mvc.perform(get(RUTA + "?userId=" + UUID.randomUUID()).with(administrador()))
+        .andExpect(jsonPath("$.summary.lastRegisterId").isEmpty())
+        .andExpect(jsonPath("$.summary.lastFirstDepositId").isEmpty());
+  }
+
+  @Test
   @DisplayName("`CA-SP-674` — con la página vacía el resumen va en ceros, no ausente")
   void elResumenVacio() throws Exception {
     mvc.perform(get(RUTA + "?userId=" + UUID.randomUUID()).with(administrador()))

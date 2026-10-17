@@ -92,6 +92,16 @@ public interface BrokerAccountQueryRepository {
    */
   List<BrokerStatusCount> summarize(BrokerAccountFilters filtros);
 
+  /**
+   * La última cuenta registrada y la del último primer depósito dentro del filtro, por llegada al
+   * sistema (`RN-SP-085`). A igual instante gana el identificador mayor.
+   */
+  LastAccounts lastAccounts(BrokerAccountFilters filtros);
+
+  record LastAccounts(UUID lastRegisterId, UUID lastFirstDepositId) {
+    public static final LastAccounts NONE = new LastAccounts(null, null);
+  }
+
   /** Cuántas cuentas hay de un broker en un estado, dentro del filtro. */
   record BrokerStatusCount(UUID brokerId, String brokerName, UserBrokerStatus status, long total) {}
 

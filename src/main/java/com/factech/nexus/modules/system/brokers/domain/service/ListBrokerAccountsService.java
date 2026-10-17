@@ -14,6 +14,7 @@ import com.factech.nexus.modules.system.brokers.domain.models.UserBrokerStatus;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerAccountFilters;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.BrokerStatusCount;
+import com.factech.nexus.modules.system.brokers.domain.repository.BrokerAccountQueryRepository.LastAccounts;
 import com.factech.nexus.modules.system.brokers.domain.repository.BrokerQueryRepository;
 import com.factech.nexus.modules.system.users.application.CommercialReach;
 import com.factech.nexus.modules.system.users.application.CommercialReach.Reach;
@@ -108,7 +109,7 @@ public class ListBrokerAccountsService {
         // Validados antes, para que un rango mal escrito siga siendo 400.
         estado(peticion.status());
         rangoVerificado(peticion.from(), peticion.to());
-        return pagina(List.of(), List.of(), trozo);
+        return pagina(List.of(), LastAccounts.NONE, List.of(), trozo);
       }
     }
 
@@ -156,8 +157,9 @@ public class ListBrokerAccountsService {
             peticion.search(),
             peticion.from(),
             rangoVerificado(peticion.from(), peticion.to()),
+            // `RN-SP-084`: solo lo que originó su propia cuenta, sin su red.
+            null,
             quien,
-            peticion.sellerId(),
             null);
 
     return pagina(filtros, trozo);
@@ -165,12 +167,18 @@ public class ListBrokerAccountsService {
 
   private BrokerAccountsPage pagina(BrokerAccountFilters filtros, Pagination.Slice trozo) {
     return pagina(
-        cuentas.summarize(filtros), cuentas.findAll(filtros, trozo.offset(), trozo.size()), trozo);
+        cuentas.summarize(filtros),
+        cuentas.lastAccounts(filtros),
+        cuentas.findAll(filtros, trozo.offset(), trozo.size()),
+        trozo);
   }
 
   private BrokerAccountsPage pagina(
-      List<BrokerStatusCount> conteos, List<TeamBrokerAccountItem> pagina, Pagination.Slice trozo) {
-    Summary resumen = resumen(conteos);
+      List<BrokerStatusCount> conteos,
+      LastAccounts ultimas,
+      List<TeamBrokerAccountItem> pagina,
+      Pagination.Slice trozo) {
+    Summary resumen = resumen(conteos, ultimas);
 
     // `totalElements` sale DEL RESUMEN y no de un conteo aparte: son el mismo
     // número, y calcularlos por separado daría dos fuentes de verdad sobre lo
@@ -203,7 +211,7 @@ public class ListBrokerAccountsService {
    * <p><b>El orden es el del catálogo</b>, que ya viene por nombre con la intercalación de la
    * columna. Reordenar aquí sería una segunda copia de ese criterio.
    */
-  private Summary resumen(List<BrokerStatusCount> conteos) {
+  private Summary resumen(List<BrokerStatusCount> conteos, LastAccounts ultimas) {
     // Reutiliza el catálogo de `RF-SP-052` en vez de un `LEFT JOIN` contra la
     // consulta filtrada: aquello obligaría a meter el predicado y la recursiva
     // dentro de una unión externa, y son tres brokers.
@@ -221,7 +229,11 @@ public class ListBrokerAccountsService {
     }
 
     return new Summary(
-        totales(catalogo, todas), totales(catalogo, pendientes), totales(catalogo, depositadas));
+        totales(catalogo, todas),
+        totales(catalogo, pendientes),
+        totales(catalogo, depositadas),
+        ultimas.lastRegisterId(),
+        ultimas.lastFirstDepositId());
   }
 
   /**
