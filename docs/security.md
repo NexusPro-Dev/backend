@@ -5,11 +5,11 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.144.0 |
+| Versión | 0.145.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
-| Última actualización | 16-10-2026 |
+| Última actualización | 17-10-2026 |
 | Documento superior | `constitution.md` v0.5.0 |
 | Documento relacionado | `architecture.md` v0.4.0 |
 
@@ -263,7 +263,7 @@ commission-closings:read-next  commission-closings:set-payment-mode
 afftrack-rates:read     afftrack-rates:create     afftrack-rates:update     afftrack-rates:delete
 user-afftrack-rates:read       user-afftrack-rates:create
 user-afftrack-rates:update     user-afftrack-rates:delete
-afftrack-settlements:read
+afftrack-settlements:read      afftrack-settlements:read-own-progress
 
 movements:read   movements:create   movements:confirm  movements:void
 movements:read-detail
@@ -475,7 +475,7 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 
 **El mismo día, `V115` siembra `indicators:read-broker-accounts-summary`** —el resumen de cuentas de broker y del personal por rol, `GET /api/v1/indicators/broker-accounts/summary` (`RF-IN-010`)—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como `V101`: el alcance lo pone `RN-IN-002`.
 
-**Uno más de `CM` de lo propio, declarado el 17-10-2026 y sin sembrar**: `afftrack-settlements:read-own-progress` —mi avance de FTD en el periodo abierto, lo que el próximo cierre me liquidaría si corriera ahora, `GET /afftrack-settlements/mine/progress` (`RF-CM-030`, `RN-CM-056`)— ([`requirements/cm.md`](requirements/cm.md) v0.45.0 §6). **Se sembrará a todo rol que porte `commission-batches:list-own`**, como `V81` hizo con `commission-batches:list-own-commissions`: quien ve sus lotes ve su avance, y la contención (`RN-SEG-003`) se conserva sola. **No reutiliza `afftrack-settlements:read`**, que es la lectura administrativa de lo liquidado y de todas las personas. La sembrará `V117`, que llevará el catálogo a **253**.
+**Uno más de `CM` de lo propio, declarado y SEMBRADO el 17-10-2026 por `V117`**, ya en el bloque: `afftrack-settlements:read-own-progress` —mi avance de FTD en el periodo abierto, lo que el próximo cierre me liquidaría si corriera ahora, `GET /afftrack-settlements/mine/progress` (`RF-CM-030`, `RN-CM-056`)— ([`requirements/cm.md`](requirements/cm.md) v0.45.0 §6). **Se siembra a todo rol que porte `commission-batches:list-own`**, como `V81` hizo con `commission-batches:list-own-commissions`: quien ve sus lotes ve su avance, y la contención (`RN-SEG-003`) se conserva sola. **No reutiliza `afftrack-settlements:read`**, que es la lectura administrativa de lo liquidado y de todas las personas. `V117` lleva el catálogo a **253**, `ADMIN` 251.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1157,3 +1157,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.142.0 | 15-10-2026 | **`V115`**: nace `indicators:read-broker-accounts-summary` (`RF-IN-010`) a `FUNCIONARIO` y `VENDEDOR` por su tipo. Catálogo 252. | Responsable técnico |
 | 0.143.0 | 16-10-2026 | **`V116`**: `broker-accounts:read` pasa también a los roles `VENDEDOR` (`RN-SP-081`): en `GET /broker-accounts` un vendedor ve él y su red, y administración todo. En `GET /users/{id}/broker-accounts` el permiso abre a cualquiera **solo con el alcance entero**. Catálogo sin cambio (252). | Responsable técnico |
 | 0.144.0 | 17-10-2026 | **Un permiso de `CM` de lo propio, declarado y sin sembrar** (§4.4): `afftrack-settlements:read-own-progress` (`RF-CM-030`), a todo rol que porte `commission-batches:list-own`. Lo sembrará `V117` (catálogo 253). | Responsable del proyecto |
+| 0.145.0 | 17-10-2026 | **`afftrack-settlements:read-own-progress` está sembrado** por `V117` (§4.4; `RF-CM-030`), a todo rol que porta `commission-batches:list-own`. Catálogo **253**, `ADMIN` 251. | Responsable técnico |

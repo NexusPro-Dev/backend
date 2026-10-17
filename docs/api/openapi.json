@@ -1,6 +1,100 @@
 {
   "components" : {
     "schemas" : {
+      "AfftrackProgress" : {
+        "properties" : {
+          "nextClosingAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "periodStart" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "products" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AfftrackProgressProduct"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "AfftrackProgressNextTier" : {
+        "properties" : {
+          "amountPerFtd" : {
+            "type" : "number"
+          },
+          "missing" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "threshold" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AfftrackProgressProduct" : {
+        "properties" : {
+          "available" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "carriedIn" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "networkFtds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "newFtds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "nextTier" : {
+            "$ref" : "#/components/schemas/AfftrackProgressNextTier"
+          },
+          "ownFtds" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "product" : {
+            "$ref" : "#/components/schemas/AfftrackRateProduct"
+          },
+          "reachedTier" : {
+            "$ref" : "#/components/schemas/AfftrackProgressReachedTier"
+          },
+          "remainder" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AfftrackProgressReachedTier" : {
+        "properties" : {
+          "amountPerFtd" : {
+            "type" : "number"
+          },
+          "estimatedAmount" : {
+            "type" : "number"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "threshold" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "AfftrackRate" : {
         "properties" : {
           "amountAtThreshold" : {
@@ -11752,6 +11846,47 @@
         "summary" : "Consultar las liquidaciones afftrack",
         "tags" : [ "Comisiones afftrack" ],
         "x-required-permission" : "afftrack-settlements:read"
+      }
+    },
+    "/api/v1/afftrack-settlements/mine/progress" : {
+      "get" : {
+        "description" : "**Permiso requerido:** `afftrack-settlements:read-own-progress`. Sin él, `403` (`AUTH-002`).\n\n**Lo que el próximo cierre me liquidaría si corriera ahora** (`RF-CM-030`,\n`RN-CM-056`), por producto FTD: `carriedIn` —el remanente de mi última\nliquidación—, `newFtds` —los activados y aún no contados, repartidos en `ownFtds`\n(los que vendí) y `networkFtds` (los de mi red, con la cadena del día de cada\nactivación)—, `available` = los dos, `reachedTier` —el mayor escalón alcanzado,\ncon `estimatedAmount` = límite × valor— y `remainder`, lo que sobraría; y\n`nextTier`, el escalón siguiente con `missing`, cuántos faltan. Sin escalón\nalcanzado o sin siguiente, viajan nulos.\n\n**Es una estimación**: se calcula con la escala vigente hoy y no guarda nada; el\ncierre usa la escala del último día del periodo y los FTD que haya en su instante.\nSale un producto si tengo FTD nuevos, remanente o escala vigente; por código.\n`periodStart` es el corte del último cierre (nulo sin cierres) y `nextClosingAt`\nel próximo cierre programado (nulo si está apagado).\n\nLa persona la pone el token: **no hay filtro de persona**.\n",
+        "operationId" : "miAvance",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AfftrackProgress"
+                }
+              }
+            },
+            "description" : "Mi avance, por producto FTD"
+          },
+          "401" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AfftrackProgress"
+                }
+              }
+            },
+            "description" : "Sin token"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AfftrackProgress"
+                }
+              }
+            },
+            "description" : "Sin `afftrack-settlements:read-own-progress`"
+          }
+        },
+        "summary" : "Consultar mi avance de FTD en el periodo abierto",
+        "tags" : [ "Comisiones afftrack" ],
+        "x-required-permission" : "afftrack-settlements:read-own-progress"
       }
     },
     "/api/v1/audit/changes" : {

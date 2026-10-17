@@ -128,7 +128,8 @@ class RoleDetailIT extends IntegrationTestBase {
     // cuentas que originó mi red, `broker-accounts:read-own-referred` (`RF-SP-083`). Y UNO MÁS
     // desde `V101`: los indicadores de cuentas de broker (`RF-IN-009`). Y UNO MÁS desde `V115`: el
     // resumen de cuentas de broker (`RF-IN-010`). Y UNO MÁS desde `V116` (16-10-2026): las cuentas
-    // de broker de mi red, `broker-accounts:read` (`RN-SP-081`).
+    // de broker de mi red, `broker-accounts:read` (`RN-SP-081`). Y UNO MÁS desde `V117`
+    // (17-10-2026): mi avance de FTD, `afftrack-settlements:read-own-progress` (`RF-CM-030`).
     mvc.perform(detalle(AGENTE))
         .andExpect(status().isOk())
         .andExpect(
@@ -146,6 +147,7 @@ class RoleDetailIT extends IntegrationTestBase {
                         + 1
                         + 1
                         + 2
+                        + 1
                         + 1
                         + 1
                         + 1

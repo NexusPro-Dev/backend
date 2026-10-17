@@ -11,7 +11,10 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** `RN-CM-041` sin base de datos: las cuatro filas de `RF-CM-020` `spec.md` §2.1 y los bordes. */
+/**
+ * `RN-CM-041` sin base de datos: las cuatro filas de `RF-CM-020` `spec.md` §2.1 y los bordes; y el
+ * escalón siguiente de `RN-CM-056` (`RF-CM-030`).
+ */
 class AfftrackTierPickerTest {
 
   private static final Tier CINCUENTA = escalon(50, "8000");
@@ -74,6 +77,30 @@ class AfftrackTierPickerTest {
     assertThat(p.pagados()).isEqualTo(50);
     assertThat(p.remanente()).isEqualTo(5);
     assertThat(p.tier().orElseThrow().importe()).isEqualByComparingTo("0");
+  }
+
+  @Test
+  @DisplayName("CA-CM-400 · el siguiente de 55 con 50 y 60 es el de 60, y faltan 5")
+  void siguienteDeCincuentaYCinco() {
+    var n = AfftrackTierPicker.siguiente(55, List.of(SESENTA, CINCUENTA)).orElseThrow();
+    assertThat(n.tier()).isEqualTo(SESENTA);
+    assertThat(n.faltan()).isEqualTo(5);
+  }
+
+  @Test
+  @DisplayName("CA-CM-401 · con 40 el siguiente es el de 50 y faltan 10; con 130 no hay siguiente")
+  void siguienteEnLosExtremos() {
+    assertThat(AfftrackTierPicker.siguiente(40, List.of(CINCUENTA, SESENTA)).orElseThrow().faltan())
+        .isEqualTo(10);
+    assertThat(AfftrackTierPicker.siguiente(130, List.of(CINCUENTA, SESENTA))).isEmpty();
+  }
+
+  @Test
+  @DisplayName("justo en un límite, el siguiente es el de arriba; sin escala, ninguno")
+  void siguienteEnElBorde() {
+    assertThat(AfftrackTierPicker.siguiente(50, List.of(CINCUENTA, SESENTA)).orElseThrow().tier())
+        .isEqualTo(SESENTA);
+    assertThat(AfftrackTierPicker.siguiente(0, List.of())).isEmpty();
   }
 
   private static Tier escalon(int limite, String valor) {

@@ -103,6 +103,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
           "commission-batches:list-own-commissions",
+          // `V117` (17-10-2026): mi avance de FTD (`RF-CM-030`), a quien porte list-own.
+          "afftrack-settlements:read-own-progress",
           // `V83` (07-10-2026): el resumen de mis comisiones (`RF-IN-008`), a quien porte list-own.
           "indicators:read-own-commissions-summary",
           "movements:list-sales",
@@ -192,6 +194,8 @@ class SystemRolesSeedIT extends IntegrationTestBase {
           "commission-batches:read-own",
           // `V81` (07-10-2026): todas mis comisiones (`RF-CM-026`), a quien porte list-own.
           "commission-batches:list-own-commissions",
+          // `V117` (17-10-2026): mi avance de FTD (`RF-CM-030`), a quien porte list-own.
+          "afftrack-settlements:read-own-progress",
           // `V83` (07-10-2026): el resumen de mis comisiones (`RF-IN-008`), a quien porte list-own.
           "indicators:read-own-commissions-summary",
           "movements:list-sales",

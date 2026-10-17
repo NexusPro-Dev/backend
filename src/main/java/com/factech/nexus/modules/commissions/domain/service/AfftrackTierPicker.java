@@ -44,4 +44,20 @@ public final class AfftrackTierPicker {
             .max(Comparator.comparingInt(Tier::threshold));
     return new Pick(alcanzado, disponibles - alcanzado.map(Tier::threshold).orElse(0));
   }
+
+  /**
+   * El escalón que viene después de los disponibles, y cuántos FTD faltan para él (`RN-CM-056`).
+   */
+  public record Next(Tier tier, int faltan) {}
+
+  /**
+   * El de menor límite <b>estrictamente mayor</b> que los disponibles: con 55 y escalones de 50 y
+   * 60 es el de 60 y faltan 5; con 130, ninguno.
+   */
+  public static Optional<Next> siguiente(int disponibles, Collection<Tier> escala) {
+    return escala.stream()
+        .filter(t -> t.threshold() > disponibles)
+        .min(Comparator.comparingInt(Tier::threshold))
+        .map(t -> new Next(t, t.threshold() - disponibles));
+  }
 }

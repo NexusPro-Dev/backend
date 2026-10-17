@@ -5,7 +5,7 @@
 | Módulo | `CM` — Comisiones |
 | Paquete | `modules/commissions` |
 | Prefijos de permiso | `commissions:` |
-| Versión | 0.45.0 |
+| Versión | 0.46.0 |
 | Estado | **Borrador** |
 | Responsable | Bonilla Diaz William Steven |
 | Fecha de creación | 28-08-2026 |
@@ -231,6 +231,10 @@ La dependencia sigue siendo **acíclica**: `CM` → `MV` → `PM` → `SP`, y `C
     Por petición del responsable del proyecto, **el vendedor ve durante el mes cómo va su comisión afftrack**. Hasta hoy no veía nada hasta el cierre: lo afftrack se calcula **dentro** de él (`RN-CM-043`), y lo único propio era lo ya cobrado, en sus lotes (`RF-CM-012`). **`RF-CM-030` corre la cuenta de `RF-CM-020` sin escribir nada**, para una sola persona y con el instante de la consulta como corte (`RN-CM-056`, §5.13).
 
     **Ninguno de los anteriores cambia.** `RF-CM-020` sigue siendo el único que paga, y `RF-CM-021` sigue siendo la lectura administrativa de lo liquidado.
+
+!!! success "`RF-CM-030` está construido (17-10-2026)"
+
+    `V117` siembra `afftrack-settlements:read-own-progress` (catálogo **253**) y `GET /afftrack-settlements/mine/progress` responde el avance con las mismas piezas con las que el cierre liquida; `AfftrackTierPicker` gana el escalón siguiente. **Con tripleta previa.**
 
 !!! info "Dos más el 08-10-2026: el cierre paga solo, salvo que se elija lo contrario"
 
@@ -1280,3 +1284,4 @@ Un importe fijo de comisión **es dinero en la misma moneda que el producto** (`
 | 0.43.0 | 08-10-2026 | **El cierre paga solo, salvo que se elija lo contrario** (§5.12, nacen `RN-CM-053` y `RN-CM-054`), por decisión del responsable del proyecto: el pago va **en el mismo momento que el cierre**, a las 00:00 del día 1; **48 horas antes** se abre la ventana para elegir si el de ese cierre es automático o manual, y **sin elección es automático**. El automático paga solo los lotes de ese cierre, cada uno por su cuenta. **Nacen `RF-CM-028`** —consultar el próximo cierre— **y `RF-CM-029`** —elegir—, con dos permisos (§6; 32 → 34) para `SUPERADMIN` y `ADMIN`; `commission_payment_choices` (§7.14) y tres columnas en `commission_closings` (§7.8). Cambia `RF-CM-009`; se enmiendan `RN-CM-030` y `RN-CM-035`. | Responsable del proyecto |
 | 0.44.0 | 16-10-2026 | **El periodo abierto empieza en el corte del último cierre** (nace `RN-CM-055`), a petición del responsable del proyecto: «por cada ftd que se cree hay que guardar la oficina del agente que lo hizo en el momento, en caso de que el agente se cambie de oficina (tiene otro supervisor) se podra llevar su ftds pero en el periodo abierto». `CM` implementa `SupervisorChangeFollower` (`RN-SP-083`) y pide a `MV` mover la oficina de lo vendido desde ese corte (`RN-MV-080`). Sin lotes ni comisiones tocados. | Responsable del proyecto |
 | 0.45.0 | 17-10-2026 | **El vendedor ve su avance de FTD en el periodo abierto** (§5.13, nace `RN-CM-056`), a petición del responsable del proyecto: «que el vendedor pueda ver su avance de FTD en el mes». **Nace `RF-CM-030`**, la liquidación afftrack del próximo cierre corrida ahora para la persona del token y sin escribir nada —FTD nuevos directos y de la red, remanente, escalón alcanzado con su importe estimado y cuántos faltan para el siguiente—, con su permiso `afftrack-settlements:read-own-progress` (§6; 34 → 35), sembrado a todo rol que porte `commission-batches:list-own`. §1.3 lo incluye y §6 tacha la nota de «lo propio de lo afftrack no entra todavía». Ningún requerimiento anterior cambia. | Responsable del proyecto |
+| 0.46.0 | 17-10-2026 | **`RF-CM-030` está construido**: `V117` (catálogo 253) y `GET /afftrack-settlements/mine/progress`, con tripleta previa. Sin cambio de reglas. | Responsable técnico |
