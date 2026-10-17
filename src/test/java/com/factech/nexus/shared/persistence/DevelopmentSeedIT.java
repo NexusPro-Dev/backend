@@ -442,6 +442,69 @@ class DevelopmentSeedIT extends IntegrationTestBase {
   }
 
   @Test
+  @DisplayName(
+      "las personas de la base local: anonimizadas, con su rol, su superior y las cuentas de"
+          + " broker; y repetible")
+  void lasDeLaBaseLocal() {
+    borrarLasDiecinueve(jdbc);
+    semilla.run(null);
+    semilla.run(null);
+
+    Object usuarios = usuariosDeLaBaseLocal().toArray(String[]::new);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM users WHERE username = ANY (?)", Integer.class, usuarios))
+        .isEqualTo(usuariosDeLaBaseLocal().size());
+    // Ningún dato real: el correo es el del usuario en factech.co y la contraseña, la del
+    // superadministrador.
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM users u
+                 WHERE u.username = ANY (?)
+                   AND (u.email <> lower(u.username) || '@factech.co'
+                        OR u.password_hash <> (SELECT password_hash FROM users
+                                                WHERE username = 'superadmin')
+                        OR u.address_line1 IS NOT NULL)
+                """,
+                Integer.class,
+                usuarios))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM users u
+                 WHERE u.username = ANY (?)
+                   AND (SELECT count(*) FROM user_roles ur WHERE ur.user_id = u.id) <> 1
+                """,
+                Integer.class,
+                usuarios))
+        .as("cada una con un solo rol")
+        .isZero();
+    // Los agentes, bajo una persona de la semilla.
+    assertThat(
+            jdbc.queryForObject(
+                """
+                SELECT count(*) FROM user_supervisors us
+                  JOIN users u ON u.id = us.user_id
+                  JOIN users s ON s.id = us.supervisor_id
+                 WHERE u.username = ANY (?) AND us.ended_at IS NULL AND s.username = ANY (?)
+                """,
+                Integer.class,
+                usuarios,
+                USUARIOS.toArray(String[]::new)))
+        .isPositive();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM user_brokers", Integer.class))
+        .isPositive();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM user_brokers WHERE referrer_account_id IS NOT NULL",
+                Integer.class))
+        .as("las de consumidor conservan su origen")
+        .isPositive();
+  }
+
+  @Test
   @DisplayName("es IDEMPOTENTE: corre en cada arranque y no duplica a nadie")
   void idempotente() {
     // Es lo que permite que sea un `ApplicationRunner` y no una operación que
@@ -567,18 +630,21 @@ class DevelopmentSeedIT extends IntegrationTestBase {
             """
             SELECT count(*) FROM user_supervisors us
               JOIN users sup ON sup.id = us.supervisor_id
+              JOIN users sub ON sub.id = us.user_id
              WHERE us.ended_at IS NULL
                AND sup.username = ANY (?)
+               AND sub.username = ANY (?)
                AND sup.username LIKE 'director%'
              GROUP BY us.supervisor_id
             """,
-            Integer.class, (Object) usuarios);
+            Integer.class, usuarios, usuarios);
 
     // Tres directores con TRES a cargo cada uno: sus agentes. Entre el
     // 04-09-2026 y el 18-09-2026 `director1` tenía cuatro —`cliente2` colgaba
     // de él en esta tabla—; desde `RN-SP-028` revertida la cartera vive en
     // `client_sellers` y el equipo vuelve a ser solo fuerza comercial. Un
-    // equipo de uno no distingue «el equipo de alguien» de «alguien».
+    // equipo de uno no distingue «el equipo de alguien» de «alguien». Solo entre las
+    // diecinueve: los agentes de `semilla-usuarios.sql` también cuelgan de `director3`.
     assertThat(aCargoPorDirector).containsExactlyInAnyOrder(3, 3, 3);
 
     // `RN-SP-020` TIENE UNA SOLA RAMA desde el 18-09-2026: entre vendedores el
@@ -841,6 +907,12 @@ class DevelopmentSeedIT extends IntegrationTestBase {
         "DELETE FROM product_links WHERE product_id IN"
             + " (SELECT id FROM products WHERE code = ANY (?))",
         (Object) PRODUCTOS.toArray(String[]::new));
+    // Y LAS MEMBRESÍAS de `semilla-usuarios.sql` (17-10-2026) que apuntan a un producto:
+    // `fk_user_products_product` tampoco lleva `ON DELETE`.
+    jdbc.update(
+        "DELETE FROM user_products WHERE product_id IN"
+            + " (SELECT id FROM products WHERE code = ANY (?))",
+        (Object) PRODUCTOS.toArray(String[]::new));
     // Y LAS TASAS DE COMISIÓN, desde el 01-10-2026: `fk_commission_rates_product`
     // tampoco lleva `ON DELETE`.
     jdbc.update(
@@ -880,7 +952,47 @@ class DevelopmentSeedIT extends IntegrationTestBase {
         (Object) CATEGORIAS.toArray(String[]::new));
   }
 
+  /**
+   * Lo de `semilla-usuarios.sql`, ANTES que las diecinueve: los agentes cuelgan de `director3`. Las
+   * cuentas de broker, todas: el guion las siembra todas, y `fk_user_brokers_user` no lleva `ON
+   * DELETE`. Las personas, por la línea `USUARIOS` del guion.
+   */
+  private static void borrarLasDeLaBaseLocal(JdbcTemplate jdbc) {
+    String[] usuarios = usuariosDeLaBaseLocal().toArray(String[]::new);
+    jdbc.update("UPDATE user_brokers SET referrer_account_id = NULL");
+    jdbc.update("DELETE FROM user_brokers");
+    for (String tabla : new String[] {"user_products", "user_supervisors", "user_roles"}) {
+      jdbc.update(
+          "DELETE FROM "
+              + tabla
+              + " WHERE user_id IN (SELECT id FROM users WHERE username = ANY (?))",
+          (Object) usuarios);
+    }
+    jdbc.update("DELETE FROM users WHERE username = ANY (?)", (Object) usuarios);
+  }
+
+  /** Los usuarios que siembra `semilla-usuarios.sql`, de su línea `-- USUARIOS:`. */
+  static List<String> usuariosDeLaBaseLocal() {
+    try {
+      String guion =
+          new String(
+              new org.springframework.core.io.ClassPathResource("db/dev-seed/semilla-usuarios.sql")
+                  .getInputStream()
+                  .readAllBytes(),
+              java.nio.charset.StandardCharsets.UTF_8);
+      return guion
+          .lines()
+          .filter(l -> l.startsWith("-- USUARIOS: "))
+          .findFirst()
+          .map(l -> List.of(l.substring("-- USUARIOS: ".length()).trim().split(",")))
+          .orElseThrow();
+    } catch (java.io.IOException e) {
+      throw new java.io.UncheckedIOException(e);
+    }
+  }
+
   private static void borrarLasDiecinueve(JdbcTemplate jdbc) {
+    borrarLasDeLaBaseLocal(jdbc);
     String[] usuarios = USUARIOS.toArray(String[]::new);
     jdbc.update(
         "DELETE FROM user_products WHERE user_id IN (SELECT id FROM users WHERE username = ANY"

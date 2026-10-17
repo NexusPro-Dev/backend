@@ -79,7 +79,11 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
    * al final por lo mismo: sus cursos los enseñan personas del primero y los abren membresías y
    * bots del segundo. <b>El quinto, los avisos de los brokers</b> (10-10-2026), es la copia de los
    * avisos reales que genera {@code scripts/exportar-avisos-de-brokers.sql}: solo depende del
-   * catálogo de brokers de las migraciones.
+   * catálogo de brokers de las migraciones. <b>El sexto, las personas de la base local</b>
+   * (17-10-2026) que no son del primero —los agentes creados desde afftrack y las cuentas dadas de
+   * alta por la API—, anonimizadas, con sus roles, superiores y membresías y todas las cuentas de
+   * broker; lo genera {@code scripts/exportar-usuarios.sql} y va al final porque cuelga de personas
+   * del primero y de productos del segundo.
    */
   private static final java.util.List<String> GUIONES =
       java.util.List.of(
@@ -87,7 +91,8 @@ public class DevelopmentDataSeeder implements ApplicationRunner {
           "db/dev-seed/semilla-productos.sql",
           "db/dev-seed/semilla-tasas-comision.sql",
           "db/dev-seed/semilla-academia.sql",
-          "db/dev-seed/semilla-avisos-de-brokers.sql");
+          "db/dev-seed/semilla-avisos-de-brokers.sql",
+          "db/dev-seed/semilla-usuarios.sql");
 
   private final RuntimeEnvironment entorno;
   private final JdbcTemplate jdbc;
