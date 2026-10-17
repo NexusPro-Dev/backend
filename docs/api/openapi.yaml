@@ -9100,6 +9100,12 @@ paths:
         **El equipo se mueve con el reasignado**: sus subordinados conservan su
         superior y solo cambia de quién depende la rama.
 
+        **Se lleva la oficina de lo vendido en el periodo abierto**
+        (`RN-SP-083`, `RN-MV-080`): las líneas de venta del reasignado y de su
+        red vendidas desde el último cierre de comisiones pasan a su oficina
+        vigente; lo vendido antes se queda donde se vendió, y quien queda sin
+        oficina conserva la que tenía. Las comisiones no cambian.
+
         Repetir la operación con el mismo superior no cierra ni abre nada y no
         deja auditoría — pero el motivo se exige igual, antes de saberlo.
       operationId: asignarSuperior

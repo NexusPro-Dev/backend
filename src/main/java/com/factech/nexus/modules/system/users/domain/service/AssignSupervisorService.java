@@ -3,6 +3,7 @@ package com.factech.nexus.modules.system.users.domain.service;
 import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.users.application.AssignSupervisorRequest;
 import com.factech.nexus.modules.system.users.application.CommercialStructureResponse;
+import com.factech.nexus.modules.system.users.application.SupervisorChangeFollower;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.ChangeReason;
 import com.factech.nexus.modules.system.users.domain.models.User;
@@ -76,6 +77,7 @@ public class AssignSupervisorService {
   private final AuthenticatedActor actor;
   private final AuditWriter auditoria;
   private final UuidV7Generator ids;
+  private final SupervisorChangeFollower seguidores;
   private final Clock reloj;
 
   @Autowired
@@ -86,8 +88,18 @@ public class AssignSupervisorService {
       CommercialStructure estructura,
       AuthenticatedActor actor,
       AuditWriter auditoria,
-      UuidV7Generator ids) {
-    this(usuarios, consultas, roles, estructura, actor, auditoria, ids, Clock.systemUTC());
+      UuidV7Generator ids,
+      SupervisorChangeFollower seguidores) {
+    this(
+        usuarios,
+        consultas,
+        roles,
+        estructura,
+        actor,
+        auditoria,
+        ids,
+        seguidores,
+        Clock.systemUTC());
   }
 
   AssignSupervisorService(
@@ -98,7 +110,9 @@ public class AssignSupervisorService {
       AuthenticatedActor actor,
       AuditWriter auditoria,
       UuidV7Generator ids,
+      SupervisorChangeFollower seguidores,
       Clock reloj) {
+    this.seguidores = seguidores;
     this.usuarios = usuarios;
     this.consultas = consultas;
     this.roles = roles;
@@ -204,6 +218,8 @@ public class AssignSupervisorService {
       usuarios.endSupervisor(userId, ahora);
     }
     usuarios.assignSupervisor(ids.next(), userId, peticion.supervisorId(), ahora);
+    // `RN-SP-083`: lo vendido en el periodo abierto se va con él a su oficina nueva.
+    seguidores.supervisorChanged(userId, ahora);
 
     auditar(subordinado, anterior.orElse(null), superior, motivo);
 

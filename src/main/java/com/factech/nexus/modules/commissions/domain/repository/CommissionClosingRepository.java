@@ -46,6 +46,12 @@ public interface CommissionClosingRepository {
   void finish(
       UUID closingId, OffsetDateTime at, int batches, int swept, int retried, int recovered);
 
+  /**
+   * El corte del último cierre terminado, también del que no cerró nada: donde empieza el periodo
+   * abierto (`RN-CM-055`). Vacío si nunca hubo cierre.
+   */
+  Optional<OffsetDateTime> lastCut();
+
   Optional<ClosingRow> find(UUID id);
 
   List<ClosingRow> search(ClosingFilter filtro, int offset, int limit);

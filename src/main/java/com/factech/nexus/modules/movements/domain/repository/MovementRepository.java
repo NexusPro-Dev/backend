@@ -439,6 +439,26 @@ public interface MovementRepository {
 
   record FilledLine(UUID movementId, UUID productId, UUID teamId) {}
 
+  // ---------------------------------------------------------------------------
+  // `RN-MV-080` — un cambio de superior se lleva la oficina del periodo abierto
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Bloquea, en orden de identificador, las ventas desde {@code since} con alguna línea de esos
+   * vendedores: el mismo orden de bloqueos que {@link #lockSalesWithLinesWithoutTeam()}.
+   */
+  void lockSalesOfSellersSince(Collection<UUID> sellerIds, OffsetDateTime since);
+
+  /**
+   * Pone {@code teamId} a las líneas de esos vendedores en ventas desde {@code since} que tienen
+   * <b>otra</b> oficina o ninguna.
+   *
+   * @return las líneas movidas, con la oficina que tenían
+   */
+  List<MovedLine> moveLineTeam(UUID teamId, Collection<UUID> sellerIds, OffsetDateTime since);
+
+  record MovedLine(UUID movementId, UUID productId, UUID fromTeamId, UUID toTeamId) {}
+
   /** La cabecera y sus líneas. */
   record MovementDetailView(
       MyMovementRow header, List<MovementLineRow> lines, List<PaymentRow> payments) {}

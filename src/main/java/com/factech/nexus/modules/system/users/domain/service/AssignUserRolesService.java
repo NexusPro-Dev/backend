@@ -4,6 +4,7 @@ import com.factech.nexus.modules.system.roles.application.AuthenticatedActor;
 import com.factech.nexus.modules.system.teams.application.TeamMembershipRetirement;
 import com.factech.nexus.modules.system.users.application.AssignRolesRequest;
 import com.factech.nexus.modules.system.users.application.LastLinkRoles;
+import com.factech.nexus.modules.system.users.application.SupervisorChangeFollower;
 import com.factech.nexus.modules.system.users.application.UserResponse;
 import com.factech.nexus.modules.system.users.domain.models.User;
 import com.factech.nexus.modules.system.users.domain.repository.AssignableCountry;
@@ -87,6 +88,7 @@ public class AssignUserRolesService {
   private final UuidV7Generator ids;
   private final TeamMembershipRetirement equipos;
   private final LastLinkRoles ultimoEslabon;
+  private final SupervisorChangeFollower seguidores;
   private final Clock reloj;
 
   @Autowired
@@ -100,7 +102,8 @@ public class AssignUserRolesService {
       AssignableCountry paises,
       AssignableDocumentType documentos,
       TeamMembershipRetirement equipos,
-      LastLinkRoles ultimoEslabon) {
+      LastLinkRoles ultimoEslabon,
+      SupervisorChangeFollower seguidores) {
     this(
         usuarios,
         roles,
@@ -112,6 +115,7 @@ public class AssignUserRolesService {
         documentos,
         equipos,
         ultimoEslabon,
+        seguidores,
         Clock.systemUTC());
   }
 
@@ -126,10 +130,12 @@ public class AssignUserRolesService {
       AssignableDocumentType documentos,
       TeamMembershipRetirement equipos,
       LastLinkRoles ultimoEslabon,
+      SupervisorChangeFollower seguidores,
       Clock reloj) {
     this.usuarios = usuarios;
     this.equipos = equipos;
     this.ultimoEslabon = ultimoEslabon;
+    this.seguidores = seguidores;
     this.roles = roles;
     this.paises = paises;
     this.documentos = documentos;
@@ -209,6 +215,8 @@ public class AssignUserRolesService {
     }
     if (superiorNuevo != null) {
       usuarios.assignSupervisor(ids.next(), userId, superiorNuevo, ahora);
+      // `RN-SP-083`: lo vendido en el periodo abierto se va con él a su oficina nueva.
+      seguidores.supervisorChanged(userId, ahora);
     }
 
     // `RN-SP-055` (09-10-2026): la pertenencia sigue al RANGO DE DIRECTOR, también

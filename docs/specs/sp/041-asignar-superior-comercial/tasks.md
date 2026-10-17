@@ -33,6 +33,7 @@ Sin migración: `user_supervisors` la crea `V21` con la unicidad parcial que dec
 | `T-12` | Pruebas de los casos límite de `spec.md` §13: reasignación concurrente, inversión de rama, dos roles comerciales, subordinado inactivo y motivo de una palabra | `T-09` | Ninguno deja dos asignaciones vigentes ni produce `500` | **En curso** |
 | `T-13` | Documentación OpenAPI del endpoint: cuerpo, respuesta `200` y los estados `400`, `401`, `403`, `404`, `409` y `500`. **Debe decir que no admite fecha de inicio ni retirar el superior** | `T-11` | El contrato publicado coincide con el comportamiento real (Art. VIII.6) | **Hecha** |
 | `T-14` | Actualizar la matriz de trazabilidad de `docs/requirements.md` | `T-11` | La fila de `RF-SP-041` refleja el estado y enlaza esta tripleta | **Hecha** |
+| `T-15` | `RN-SP-083`: puerto `SupervisorChangeFollower` en `SP`, llamado desde `AssignSupervisorService` y `AssignUserRolesService` cuando el superior cambia; lo implementa `CM` con el corte del último cierre (`RN-CM-055`) y `MV` mueve las líneas (`RN-MV-080`), auditando por venta; prueba con `CA-SP-1050` y `CA-SP-1051` | `T-09` | `mvn verify` de las suites en verde | **Hecha** — 16-10-2026 |
 
 **Estados:** `Pendiente` · `En curso` · `Hecha` · `Bloqueada`.
 

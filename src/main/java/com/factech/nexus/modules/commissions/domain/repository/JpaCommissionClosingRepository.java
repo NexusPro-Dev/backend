@@ -162,6 +162,14 @@ public class JpaCommissionClosingRepository implements CommissionClosingReposito
   }
 
   @Override
+  public Optional<OffsetDateTime> lastCut() {
+    return Optional.ofNullable(
+        instante(
+            em.createNativeQuery("SELECT max(closed_at) FROM commission_closings")
+                .getSingleResult()));
+  }
+
+  @Override
   public Optional<ClosingRow> find(UUID id) {
     @SuppressWarnings("unchecked")
     List<Object[]> filas =

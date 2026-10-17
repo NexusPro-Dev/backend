@@ -1007,6 +1007,59 @@ public class JpaMovementRepository implements MovementRepository {
     return rellenadas;
   }
 
+  /** Las líneas de venta de {@code :vendedores} en ventas desde {@code :desde} (`RN-MV-080`). */
+  private static final String LINEAS_DESDE =
+      """
+      d.seller_id IN (:vendedores)
+      AND d.movement_id IN (SELECT m.id FROM movements m
+                             WHERE m.occurred_at >= :desde
+                               AND m.movement_type_id =
+                                   (SELECT t.id FROM movement_types t WHERE t.code = 'VENTA'))
+      """;
+
+  @Override
+  public void lockSalesOfSellersSince(Collection<UUID> sellerIds, OffsetDateTime since) {
+    if (sellerIds == null || sellerIds.isEmpty()) {
+      return;
+    }
+    em.createNativeQuery(
+            "SELECT count(*) FROM (SELECT m.id FROM movements m WHERE m.id IN"
+                + " (SELECT d.movement_id FROM movement_details d WHERE "
+                + LINEAS_DESDE
+                + ") ORDER BY m.id FOR UPDATE OF m) bloqueadas")
+        .setParameter("vendedores", List.copyOf(sellerIds))
+        .setParameter("desde", since)
+        .getSingleResult();
+  }
+
+  @Override
+  @Transactional
+  public List<MovedLine> moveLineTeam(
+      UUID teamId, Collection<UUID> sellerIds, OffsetDateTime since) {
+    if (teamId == null || sellerIds == null || sellerIds.isEmpty()) {
+      return List.of();
+    }
+    // PostgreSQL 17 no tiene `OLD` en `RETURNING`: la oficina de antes viaja en la subconsulta.
+    @SuppressWarnings("unchecked")
+    List<Object[]> filas =
+        em.createNativeQuery(
+                "UPDATE movement_details d SET team_id = CAST(:equipo AS uuid)"
+                    + " FROM (SELECT d.id, d.team_id FROM movement_details d WHERE "
+                    + LINEAS_DESDE
+                    + " AND d.team_id IS DISTINCT FROM CAST(:equipo AS uuid)) antes"
+                    + " WHERE d.id = antes.id"
+                    + " RETURNING d.movement_id, d.product_id, antes.team_id")
+            .setParameter("equipo", teamId)
+            .setParameter("vendedores", List.copyOf(sellerIds))
+            .setParameter("desde", since)
+            .getResultList();
+    List<MovedLine> movidas = new ArrayList<>(filas.size());
+    for (Object[] fila : filas) {
+      movidas.add(new MovedLine((UUID) fila[0], (UUID) fila[1], (UUID) fila[2], teamId));
+    }
+    return movidas;
+  }
+
   @Override
   @Transactional(readOnly = true)
   public List<MovementTeamRow> findTeamsOf(Collection<UUID> movementIds) {

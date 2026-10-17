@@ -93,6 +93,7 @@ class AssignUserRolesOrderTest {
           documentos,
           equipos,
           java.util.Set::of,
+          (persona, instante) -> {},
           Clock.fixed(Instant.parse("2026-08-27T10:00:00Z"), ZoneOffset.UTC));
 
   @Nested

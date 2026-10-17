@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `api/index.md` |
-| Versión | 1.148.0 |
+| Versión | 1.149.0 |
 | Estado | Publicado |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 25-08-2026 |
@@ -253,3 +253,4 @@ Lo que sigue siendo cierto, y conviene saberlo antes de tropezar:
 | 1.146.0 | 16-10-2026 | **`GET /api/v1/indicators/broker-accounts/summary`: cada persona de `staff[].people[]` trae `supervisorId` y `afftracks`** (`RF-IN-010`, `CA-IN-117`), para que el cliente acumule por la red. `supervisorId` es el superior vigente, **nulo** en la cúspide, y **puede no estar en la respuesta**: para un vendedor, su propio superior queda fuera de su alcance, así que quien no encuentre a su superior es una raíz. `afftracks` es `[{brokerId, brokerName, afftrack}]`, uno por cuenta `VENDEDOR` con `afftrack`, por nombre de broker, vacío si no tiene. Las cifras de cada persona siguen siendo **las suyas**, sin acumular. Solo se añaden campos. | Responsable técnico |
 | 1.147.0 | 16-10-2026 | **Filtros en los indicadores de cuentas de broker.** `GET /api/v1/indicators/broker-accounts/summary` deja de ir sin parámetros: **`from`/`to`** (días del negocio, `to` entero) acotan `totals` y `staff` **pero no `accountsToday` ni `ftdToday`**, que siguen siendo de hoy; **`brokerId`** y **`sellerId`** —la rama de ese vendedor, él incluido— acotan todo, también lo de hoy, y con `sellerId` no entra lo no atribuido; `from` posterior a `to` es `400` (`VAL-002`). `GET /api/v1/indicators/broker-accounts/network` gana **`brokerId`**. Todos opcionales: sin ellos, nada cambia. | Responsable técnico |
 | 1.148.0 | 16-10-2026 | **`sellerId` de `GET /api/v1/broker-accounts` trae la rama entera** (`RN-SP-082`): las cuentas que originó ese vendedor **y las que originaron los que cuelgan de él**, en toda la profundidad, como `sellerId` en los indicadores de cuentas de broker. Hasta hoy era solo lo de esa persona. `GET /api/v1/users/me/referred-broker-accounts` no cambia. | Responsable técnico |
+| 1.149.0 | 16-10-2026 | **`PATCH /api/v1/users/{id}/supervisor` mueve la oficina de lo vendido en el periodo abierto** (`RN-SP-083`, `RN-MV-080`): las líneas del subordinado y de su red vendidas desde el último cierre de comisiones pasan a su oficina nueva, y lo mismo al asignar roles con un superior nuevo (`POST /api/v1/users/{id}/roles`). El contrato no cambia; cambia el `team` que devuelven después las ventas y lo que filtra `teamId`. | Responsable técnico |

@@ -9,6 +9,7 @@
 | Aprobada por | Responsable técnico |
 | Fecha de aprobación | 22-08-2026 |
 | Enmendada | 10-09-2026 — **de rebote, por `RF-SP-042`**: comparten `CommercialStructureResponse`. Cada persona de la respuesta pierde el `roleCode` único y gana `roles`, la lista completa. El comportamiento de este requerimiento **no cambia** |
+| Enmendada | 16-10-2026 — **se lleva la oficina de lo vendido en el periodo abierto** (`RN-SP-083`, `RN-MV-080`, `RN-CM-055`), a petición del responsable del proyecto: «por cada ftd que se cree hay que guardar la oficina del agente que lo hizo en el momento, en caso de que el agente se cambie de oficina (tiene otro supervisor) se podra llevar su ftds pero en el periodo abierto». `CA-SP-1050` y `CA-SP-1051` |
 
 ---
 
@@ -212,6 +213,8 @@ Es el único caso en que quien ejecuta tiene interés directo en el resultado: d
 | `CA-SP-428` | El sistema **no** emite evento en la auditoría de seguridad por esta operación |
 | `CA-SP-429` | La asignación queda vigente desde el momento de ejecutarse, y la operación no admite declarar otra fecha de inicio |
 | `CA-SP-425` | El sistema rechaza la operación a un actor sin el permiso de asignación de superior comercial |
+| `CA-SP-1050` | Cambiar el superior lleva a la oficina vigente las líneas de venta del subordinado y de su red vendidas desde el corte del último cierre de comisiones; las vendidas antes conservan la suya, y sin ningún cierre se mueven todas (16-10-2026) |
+| `CA-SP-1051` | Una línea cuyo vendedor queda sin oficina tras el cambio conserva la que tenía, y repetir el mismo superior no mueve ninguna (16-10-2026) |
 
 ## 13. Casos límite
 
