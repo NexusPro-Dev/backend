@@ -5,7 +5,7 @@
 | Proyecto | NEXUS — Renovación de plataforma |
 | Empresa | FACTECH GROUP SAS |
 | Documento | `security.md` |
-| Versión | 0.143.0 |
+| Versión | 0.144.0 |
 | Estado | Borrador |
 | Responsable técnico | Bonilla Diaz William Steven |
 | Fecha de creación | 19-08-2026 |
@@ -474,6 +474,8 @@ La vista transversal `v_audit_timeline` (`architecture.md` §6.6.6) exige los cu
 **El 15-10-2026, `V112` siembra `brokers:update`** (`RF-SP-084`, `RN-SP-039` enmendada): editar el enlace y el modelo de un broker del catálogo, a `SUPERADMIN` y `ADMIN` explícitos. Es la primera escritura del recurso `brokers`, que hasta hoy solo se consultaba. Catálogo **251**, `ADMIN` 249.
 
 **El mismo día, `V115` siembra `indicators:read-broker-accounts-summary`** —el resumen de cuentas de broker y del personal por rol, `GET /api/v1/indicators/broker-accounts/summary` (`RF-IN-010`)—, a los roles `FUNCIONARIO` y `VENDEDOR` por su tipo, como `V101`: el alcance lo pone `RN-IN-002`.
+
+**Uno más de `CM` de lo propio, declarado el 17-10-2026 y sin sembrar**: `afftrack-settlements:read-own-progress` —mi avance de FTD en el periodo abierto, lo que el próximo cierre me liquidaría si corriera ahora, `GET /afftrack-settlements/mine/progress` (`RF-CM-030`, `RN-CM-056`)— ([`requirements/cm.md`](requirements/cm.md) v0.45.0 §6). **Se sembrará a todo rol que porte `commission-batches:list-own`**, como `V81` hizo con `commission-batches:list-own-commissions`: quien ve sus lotes ve su avance, y la contención (`RN-SEG-003`) se conserva sola. **No reutiliza `afftrack-settlements:read`**, que es la lectura administrativa de lo liquidado y de todas las personas. La sembrará `V117`, que llevará el catálogo a **253**.
 
 ### 4.5 Resolución en tiempo de ejecución
 
@@ -1154,3 +1156,4 @@ RNF-SEG-002 merece atención: es una prueba que enumera los endpoints registrado
 | 0.141.0 | 15-10-2026 | **`V112`**: nace `brokers:update` (`RF-SP-084`) a `SUPERADMIN` y `ADMIN`. Catálogo 251, `ADMIN` 249. | Responsable técnico |
 | 0.142.0 | 15-10-2026 | **`V115`**: nace `indicators:read-broker-accounts-summary` (`RF-IN-010`) a `FUNCIONARIO` y `VENDEDOR` por su tipo. Catálogo 252. | Responsable técnico |
 | 0.143.0 | 16-10-2026 | **`V116`**: `broker-accounts:read` pasa también a los roles `VENDEDOR` (`RN-SP-081`): en `GET /broker-accounts` un vendedor ve él y su red, y administración todo. En `GET /users/{id}/broker-accounts` el permiso abre a cualquiera **solo con el alcance entero**. Catálogo sin cambio (252). | Responsable técnico |
+| 0.144.0 | 17-10-2026 | **Un permiso de `CM` de lo propio, declarado y sin sembrar** (§4.4): `afftrack-settlements:read-own-progress` (`RF-CM-030`), a todo rol que porte `commission-batches:list-own`. Lo sembrará `V117` (catálogo 253). | Responsable del proyecto |
